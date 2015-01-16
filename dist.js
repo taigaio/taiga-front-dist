@@ -50,6 +50,6 @@ exec(action)
     })
     .then(function() {
         //push
-        return exec('git push --repo https://' + params[0] + ':' + params[1] + '@github.com:taigaio/taiga-front-dist.git master');
+        return exec('git push origin master');
     })
     .done();
