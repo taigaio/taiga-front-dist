@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="taiga">
+  <head>
+    <meta charset="utf-8">
+    <title>Taiga</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="description" content="Taiga Landing page">
+    <meta name="keywords" content="Agile, Taiga, Management, Github">
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+  </head>
+  <body tg-main>
+    <div class="projects-nav-overlay">
+      <div class="container">
+        <p>Loading project...</p>
+      </div>
+    </div>
+    <div tg-lb-create-project class="wizard-create-project">
+      <form>
+        <section data-step="step1" class="wizard-step create-step1">
+          <div class="title">
+            <h1>Choose a template</h1>
+            <p>Which template would fit better in your project?</p>
+          </div>
+          <div class="template-wrapper">
+            <div class="template-inner">
+              <fieldset ng-repeat="template in templates">
+                <input type="radio" name="template" id="template-{{ template.id }}" ng-value="template.id" ng-model="data.creation_template" data-required="true">
+                <label for="template-{{ template.id }}" class="backlog"><span class="icon icon-backlog"></span>
+                  <h2>{{ template.name }}</h2>
+                </label>
+                <p>{{ template.description }}</p>
+              </fieldset>
+            </div>
+          </div>
+          <fieldset><a href="" title="Next" class="button-next button button-green">Next</a></fieldset>
+        </section>
+        <section data-step="step2" class="wizard-step create-step2 active">
+          <div class="title">
+            <h1>Create Project</h1>
+            <p>Fresh and clean. So exciting!</p>
+          </div>
+          <fieldset>
+            <input type="text" name="name" ng-model="data.name" data-required="true" placeholder="Name" maxlength="45">
+          </fieldset>
+          <fieldset>
+            <textarea name="description" ng-model="data.description" data-required="true" placeholder="Description"></textarea>
+          </fieldset>
+          <fieldset class="wizard-action">
+            <div><a href="" title="Prev" class="button-prev button button-gray">Prev</a><a href="" title="Create" class="submit-button button button-green">Create</a></div>
+            <button type="submit" class="hidden"></button>
+          </fieldset>
+        </section>
+      </form>
+      <div class="progress-bar">
+        <div class="progress-state"><span>Template selection</span><span>Name and description</span>
+          <!-- span Final touches-->
+        </div>
+        <div class="progress-bar-wrapper">
+          <div class="bar"></div>
+        </div>
+      </div><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
+    </div>
+    <nav tg-projects-nav class="projects-nav"></nav>
+    <nav tg-project-menu class="menu hidden"></nav>
+    <div class="notification-message notification-message-success">
+      <div class="icon icon-notification-success"></div>
+      <div class="text">
+        <h4 class="warning">Everything is ok</h4>
+        <p>Our oompa Loompas saved all your changes!</p>
+      </div><a href="" title="Close notification" class="icon icon-delete"></a>
+    </div>
+    <div class="notification-message notification-message-error">
+      <div class="icon icon-notification-error"></div>
+      <div class="text">
+        <h4 class="warning">Oops, something happened...</h4>
+        <p>Our oompa Loompas are sad, your changes were not saved!</p>
+      </div><a href="" title="Close notification" class="icon icon-delete"></a>
+    </div>
+    <div class="notification-light notification-message-light-error">
+      <div class="text">
+        <h4 class="warning">Oops, something happened...</h4>
+        <p>Our oompa Loompas are sad, your changes were not saved!</p>
+      </div><a href="" title="Close notification" class="icon icon-delete"></a>
+    </div>
+    <div ng-view class="master"></div>
+    <div class="lightbox lightbox-generic-ask"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
+      <form>
+        <h2 class="title"></h2>
+        <p><span class="subtitle"></span><span class="message"></span></p>
+        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a><a href="" title="Delete" class="button button-red"><span>Cancel</span></a></div>
+      </form>
+    </div>
+    <div class="lightbox lightbox-ask-choice"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
+      <form>
+        <h2 class="title"></h2>
+        <p class="question"></p>
+        <p class="subtitle"></p>
+        <p class="replacement"></p>
+        <select class="choices"></select>
+        <p class="warning"></p>
+        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a><a href="" title="Delete" class="button button-red"><span>Cancel</span></a></div>
+      </form>
+    </div>
+    <div class="lightbox lightbox-generic-success"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
+      <section>
+        <h2 class="title"></h2>
+        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a></div>
+      </section>
+    </div>
+    <div class="lightbox lightbox-generic-error"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
+      <section>
+        <h2 class="title"></h2>
+        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a></div>
+      </section>
+    </div>
+    <div tg-search-box class="lightbox lightbox-search"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
+      <form>
+        <h2 class="title">Search</h2>
+        <fieldset>
+          <input type="text" name="text" id="search-text" placeholder="What are you looking for?" data-required="true">
+        </fieldset>
+        <fieldset>
+          <button type="submit" class="hidden"></button><a href="" title="Search" class="button button-green submit-button">Search</a>
+        </fieldset>
+      </form>
+    </div>
+    <div tg-lb-feedback class="lightbox lightbox-feedback lightbox-generic-form"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
+      <form>
+        <h2 class="title">Tell us something...</h2>
+        <fieldset>
+          <textarea ng-model="feedback.comment" data-required="true" placeholder="...a bug, some suggestions, something cool... or even your worst nightmare with Taiga"></textarea>
+        </fieldset>
+        <fieldset>
+          <button type="submit" class="hidden"></button><a href="" title="Send feedback" class="button button-green submit-button"><span>Send feedback</span></a>
+        </fieldset>
+      </form>
+    </div>
+    <div tg-loader class="loader">
+      <div class="loading"><span class="item item-1"></span><span class="item item-2"></span><span class="item item-3"></span><span class="item item-4"></span><span class="item item-5"></span></div>
+      <div class="container">
+        <p>Loading...</p>
+      </div>
+    </div>
+    <script src="/js/libs.js?v=1421416166553"></script>
+    <script src="/js/app.js?v=1421416166553"></script>
+    <script src="/js/conf.js?v=1421416166553"></script>
+  </body>
+</html>
