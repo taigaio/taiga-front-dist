@@ -1,0 +1,21 @@
+{
+  "name": "TaigaIO",
+  "keywords": [
+    "Taiga",
+    "Agile",
+    "Project Management",
+    "Github"
+  ],
+  "author": "Kaleidos OpenSource SL",
+  "licenses": [
+    {
+      "type": "AGPL-3.0",
+      "url": "https://github.com/taigaio/taiga-front/blob/master/LICENSE"
+    }
+  ],
+  "devDependencies": {
+    "bluebird": "^2.6.4",
+    "del": "^1.1.1",
+    "ncp": "^1.0.1"
+  }
+}
