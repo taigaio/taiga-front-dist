@@ -7,12 +7,6 @@ var ncp = Promise.promisify(require('ncp').ncp);
 var local = 'tmp';
 var repo = 'https://github.com/taigaio/taiga-front';
 
-var params = process.argv.slice(2);
-
-if (params.length !== 2) {
-    throw "Github user & password rerquired";
-}
-
 var action = (function cloneOrPull(){
     var cloned = fs.existsSync(local);
 
