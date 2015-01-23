@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" ng-app="taiga">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <title>Taiga</title>
@@ -40,16 +40,20 @@
             <h1>Create Project</h1>
             <p>Fresh and clean. So exciting!</p>
           </div>
-          <fieldset>
-            <input type="text" name="name" ng-model="data.name" data-required="true" placeholder="Name" maxlength="45">
-          </fieldset>
-          <fieldset>
-            <textarea name="description" ng-model="data.description" data-required="true" placeholder="Description"></textarea>
-          </fieldset>
-          <fieldset class="wizard-action">
-            <div><a href="" title="Prev" class="button-prev button button-gray">Prev</a><a href="" title="Create" class="submit-button button button-green">Create</a></div>
-            <button type="submit" class="hidden"></button>
-          </fieldset>
+          <div class="template-wrapper">
+            <div class="template-inner">
+              <fieldset>
+                <input type="text" name="name" ng-model="data.name" data-required="true" placeholder="Name" maxlength="45">
+              </fieldset>
+              <fieldset>
+                <textarea name="description" ng-model="data.description" data-required="true" placeholder="Description"></textarea>
+              </fieldset>
+              <fieldset class="wizard-action">
+                <div><a href="" title="Prev" class="button-prev button button-gray">Prev</a><a href="" title="Create" class="submit-button button button-green">Create</a></div>
+                <button type="submit" class="hidden"></button>
+              </fieldset>
+            </div>
+          </div>
         </section>
       </form>
       <div class="progress-bar">
@@ -142,8 +146,7 @@
         <p>Loading...</p>
       </div>
     </div>
-    <script src="/js/libs.js?v=1421416470259"></script>
-    <script src="/js/app.js?v=1421416470259"></script>
-    <script src="/js/conf.js?v=1421416470259"></script>
+    <script src="/js/libs.js?v=1422000753274"></script>
+    <script src="/js/app-loader.js?v=1422000753274"></script>
   </body>
 </html>
