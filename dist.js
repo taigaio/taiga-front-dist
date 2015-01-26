@@ -21,6 +21,10 @@ var action = (function cloneOrPull(){
 
 exec(action)
     .then(function() {
+        //remove old tmp dist
+        return delAsync(local + '/dist');
+    })
+    .then(function() {
         //compile taiga
         return exec('cd ' + local + ' && npm install && bower install && gulp deploy');
     })
