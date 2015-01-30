@@ -1,7 +1,7 @@
 (function() {
   var promise, version;
 
-  version = 1422556596127;
+  version = 1422610835475;
 
   window.taigaConfig = {
     "api": "http://localhost:8000/api/v1/",
@@ -26,7 +26,7 @@
     var plugins;
     if (window.taigaConfig.contribPlugins.length > 0) {
       plugins = _.map(window.taigaConfig.contribPlugins, function(plugin) {
-        return "" + plugin + "?v=" + version;
+        return plugin + "?v=" + version;
       });
       return ljs.load(plugins, function() {
         return ljs.load("/js/app.js?v=" + version, function() {
