@@ -7,19 +7,26 @@ var ncp = Promise.promisify(require('ncp').ncp);
 var local = 'tmp';
 var repo = 'https://github.com/taigaio/taiga-front';
 
-var action = (function cloneOrPull(){
+if (process.argv.length !== 3){
+    console.log("¡Error!, call me with somethink like: \nnode dist.js branch_name");
+    process.exit();
+}
+
+var branch = process.argv[2];
+
+var synchRepoAction = (function cloneOrPull(){
     var cloned = fs.existsSync(local);
 
     if (cloned) {
-        action = 'cd ' + local + ' && git pull';
+        action = 'cd ' + local + ' && git checkout ' + branch + ' && git pull';
     } else {
-        action = 'git clone ' + repo + ' ' + local;
+        action = 'git clone -b ' + branch + '  ' + repo + ' ' + local;
     }
 
     return action;
 }())
 
-exec(action)
+exec(synchRepoAction)
     .then(function() {
         //remove old tmp dist
         return delAsync(local + '/dist');
@@ -48,6 +55,6 @@ exec(action)
     })
     .then(function() {
         //push
-        return exec('git push origin master');
+        return exec('git push origin ' + branch);
     })
     .done();
