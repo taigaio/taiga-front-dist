@@ -1,7 +1,7 @@
 (function() {
   var promise, version;
 
-  version = 1426073321186;
+  version = 1426143984435;
 
   window.taigaConfig = {
     "api": "http://localhost:8000/api/v1/",
@@ -12,7 +12,6 @@
     "privacyPolicyUrl": null,
     "termsOfServiceUrl": null,
     "maxUploadFileSize": null,
-    "gitHubClientId": null,
     "contribPlugins": []
   };
 
