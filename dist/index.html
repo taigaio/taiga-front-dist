@@ -49,7 +49,9 @@
                 <textarea name="description" ng-model="data.description" data-required="true" placeholder="Description"></textarea>
               </fieldset>
               <fieldset class="wizard-action">
-                <div><a href="" title="Prev" class="button-prev button button-gray">Prev</a><a href="" title="Create" class="submit-button button button-green">Create</a></div>
+                <div><a href="" title="Prev" class="button-prev button button-gray">Prev</a>
+                  <button type="submit" title="Create" class="button-green submit-button">Create</button>
+                </div>
                 <button type="submit" class="hidden"></button>
               </fieldset>
             </div>
@@ -92,7 +94,7 @@
       <form>
         <h2 class="title"></h2>
         <p><span class="subtitle"></span><span class="message"></span></p>
-        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a><a href="" title="Delete" class="button button-red"><span>Cancel</span></a></div>
+        <div class="options"><a href="" title="Accept" class="button-green"><span>Accept</span></a><a href="" title="Delete" class="button-red"><span>Cancel</span></a></div>
       </form>
     </div>
     <div class="lightbox lightbox-ask-choice"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
@@ -103,20 +105,20 @@
         <p class="replacement"></p>
         <select class="choices"></select>
         <p class="warning"></p>
-        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a><a href="" title="Delete" class="button button-red"><span>Cancel</span></a></div>
+        <div class="options"><a href="" title="Accept" class="button-green"><span>Accept</span></a><a href="" title="Delete" class="button-red"><span>Cancel</span></a></div>
       </form>
     </div>
     <div class="lightbox lightbox-generic-success"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
       <section>
         <h2 class="title"></h2>
         <p class="message"></p>
-        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a></div>
+        <div class="options"><a href="" title="Accept" class="button-green"><span>Accept</span></a></div>
       </section>
     </div>
     <div class="lightbox lightbox-generic-error"><a href="" title="close" class="close"><span class="icon icon-delete"></span></a>
       <section>
         <h2 class="title"></h2>
-        <div class="options"><a href="" title="Accept" class="button button-green"><span>Accept</span></a></div>
+        <div class="options"><a href="" title="Accept" class="button-green"><span>Accept</span></a></div>
       </section>
     </div>
     <div class="lightbox lightbox-generic-loading">
@@ -136,7 +138,7 @@
           <input type="text" name="text" id="search-text" placeholder="What are you looking for?" data-required="true">
         </fieldset>
         <fieldset>
-          <button type="submit" class="hidden"></button><a href="" title="Search" class="button button-green submit-button">Search</a>
+          <button type="submit" title="Search" class="button-green submit-button">Search</button>
         </fieldset>
       </form>
     </div>
@@ -147,7 +149,7 @@
           <textarea ng-model="feedback.comment" data-required="true" placeholder="...a bug, some suggestions, something cool... or even your worst nightmare with Taiga"></textarea>
         </fieldset>
         <fieldset>
-          <button type="submit" class="hidden"></button><a href="" title="Send feedback" class="button button-green submit-button"><span>Send feedback</span></a>
+          <button type="submit" title="Send feedback" class="button-green submit-button">Send feedback</button>
         </fieldset>
       </form>
     </div>
@@ -157,8 +159,8 @@
         <p>Loading...</p>
       </div>
     </div>
-    <script src="/js/libs.js?v=1423548479600"></script>
-    <script src="/js/app-loader.js?v=1423548479600"></script>
-    <script src="/js/templates.js?v=1423548479600"></script>
+    <script src="/js/libs.js?v=1426586602955"></script>
+    <script src="/js/app-loader.js?v=1426586602955"></script>
+    <script src="/js/templates.js?v=1426586602955"></script>
   </body>
 </html>
