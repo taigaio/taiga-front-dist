@@ -4219,7 +4219,7 @@
       render = function(model) {
         var html, owner, ref;
         owner = ((ref = $scope.usersById) != null ? ref[model.owner] : void 0) || {
-          full_name_display: "external user",
+          full_name_display: $translate.instant("COMMON.EXTERNAL_USER"),
           photo: "/images/unnamed.png"
         };
         html = template({
@@ -5965,12 +5965,14 @@
     templateBaseEntries = $template.get("common/history/history-base-entries.html", true);
     templateBase = $template.get("common/history/history-base.html", true);
     link = function($scope, $el, $attrs, $ctrl) {
-      var countChanges, formatChange, getHumanizedFieldName, getUserAvatar, getUserFullName, objectId, prettyDate, renderActivity, renderAttachmentEntry, renderChange, renderChangeEntries, renderChangeEntry, renderChangesHelperText, renderComment, renderComments, renderCustomAttributesEntry, renderHistory, save, showAllActivity, showAllComments, type;
+      var countChanges, formatChange, getHumanizedFieldName, getPrettyDateFormat, getUserAvatar, getUserFullName, objectId, renderActivity, renderAttachmentEntry, renderChange, renderChangeEntries, renderChangeEntry, renderChangesHelperText, renderComment, renderComments, renderCustomAttributesEntry, renderHistory, save, showAllActivity, showAllComments, type;
       type = $attrs.type;
       objectId = null;
       showAllComments = false;
       showAllActivity = false;
-      prettyDate = $translate.instant("ACTIVITY.DATETIME");
+      getPrettyDateFormat = function() {
+        return $translate.instant("ACTIVITY.DATETIME");
+      };
       bindOnce($scope, $attrs.ngModel, function(model) {
         type = $attrs.type;
         objectId = model.id;
@@ -6192,7 +6194,7 @@
         var html, ref, ref1, ref2;
         if (comment.delete_comment_date || ((ref = comment.delete_comment_user) != null ? ref.name : void 0)) {
           html = templateDeletedComment({
-            deleteCommentDate: comment.delete_comment_date ? moment(comment.delete_comment_date).format(prettyDate) : void 0,
+            deleteCommentDate: comment.delete_comment_date ? moment(comment.delete_comment_date).format(getPrettyDateFormat()) : void 0,
             deleteCommentUser: comment.delete_comment_user.name,
             deleteComment: comment.comment_html,
             activityId: comment.id,
@@ -6204,12 +6206,12 @@
         html = templateActivity({
           avatar: getUserAvatar(comment.user.pk),
           userFullName: comment.user.name,
-          creationDate: moment(comment.created_at).format(prettyDate),
+          creationDate: moment(comment.created_at).format(getPrettyDateFormat()),
           comment: comment.comment_html,
           changesText: renderChangesHelperText(comment),
           changes: renderChangeEntries(comment),
           mode: "comment",
-          deleteCommentDate: comment.delete_comment_date ? moment(comment.delete_comment_date).format(prettyDate) : void 0,
+          deleteCommentDate: comment.delete_comment_date ? moment(comment.delete_comment_date).format(getPrettyDateFormat()) : void 0,
           deleteCommentUser: ((ref1 = comment.delete_comment_user) != null ? ref1.name : void 0) ? comment.delete_comment_user.name : void 0,
           activityId: comment.id,
           canDeleteComment: comment.user.pk === ((ref2 = $scope.user) != null ? ref2.id : void 0) || $scope.project.my_permissions.indexOf("modify_project") > -1
@@ -6222,12 +6224,12 @@
         return templateActivity({
           avatar: getUserAvatar(change.user.pk),
           userFullName: change.user.name,
-          creationDate: moment(change.created_at).format(prettyDate),
+          creationDate: moment(change.created_at).format(getPrettyDateFormat()),
           comment: change.comment_html,
           changes: renderChangeEntries(change),
           changesText: "",
           mode: "activity",
-          deleteCommentDate: change.delete_comment_date ? moment(change.delete_comment_date).format(prettyDate) : void 0,
+          deleteCommentDate: change.delete_comment_date ? moment(change.delete_comment_date).format(getPrettyDateFormat()) : void 0,
           deleteCommentUser: ((ref = change.delete_comment_user) != null ? ref.name : void 0) ? change.delete_comment_user.name : void 0,
           activityId: change.id
         });
