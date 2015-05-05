@@ -1,12 +1,13 @@
 (function() {
   var promise, version;
 
-  version = 1426844703203;
+  version = 1430807082413;
 
   window.taigaConfig = {
     "api": "http://localhost:8000/api/v1/",
     "eventsUrl": null,
     "debug": true,
+    "defaultLanguage": "en",
     "publicRegisterEnabled": true,
     "feedbackEnabled": true,
     "privacyPolicyUrl": null,
