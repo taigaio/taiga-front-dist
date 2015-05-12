@@ -1157,9 +1157,7 @@
       onSuccessSubmit = function(response) {
         var text;
         $location.path($navUrls.resolve("login"));
-        text = $translate.instant("FORGOT_PASSWORD_FORM.SUCCESS", {
-          email: response.data.email
-        });
+        text = $translate.instant("FORGOT_PASSWORD_FORM.SUCCESS");
         return $confirm.success(text);
       };
       onErrorSubmit = function(response) {
@@ -3994,7 +3992,6 @@
           isDeprecated: attachment.is_deprecated,
           modifyPermission: modifyPermission
         };
-        console.log(ctx.title);
         if (edit) {
           html = $compile(templateEdit(ctx))($scope);
         } else {
@@ -6446,7 +6443,6 @@
         onError = function(result) {
           var errorMsg, ref;
           loader.stop();
-          console.log("Error", result);
           errorMsg = $translate.instant("PROJECT.IMPORT.ERROR");
           if (result.status === 429) {
             errorMsg = $translate.instant("PROJECT.IMPORT.ERROR_TOO_MANY_REQUEST");
@@ -7910,7 +7906,10 @@
     link = function($scope, $el, $attrs, $model) {
       var addValue, deleteValue, hideAddTagButton, hideAddTagButtonText, hideInput, hideSaveButton, isEditable, removeInputLastCharacter, renderInReadModeOnly, renderTags, resetInput, saveInputTag, showAddTagButton, showAddTagButtonText, showInput, showSaveButton;
       isEditable = function() {
-        return $scope.project.my_permissions.indexOf($attrs.requiredPerm) !== -1;
+        if ($attrs.requiredPerm != null) {
+          return $scope.project.my_permissions.indexOf($attrs.requiredPerm) !== -1;
+        }
+        return true;
       };
       renderTags = function(tags, tagsColors) {
         var ctx, html;
@@ -8064,7 +8063,7 @@
         value = target.siblings(".tag-name").text();
         return deleteValue(value);
       });
-      bindOnce($scope, "project", function(project) {
+      bindOnce($scope, "project.tags_colors", function(tags_colors) {
         var positioningFunction;
         if (!isEditable()) {
           renderInReadModeOnly();
@@ -8079,7 +8078,7 @@
           return menu.css("left", position.left);
         };
         return $el.find("input").autocomplete({
-          source: _.keys(project.tags_colors),
+          source: _.keys(tags_colors),
           position: {
             my: "left top",
             using: positioningFunction
@@ -8241,7 +8240,6 @@
       };
       urlFormatting = function(markItUp) {
         var endIndex, ref, ref1, regex, result, startIndex, url, value;
-        console.log(markItUp.donotparse);
         regex = /<<</gi;
         result = 0;
         startIndex = 0;
@@ -13657,7 +13655,7 @@
         if (value === void 0) {
           return;
         }
-        $ctrl.replaceFilter("page", null);
+        $ctrl.replaceFilter("page", null, true);
         if (value.length === 0) {
           $ctrl.replaceFilter("q", null);
           $ctrl.storeFilters();
@@ -13835,28 +13833,42 @@
         $el.find(".pop-status").popover().close();
         updateIssueStatus($el, issue, $scope.issueStatusById);
         return $scope.$apply(function() {
-          var hideIssue, k, l, len1, len2, ref1, ref2;
-          $repo.save(issue).then;
-          ref1 = $scope.filters.statuses;
-          for (k = 0, len1 = ref1.length; k < len1; k++) {
-            filter = ref1[k];
-            if (filter.id === issue.status) {
-              filter.count++;
+          return $repo.save(issue).then(function() {
+            var el, filtering, i, k, l, len1, len2, len3, m, ref1, ref2, ref3, results;
+            ref1 = $scope.filters.statuses;
+            for (k = 0, len1 = ref1.length; k < len1; k++) {
+              filter = ref1[k];
+              if (filter.id === issue.status) {
+                filter.count++;
+              }
             }
-          }
-          $rootscope.$broadcast("filters:issueupdate", $scope.filters);
-          hideIssue = true;
-          ref2 = $scope.filters.statuses;
-          for (l = 0, len2 = ref2.length; l < len2; l++) {
-            filter = ref2[l];
-            if (filter.selected === true && filter.id === issue.status) {
-              hideIssue = false;
-              break;
+            $rootscope.$broadcast("filters:issueupdate", $scope.filters);
+            filtering = false;
+            ref2 = $scope.filters.statuses;
+            for (l = 0, len2 = ref2.length; l < len2; l++) {
+              filter = ref2[l];
+              if (filter.selected === true) {
+                filtering = true;
+                if (filter.id === issue.status) {
+                  return;
+                }
+              }
             }
-          }
-          if (hideIssue === true) {
-            return $scope.issues.splice($scope.issues.indexOf(issue), 1);
-          }
+            if (!filtering) {
+              return;
+            }
+            ref3 = $scope.issues;
+            results = [];
+            for (i = m = 0, len3 = ref3.length; m < len3; i = ++m) {
+              el = ref3[i];
+              if (el && el.id === issue.id) {
+                results.push($scope.issues.splice(i, 1));
+              } else {
+                results.push(void 0);
+              }
+            }
+            return results;
+          });
         });
       });
       taiga.bindOnce($scope, "project", function(project) {
@@ -14087,6 +14099,29 @@
     };
 
     UserStoryDetailController.prototype.loadUs = function() {
+      var httpParams, kanbanStaus, milestone, noMilestone;
+      httpParams = _.pick(this.location.search(), "milestone", "no-milestone", "kanban-status");
+      milestone = httpParams.milestone;
+      if (milestone) {
+        this.rs.userstories.storeQueryParams(this.scope.projectId, {
+          milestone: milestone,
+          order_by: "sprint_order"
+        });
+      }
+      noMilestone = httpParams["no-milestone"];
+      if (noMilestone) {
+        this.rs.userstories.storeQueryParams(this.scope.projectId, {
+          milestone: "null",
+          order_by: "backlog_order"
+        });
+      }
+      kanbanStaus = httpParams["kanban-status"];
+      if (kanbanStaus) {
+        this.rs.userstories.storeQueryParams(this.scope.projectId, {
+          status: kanbanStaus,
+          order_by: "kanban_order"
+        });
+      }
       return this.rs.userstories.getByRef(this.scope.projectId, this.params.usref).then((function(_this) {
         return function(us) {
           var ctx;
@@ -16398,6 +16433,18 @@
       })(this));
     };
 
+    ProjectProfileController.prototype.loadTagsColors = function() {
+      return this.rs.projects.tagsColors(this.scope.projectId).then((function(_this) {
+        return function(tags_colors) {
+          return _this.scope.project.tags_colors = tags_colors;
+        };
+      })(this));
+    };
+
+    ProjectProfileController.prototype.loadProjectProfile = function() {
+      return this.q.all([this.loadProject(), this.loadTagsColors()]);
+    };
+
     ProjectProfileController.prototype.loadInitialData = function() {
       var promise;
       promise = this.repo.resolve({
@@ -16410,7 +16457,7 @@
       })(this));
       return promise.then((function(_this) {
         return function() {
-          return _this.loadProject();
+          return _this.loadProjectProfile();
         };
       })(this));
     };
@@ -16801,10 +16848,11 @@
   CsvUsDirective = function($translate) {
     var link;
     link = function($scope) {
-      return $scope.csvType = $translate.instant("ADMIN.REPORTS.CSV_TYPE_USS");
+      return $scope.sectionTitle = "ADMIN.CSV.SECTION_TITLE_US";
     };
     return {
       controller: "CsvExporterUserstoriesController",
+      controllerAs: "ctrl",
       templateUrl: "admin/project-csv.html",
       link: link,
       scope: true
@@ -16816,10 +16864,11 @@
   CsvTaskDirective = function($translate) {
     var link;
     link = function($scope) {
-      return $scope.csvType = $translate.instant("ADMIN.REPORTS.CSV_TYPE_TASKS");
+      return $scope.sectionTitle = "ADMIN.CSV.SECTION_TITLE_TASK";
     };
     return {
       controller: "CsvExporterTasksController",
+      controllerAs: "ctrl",
       templateUrl: "admin/project-csv.html",
       link: link,
       scope: true
@@ -16831,10 +16880,11 @@
   CsvIssueDirective = function($translate) {
     var link;
     link = function($scope) {
-      return $scope.csvType = $translate.instant("ADMIN.REPORTS.CSV_TYPE_ISSUES");
+      return $scope.sectionTitle = "ADMIN.CSV.SECTION_TITLE_ISSUE";
     };
     return {
       controller: "CsvExporterIssuesController",
+      controllerAs: "ctrl",
       templateUrl: "admin/project-csv.html",
       link: link,
       scope: true
@@ -20277,7 +20327,7 @@
         target = $(event.currentTarget);
         if (!target.data("fullUrl")) {
           return parseNav($attrs.tgNav, $scope).then(function(result) {
-            var fullUrl, name, options, url, user;
+            var fullUrl, getURLParams, getURLParamsStr, name, options, url, user;
             name = result[0], options = result[1];
             user = $auth.getUser();
             if (user) {
@@ -20285,6 +20335,11 @@
             }
             url = $navurls.resolve(name);
             fullUrl = $navurls.formatUrl(url, options);
+            if ($attrs.tgNavGetParams) {
+              getURLParams = JSON.parse($attrs.tgNavGetParams);
+              getURLParamsStr = $.param(getURLParams);
+              fullUrl = fullUrl + "?" + getURLParamsStr;
+            }
             target.data("fullUrl", fullUrl);
             if (target.is("a")) {
               target.attr("href", fullUrl);
@@ -21705,7 +21760,7 @@
 
   sizeFormat = this.taiga.sizeFormat;
 
-  resourceProvider = function($config, $repo, $http, $urls, $auth, $q, $rootScope, $translate) {
+  resourceProvider = function($config, $repo, $http, $urls, $auth, $q, $translate) {
     var service;
     service = {};
     service.get = function(projectId) {
@@ -21776,14 +21831,19 @@
       return $http.get(url);
     };
     service["import"] = function(file, statusUpdater) {
-      var complete, data, defered, failed, maxFileSize, response, uploadComplete, uploadFailed, uploadProgress, xhr;
+      var complete, data, defered, errorMsg, failed, maxFileSize, response, uploadComplete, uploadFailed, uploadProgress, xhr;
       defered = $q.defer();
       maxFileSize = $config.get("maxUploadFileSize", null);
       if (maxFileSize && file.size > maxFileSize) {
+        errorMsg = $translate.instant("PROJECT.IMPORT.ERROR_MAX_SIZE_EXCEEDED", {
+          fileName: file.name,
+          fileSize: sizeFormat(file.size),
+          maxFileSize: sizeFormat(maxFileSize)
+        });
         response = {
           status: 413,
           data: {
-            _error_message: "'" + file.name + "' (" + (sizeFormat(file.size)) + ") is too heavy for our oompa loompas, try it with a smaller than (" + (sizeFormat(maxFileSize)) + ")"
+            _error_message: errorMsg
           }
         };
         defered.reject(response);
@@ -21793,7 +21853,10 @@
         return function(evt) {
           var message, percent;
           percent = Math.round((evt.loaded / evt.total) * 100);
-          message = "Uloaded " + (sizeFormat(evt.loaded)) + " of " + (sizeFormat(evt.total));
+          message = $translate.instant("PROJECT.IMPORT.UPLOAD_IN_PROGRESS_MESSAGE", {
+            uploadedSize: sizeFormat(evt.loaded),
+            totalSize: sizeFormat(evt.total)
+          });
           return statusUpdater("in-progress", null, message, percent);
         };
       })(this);
@@ -21986,15 +22049,11 @@
   generateHash = taiga.generateHash;
 
   resourceProvider = function($repo, $model, $storage) {
-    var hashSuffixUserstories, service;
+    var service;
     service = {};
-    hashSuffixUserstories = "userstories-queryparams";
     service.get = function(projectId, sprintId) {
       return $repo.queryOne("milestones", sprintId).then(function(sprint) {
         var uses;
-        service.storeUserstoriesQueryParams(projectId, {
-          "milestone": sprintId
-        });
         uses = sprint.user_stories;
         uses = _.map(uses, function(u) {
           return $model.make_model("userstories", u);
@@ -22026,12 +22085,6 @@
           return milestones;
         };
       })(this));
-    };
-    service.storeUserstoriesQueryParams = function(projectId, params) {
-      var hash, ns;
-      ns = projectId + ":" + hashSuffixUserstories;
-      hash = generateHash([projectId, ns]);
-      return $storage.set(hash, params);
     };
     return function(instance) {
       return instance.sprints = service;
@@ -23318,400 +23371,6 @@
   };
 
   module.directive("tgTermsNotice", ["$tgConfig", TermsNoticeDirective]);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "تنسيق الحقل غير صحيح",
-    type: {
-      email: "اكتب البريد الإلكتروني بالطريقة المطلوبة",
-      url: "اكتب الرابط بالطريقة المطلوبة",
-      urlstrict: "اكتب الرابط بالطريقة المطلوبة",
-      number: "اكتب أرقام ففط (عدد صحيح)",
-      digits: "اكتب أرقاما فقط",
-      dateIso: "اكتب التاريخ بهذه الصيغة (YYYY-MM-DD).",
-      alphanum: "اكتب حروف وأرقام فقط",
-      phone: "اكتب رقم هاتف بالطريقة المطلوبة"
-    },
-    notnull: "هذا الحقل مطلوب",
-    notblank: "هذا الحقل مطلوب",
-    required: "هذا الحقل مطلوب",
-    regexp: "تنسيق الحقل غير صحيح",
-    min: "الرقم يجب أن يكون أكبر من أو يساوي : %s.",
-    max: "الرقم يجب أن يكون أصغر من أو يساوي : %s.",
-    range: "الرقم يجب أن يكون بين %s و %s.",
-    minlength: "الحقل قصير. يجب أن يحتوي على %s حرف/أحرف أو أكثر",
-    maxlength: "الحقل طويل. يجب أن يحتوي على %s حرف/أحرف أو أقل",
-    rangelength: "طول الحقل غير مقبول. يجب أن يكون بين %s و %s حرف/أحرف",
-    mincheck: "يجب أن تختار %s (اختيار) على الأقل",
-    maxcheck: "يجب أن تختار %s (اختبار) أو أقل",
-    rangecheck: "يجب أن تختار بين %s و %s (اختبار).",
-    equalto: "يجب أن يتساوى الحقلان",
-    minwords: "يجب أن يحتوي الحقل على %s كلمة/كلمات على الأقل",
-    maxwords: "يجب أن يحتوي الحقل على %s كلمة/كلمات كحد أعلى",
-    rangewords: "عدد الكلمات المسوح بها مابين %s و %s كلمة/كلمات.",
-    greaterthan: "يجب أن تكون القيمة أكبر من %s.",
-    lessthan: "يجب أن تكون القيمة أقل من %s.",
-    beforedate: "التاريخ يجب أن يكون قبل  %s.",
-    afterdate: "التاريخ يجب أن يكون بعد  %s.",
-    americandate: "اكتب التاريخ بالطريقة المطلوبة (MM/DD/YYYY)."
-  };
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Aquest valor sembla ser invàlid.",
-    type: {
-      email: "Aquest valor ha de ser una adreça de correu electrònic vàlida.",
-      url: "Aquest valor ha de ser una URL vàlida.",
-      urlstrict: "Aquest valor ha de ser una URL vàlida.",
-      number: "Aquest valor ha de ser un nombre vàlid.",
-      digits: "Aquest valor ha només pot contenir dígits.",
-      dateIso: "Aquest valor ha de ser una data vàlida (YYYY-MM-DD).",
-      alphanum: "Aquest valor ha de ser alfanumèric."
-    },
-    notnull: "Aquest valor no pot ser nul.",
-    notblank: "Aquest valor no pot ser buit.",
-    required: "Aquest valor és requerit.",
-    regexp: "Aquest valor és incorrecte.",
-    min: "Aquest valor no pot ser menor que %s.",
-    max: "Aquest valor no pot ser major que %s.",
-    range: "Aquest valor ha d'estar entre %s i %s.",
-    minlength: "Aquest valor és massa curt. La longitud mínima és de %s caràcters.",
-    maxlength: "Aquest valor és massa llarg. La longitud màxima és de %s caràcters.",
-    rangelength: "La longitud d'aquest valor ha de ser d'entre %s i %s caràcters.",
-    equalto: "Aquest valor ha de ser idèntic.",
-    mincheck: "Has de marcar un mínim de %s opcions.",
-    maxcheck: "Has de marcar un màxim de %s opcions.",
-    rangecheck: "Has de marcar entre %s i %s opcions.",
-    minwords: "Aquest valor ha de tenir %s paraules com a mínim.",
-    maxwords: "Aquest valor no pot superar les %s paraules.",
-    rangewords: "Aquest valor ha de tenir entre %s i %s paraules.",
-    greaterthan: "Aquest valor no pot ser major que %s.",
-    lessthan: "Aquest valor no pot ser menor que %s."
-  };
-
-  this.checksley.updateMessages("ca", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Tato položka je neplatná.",
-    type: {
-      email: "Tato položka musí být e-mailová adresa.",
-      url: "Tato položka musí být url adresa.",
-      urlstrict: "Tato položka musí být url adresa.",
-      number: "Tato položka musí být platné číslo.",
-      digits: "Tato položka musí být číslice.",
-      dateIso: "Tato položka musí být datum ve formátu YYYY-MM-DD.",
-      alphanum: "Tato položka musí být alfanumerická."
-    },
-    notnull: "Tato položka nesmí být null.",
-    notblank: "Tato položka nesmí být prázdná.",
-    required: "Tato položka je povinná.",
-    regexp: "Tato položka je neplatná.",
-    min: "Tato položka musí být větší než %s.",
-    max: "Tato položka musí byt menší než %s.",
-    range: "Tato položka musí být v rozmezí %s a %s.",
-    minlength: "Tato položka je příliš krátká. Musí mít %s nebo více znaků.",
-    maxlength: "Tato položka je příliš dlouhá. Musí mít %s nebo méně znaků.",
-    rangelength: "Tato položka je mimo rozsah. Musí být rozmezí %s a %s znaků.",
-    equalto: "Tato položka by měla být stejná.",
-    minwords: "Tato položka musí obsahovat alespoň %s slov.",
-    maxwords: "Tato položka nesmí přesánout %s slov.",
-    rangewords: "Tato položka musí obsahovat %s až %s slov.",
-    greaterthan: "Tato položka musí být větší než %s.",
-    lessthan: "Tato položka musí být menší než %s."
-  };
-
-  this.checksley.updateMessages("cs", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Die Eingabe scheint nicht korrekt zu sein.",
-    type: {
-      email: "Die Eingabe muss eine gültige E-Mail-Adresse sein.",
-      url: "Die Eingabe muss eine gültige URL sein.",
-      urlstrict: "Die Eingabe muss eine gültige URL sein.",
-      number: "Die Eingabe muss eine Zahl sein.",
-      digits: "Die Eingabe darf nur Ziffern enthalten.",
-      dateIso: "Die Eingabe muss ein gültiges Datum im Format YYYY-MM-DD sein.",
-      alphanum: "Die Eingabe muss alphanumerisch sein.",
-      phone: "Die Eingabe muss eine gültige Telefonnummer sein."
-    },
-    notnull: "Die Eingabe darf nicht leer sein.",
-    notblank: "Die Eingabe darf nicht leer sein.",
-    required: "Dies ist ein Pflichtfeld.",
-    regexp: "Die Eingabe scheint ungültig zu sein.",
-    min: "Die Eingabe muss größer oder gleich %s sein.",
-    max: "Die Eingabe muss kleiner oder gleich %s sein.",
-    range: "Die Eingabe muss zwischen %s und %s liegen.",
-    minlength: "Die Eingabe ist zu kurz. Es müssen mindestens %s Zeichen eingegeben werden.",
-    maxlength: "Die Eingabe ist zu lang. Es dürfen höchstens %s Zeichen eingegeben werden.",
-    rangelength: "Die Länge der Eingabe ist ungültig. Es müssen zwischen %s und %s Zeichen eingegeben werden.",
-    equalto: "Dieses Feld muss dem anderen entsprechen.",
-    minwords: "Die Eingabe muss mindestens %s Wörter enthalten.",
-    maxwords: "Die Eingabe darf höchstens %s Wörter enthalten.",
-    rangewords: "Die Eingabe muss zwischen %s und %s Wörter enthalten.",
-    greaterthan: "Die Eingabe muss größer als %s sein.",
-    lessthan: "Die Eingabe muss kleiner als %s sein."
-  };
-
-  this.checksley.updateMessages("de", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Este valor parece ser inválido.",
-    type: {
-      email: "Este valor debe ser un correo válido.",
-      url: "Este valor debe ser una URL válida.",
-      urlstrict: "Este valor debe ser una URL válida.",
-      number: "Este valor debe ser un número válido.",
-      digits: "Este valor debe ser un dígito válido.",
-      dateIso: "Este valor debe ser una fecha válida (YYYY-MM-DD).",
-      alphanum: "Este valor debe ser alfanumérico."
-    },
-    notnull: "Este valor no debe ser nulo.",
-    notblank: "Este valor no debe estar en blanco.",
-    required: "Este valor es requerido.",
-    regexp: "Este valor es incorrecto.",
-    min: "Este valor no debe ser menor que %s.",
-    max: "Este valor no debe ser mayor que %s.",
-    range: "Este valor debe estar entre %s y %s.",
-    minlength: "Este valor es muy corto. La longitud mínima es de %s caracteres.",
-    maxlength: "Este valor es muy largo. La longitud máxima es de %s caracteres.",
-    rangelength: "La longitud de este valor debe estar entre %s y %s caracteres.",
-    equalto: "Este valor debe ser idéntico.",
-    minwords: "Este valor debe tener al menos %s palabras.",
-    maxwords: "Este valor no debe exceder las %s palabras.",
-    rangewords: "Este valor debe tener entre %s y %s palabras.",
-    greaterthan: "Este valor no debe ser mayor que %s.",
-    lessthan: "Este valor no debe ser menor que %s."
-  };
-
-  this.checksley.updateMessages("es", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Cette valeur semble non valide.",
-    type: {
-      email: "Cette valeur n'est pas une adresse email valide.",
-      url: "Cette valeur n'est pas une URL valide.",
-      urlstrict: "Cette valeur n'est pas une URL valide.",
-      number: "Cette valeur doit être un nombre.",
-      digits: "Cette valeur doit être numérique.",
-      dateIso: "Cette valeur n'est pas une date valide (YYYY-MM-DD).",
-      alphanum: "Cette valeur doit être alphanumérique."
-    },
-    notnull: "Cette valeur ne peut pas être nulle.",
-    notblank: "Cette valeur ne peut pas être vide.",
-    required: "Ce champ est requis.",
-    regexp: "Cette valeur semble non valide.",
-    min: "Cette valeur ne doit pas être inféreure à %s.",
-    max: "Cette valeur ne doit pas excéder %s.",
-    range: "Cette valeur doit être comprise entre %s et %s.",
-    minlength: "Cette chaîne est trop courte. Elle doit avoir au minimum %s caractères.",
-    maxlength: "Cette chaîne est trop longue. Elle doit avoir au maximum %s caractères.",
-    rangelength: "Cette valeur doit contenir entre %s et %s caractères.",
-    equalto: "Cette valeur devrait être identique.",
-    mincheck: "Vous devez sélectionner au moins %s choix.",
-    maxcheck: "Vous devez sélectionner %s choix maximum.",
-    rangecheck: "Vous devez sélectionner entre %s et %s choix.",
-    minwords: "Cette valeur doit contenir plus de %s mots.",
-    maxwords: "Cette valeur ne peut pas dépasser %s mots.",
-    rangewords: "Cette valeur doit comprendre %s à %s mots.",
-    greaterthan: "Cette valeur doit être plus grande que %s.",
-    lessthan: "Cette valeur doit être plus petite que %s."
-  };
-
-  this.checksley.updateMessages("fr", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Questo valore sembra essere non valido.",
-    type: {
-      email: "Questo valore deve essere un indirizzo email valido.",
-      url: "Questo valore deve essere un URL valido.",
-      urlstrict: "Questo valore deve essere un URL valido.",
-      number: "Questo valore deve essere un numero valido.",
-      digits: "Questo valore deve essere di tipo numerico.",
-      dateIso: "Questo valore deve essere una data valida (YYYY-MM-DD).",
-      alphanum: "Questo valore deve essere di tipo alfanumerico."
-    },
-    notnull: "Questo valore non deve essere nullo.",
-    notblank: "Questo valore non deve essere vuoto.",
-    required: "Questo valore è richiesto.",
-    regexp: "Questo valore non è corretto.",
-    min: "Questo valore deve essere maggiore di %s.",
-    max: "Questo valore deve essere minore di %s.",
-    range: "Questo valore deve essere compreso tra %s e %s.",
-    minlength: "Questo valore è troppo corto. La lunghezza minima è di %s caratteri.",
-    maxlength: "Questo valore è troppo lungo. La lunghezza massima è di %s caratteri.",
-    rangelength: "La lunghezza di questo valore deve essere compresa fra %s e %s caratteri.",
-    equalto: "Questo valore deve essere identico.",
-    minwords: "Questo valore deve contenere almeno %s parole.",
-    maxwords: "Questo valore non deve superare le %s parole.",
-    rangewords: "Questo valore deve contenere tra %s e %s parole.",
-    greaterthan: "Questo valore deve essere maggiore di %s.",
-    lessthan: "Questo valore deve essere minore di %s.",
-    beforedate: "Questa data deve essere anteriore al %s.",
-    afterdate: "Questa data deve essere posteriore al %s.",
-    luhn: "Questo valore deve superare il test di Luhn."
-  };
-
-  this.checksley.updateMessages("it", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Deze waarde lijkt onjuist.",
-    type: {
-      email: "Dit lijkt geen geldig e-mail adres te zijn.",
-      url: "Dit lijkt geen geldige URL te zijn.",
-      urlstrict: "Dit is geen geldige URL.",
-      number: "Deze waarde moet een nummer zijn.",
-      digits: "Deze waarde moet numeriek zijn.",
-      dateIso: "Deze waarde moet een datum in het volgende formaat zijn: (YYYY-MM-DD).",
-      alphanum: "Deze waarde moet alfanumeriek zijn.",
-      phone: "Deze waarde moet een geldig telefoonnummer zijn."
-    },
-    notnull: "Deze waarde mag niet leeg zijn.",
-    notblank: "Deze waarde mag niet leeg zijn.",
-    required: "Dit veld is verplicht",
-    regexp: "Deze waarde lijkt onjuist te zijn.",
-    min: "Deze waarde mag niet lager zijn dan %s.",
-    max: "Deze waarde mag niet groter zijn dan %s.",
-    range: "Deze waarde moet tussen %s en %s liggen.",
-    minlength: "Deze tekst is te kort. Deze moet uit minimaal %s karakters bestaan.",
-    maxlength: "Deze waarde is te lang. Deze mag maximaal %s karakters lang zijn.",
-    mincheck: "Je moet minstens %s opties selecteren.",
-    maxcheck: "Je moet %s of minder opties selecteren.",
-    rangecheck: "Je moet tussen de %s en %s opties selecteren.",
-    rangelength: "Deze waarde moet tussen %s en %s karakters lang zijn.",
-    equalto: "Deze waardes moeten identiek zijn.",
-    minwords: "Deze waarde moet minstens %s woorden bevatten.",
-    maxwords: "Deze waarde mag maximaal %s woorden bevatten.",
-    rangewords: "Deze waarde moet tussen de %s en %s woorden bevatten.",
-    greaterthan: "Deze waarde moet groter dan %s zijn.",
-    lessthan: "Deze waarde moet kleiner dan %s zijn.",
-    beforedate: "Deze datum moet voor %s liggne.",
-    afterdate: "Deze datum moet na %s liggen.",
-    americandate: "Dit moet een geldige datum zijn (MM/DD/YYYY)."
-  };
-
-  this.checksley.updateMessages("nl", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Поле заполнено некорректно.",
-    type: {
-      email: "Поле должно быть адресом электронной почты.",
-      url: "Поле должно быть ссылкой на сайт.",
-      urlstrict: "Поле должно быть ссылкой на сайт.",
-      number: "Поле должно быть числом.",
-      digits: "Поле должно содержать только цифры.",
-      dateIso: "Поле должно быть датой в формате (ГГГГ-ММ-ДД).",
-      alphanum: "Поле должно содержать только цифры и буквы",
-      phone: "Поле должно содержать корректный номер телефона"
-    },
-    notnull: "Поле должно быть не нулевым.",
-    notblank: "Поле не должно быть пустым.",
-    required: "Поле обязательно для заполнения.",
-    regexp: "Поле заполнено некорректно.",
-    min: "Значение поля должно быть больше %s.",
-    max: "Значение поля должно быть меньше %s.",
-    range: "Значение поля должно быть между %s и %s.",
-    minlength: "В поле должно быть минимум %s символов(а).",
-    maxlength: "В поле должно быть не больше %s символов(а).",
-    rangelength: "В поле должно быть от %s до %s символов(а).",
-    mincheck: "Необходимо выбрать не менее %s пунктов(а).",
-    maxcheck: "Необходимо выбрать не более %s пунктов(а).",
-    rangecheck: "Необходимо выбрать от %s до %s пунктов.",
-    equalto: "Значения полей должны быть одинаковыми.",
-    minwords: "В поле должно быть не менее %s слов.",
-    maxwords: "В поле должно быть не более %s слов.",
-    rangewords: "Количество слов в поле должно быть в диапазоне от %s до %s.",
-    greaterthan: "Значение в поле должно быть более %s.",
-    lessthan: "Значение в поле должно быть менее %s.",
-    beforedate: "Дата должна быть до %s.",
-    afterdate: "Дата должна быть после %s.",
-    americandate: "В поле должна быть корректная дата в формате MM/DD/YYYY."
-  };
-
-  this.checksley.updateMessages("ru", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "不正确的值",
-    type: {
-      email: "字段值应该是一个正确的电子邮件地址",
-      url: "字段值应该是一个正确的URL地址",
-      urlstrict: "字段值应该是一个正确的URL地址",
-      number: "字段值应该是一个合法的数字",
-      digits: "字段值应该是一个单独的数字",
-      dateIso: "字段值应该是一个正确的日期描述(YYYY-MM-DD).",
-      alphanum: "字段值应该是只包含字母和数字"
-    },
-    notnull: "字段值不可为null",
-    notblank: "字段值不可为空",
-    required: "字段值是必填的",
-    regexp: "字段值不合法",
-    min: "字段值应该大于 %s",
-    max: "字段值应该小于 %s.",
-    range: "字段值应该大于 %s 并小于 %s.",
-    minlength: "字段值太短了，长度应该大于等于 %s 个字符",
-    maxlength: "字段值太长了，长度应该小于等于 %s 个字符",
-    rangelength: "字段值长度错了，长度应该在 %s 和 %s 个字符之间",
-    mincheck: "你至少要选择 %s 个选项",
-    maxcheck: "你最多只能选择 %s 个选项",
-    rangecheck: "你只能选择 %s 到 %s 个选项",
-    equalto: "字段值应该和给定的值一样",
-    minwords: "字段值应该至少有 %s 个词",
-    maxwords: "字段值最多只能有 %s 个词",
-    rangewords: "字段值应该有 %s 到 %s 个词",
-    greaterthan: "字段值应该大于 %s",
-    lessthan: "字段值应该小于 %s",
-    beforedate: "字段值所表示的日期应该早于 %s.",
-    afterdate: "字段值所表示的日期应该晚于 %s."
-  };
-
-  this.checksley.updateMessages("zh-cn", messages);
 
 }).call(this);
 

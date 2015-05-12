@@ -260,10 +260,17 @@
             "DESCRIPTION": "Descarga el fichero CSV o copia la URL generada y abre tu editor de textos o hoja de cálculo favorito para realizar tus propios informes. Podrás visualizar y analizar todos los datos fácilmente.",
             "HELP": "¿Cómo puedo usar esto en mi hoja de cálculo?",
             "REGENERATE_TITLE": "Cambiar URL",
-            "REGENERATE_SUBTITLE": "Vas a cambiar la url de acceso a los datos en formato CSV. La url anterior se deshabilitará. ¿Estás seguro?",
-            "CSV_TYPE_US": "historias de usuario",
-            "CSV_TYPE_TASK": "tareaas",
-            "CSV_TYPE_ISSUE": "peticiones"
+            "REGENERATE_SUBTITLE": "Vas a cambiar la url de acceso a los datos en formato CSV. La url anterior se deshabilitará. ¿Estás seguro?"
+        },
+        "CSV": {
+            "SECTION_TITLE_US": "informes de historias de usuario",
+            "SECTION_TITLE_TASK": "Informes de tareas",
+            "SECTION_TITLE_ISSUE": "informes de peticiones",
+            "DOWNLOAD": "Descargar el CSV",
+            "URL_FIELD_PLACEHOLDER": "Por favor regenera la url del origen CSV",
+            "TITLE_REGENERATE_URL": "Regenerar url de origen CSV",
+            "ACTION_GENERATE_URL": "Generar Url",
+            "ACTION_REGENERATE": "Regenerar"
         },
         "CUSTOM_FIELDS": {
             "TITLE": "Atributos personalizados",
@@ -396,14 +403,6 @@
             "LABEL_ISSUE_TYPE": "Valor por defecto para el selector de tipo de la petición",
             "LABEL_ISSUE_STATUS": "Valor por defecto para el selector de estado de petición"
         },
-        "CSV": {
-            "TITLE": "Informes de {{csvType}}",
-            "DOWNLOAD": "Descargar el CSV",
-            "URL_FIELD_PLACEHOLDER": "Por favor regenera la url del origen CSV",
-            "TITLE_REGENERATE_URL": "Regenerar url de origen CSV",
-            "ACTION_GENERATE_URL": "Generar Url",
-            "ACTION_REGENERATE": "Regenerar"
-        },
         "STATUS": {
             "PLACEHOLDER_WRITE_STATUS_NAME": "Escribe un nombre para el nuevo estado"
         },
@@ -477,9 +476,11 @@
             "DESCRIPTION": "Este proceso puede tardar un ratito, por favor mantén la ventana abierta.",
             "ASYNC_IN_PROGRESS_TITLE": "Nuestros Oompa Loompa están importando su proyecto",
             "ASYNC_IN_PROGRESS_MESSAGE": "Este proceso puede llevarnos algún tiempo <br/> Te enviaremos un email cuando esté listo",
+            "UPLOAD_IN_PROGRESS_MESSAGE": "Subidos {{uploadedSize}} de {{totalSize}}",
             "ERROR": "Nuestros Oompa Loompas tienen problemas para importar tus datos. Por favor inténtalo nuevamente.",
             "ERROR_TOO_MANY_REQUEST": "Lo sentimos, nuestros Oompa Loompas están muy ocupados en este momento. Por favor inténtalo nuevamente en unos minutos.",
             "ERROR_MESSAGE": "Nuestros Oompa Loompas tienen algunos problemas importando tus datos: {{error_message}}",
+            "ERROR_MAX_SIZE_EXCEEDED": "El fichero '{{fileName}}' ({{fileSize}}) es demasiado pesado para nuestros Oompa Loompas, prueba con uno de menos de ({{maxFileSize}}).",
             "SYNC_SUCCESS": "Tu proyecto se ha importado con éxito."
         }
     },
@@ -592,7 +593,7 @@
         "DELETED_ATTACHMENT": "adjunto eliminado",
         "UPDATED_ATTACHMENT": "Adjunto {{filename}} actualizado",
         "DELETED_CUSTOM_ATTRIBUTE": "eliminar atributos personalizados",
-        "SIZE_CHANGE": "{size, plural, one{Un cambio} other{# cambios}} realizados\n",
+        "SIZE_CHANGE": "{size, plural, one{Un cambio realizado} other{# cambios realizados}}",
         "VALUES": {
             "YES": "sí",
             "NO": "no",
@@ -793,7 +794,7 @@
         "PLACEHOLDER_FIELD": "Nombre de usuario o email",
         "ACTION_RESET_PASSWORD": "Restablecer Contraseña",
         "LINK_CANCEL": "Nah, llévame de vuelta, creo que lo recordé.",
-        "SUCCESS": "<strong>¡Revisa tu bandeja de entrada!</strong><br />Te hemos enviado un mail a<br /><strong>{{email}}</strong><br />con las instrucciones necesarias para restablecer tu contraseña\n",
+        "SUCCESS": "<strong>¡Revisa tu bandeja de entrada!</strong><br />Te hemos enviado un mail con las instrucciones necesarias para restablecer tu contraseña\n",
         "ERROR": "De acuerdo a nuestros Oompa Loompas, Usted no se encuentra registrado todavía."
     },
     "LOGIN_COMMON": {
@@ -958,7 +959,7 @@
         },
         "POPOVER": {
             "USER_PROFILE": "Perfil de Usuario",
-            "CHANGE_PASSWORD": "Cambio de Contraseña",
+            "CHANGE_PASSWORD": "Cambiar contraseña",
             "NOTIFICATIONS": "Notificaciones",
             "FEEDBACK": "Feedback",
             "TITLE_AVATAR": "Preferencias de usuario"

@@ -33,7 +33,7 @@
         "NEW_BULK": "新批次插入",
         "RELATED_TASKS": "相關任務 ",
         "LOGOUT": "登出",
-        "EXTERNAL_USER": "an external user",
+        "EXTERNAL_USER": "外部使用者",
         "GENERIC_ERROR": "我們的系統指出{{error}}.",
         "IOCAINE_TEXT": "感到任務的不堪負荷？確認其它人在編輯任務時知道此狀況，可以點選Iocaine。它可能會成為免疫的致命狀況，只要長期小量消耗，但如果你只是偶而挑戰它可有助表現。",
         "TAGS": {
@@ -260,10 +260,17 @@
             "DESCRIPTION": "下載CSV檔案或是複製這個生成的網址到你愛用的文字編輯器或電子表格上製作自己的專案檔案資料報告。你可能輕易地視覺化或分析這些資料。",
             "HELP": "使用者故事預設欄位",
             "REGENERATE_TITLE": "改變網址",
-            "REGENERATE_SUBTITLE": "你將要改變CSV資料的連結網址，之前的網址將失效。你確定要這樣做嗎?",
-            "CSV_TYPE_US": "使用者故事",
-            "CSV_TYPE_TASK": "任務 ",
-            "CSV_TYPE_ISSUE": "問題 "
+            "REGENERATE_SUBTITLE": "你將要改變CSV資料的連結網址，之前的網址將失效。你確定要這樣做嗎?"
+        },
+        "CSV": {
+            "SECTION_TITLE_US": "使用者故事報告",
+            "SECTION_TITLE_TASK": "任務報告",
+            "SECTION_TITLE_ISSUE": "問題報告",
+            "DOWNLOAD": "下戴CSV檔案",
+            "URL_FIELD_PLACEHOLDER": "再次產生CSV 網址",
+            "TITLE_REGENERATE_URL": "再次產生CSV 網址",
+            "ACTION_GENERATE_URL": "產生網址",
+            "ACTION_REGENERATE": "再次產生"
         },
         "CUSTOM_FIELDS": {
             "TITLE": "客製化欄位",
@@ -396,14 +403,6 @@
             "LABEL_ISSUE_TYPE": "問題類型選擇器預設值",
             "LABEL_ISSUE_STATUS": "問題狀態選擇器預設值"
         },
-        "CSV": {
-            "TITLE": "{{csvType}} 報告",
-            "DOWNLOAD": "下戴CSV檔案",
-            "URL_FIELD_PLACEHOLDER": "再次產生CSV 網址",
-            "TITLE_REGENERATE_URL": "再次產生CSV 網址",
-            "ACTION_GENERATE_URL": "產生網址",
-            "ACTION_REGENERATE": "再次產生"
-        },
         "STATUS": {
             "PLACEHOLDER_WRITE_STATUS_NAME": "為此新狀態命名"
         },
@@ -477,9 +476,11 @@
             "DESCRIPTION": "這個過桯要花點時間，請保持视窗開啟",
             "ASYNC_IN_PROGRESS_TITLE": "我們的工程師對你的專案很重要哦",
             "ASYNC_IN_PROGRESS_MESSAGE": "這個過程要花上一點時間<br/> 當弄好時我們會發給你一封郵件",
+            "UPLOAD_IN_PROGRESS_MESSAGE": "Uploaded {{uploadedSize}} of {{totalSize}}",
             "ERROR": "系統在滙進你倒入的資料時遇上一些問題，請再試一次",
             "ERROR_TOO_MANY_REQUEST": "抱歉系統繁忙中，請稍後再試試　",
             "ERROR_MESSAGE": "我們的系統無法滙入你的資料",
+            "ERROR_MAX_SIZE_EXCEEDED": "'{{fileName}}' ({{fileSize}}) is too heavy for our Oompa Loompas, try it with a smaller than ({{maxFileSize}})",
             "SYNC_SUCCESS": "你的專案已成功滙入"
         }
     },

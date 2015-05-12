@@ -33,7 +33,7 @@
         "NEW_BULK": "Lisää monta",
         "RELATED_TASKS": "Liittyvät tehtävät",
         "LOGOUT": "Kirjaudu ulos",
-        "EXTERNAL_USER": "an external user",
+        "EXTERNAL_USER": "ulkoinen käyttäjä",
         "GENERIC_ERROR": "Oompa Loompas havaitsivat virheen {{error}}.",
         "IOCAINE_TEXT": "Jos tehtävä ahdistaa, merkitse se hidasteeksi.",
         "TAGS": {
@@ -260,10 +260,17 @@
             "DESCRIPTION": "Lataa CSV-tiedosto tai luo URL ja avaa haluamassasi ohjelmassa. Voit visualisoida ja analysoida tietoa helposti.",
             "HELP": "Kuinka tätä käytetään omassa taulukossani?",
             "REGENERATE_TITLE": "Vaihda URL",
-            "REGENERATE_SUBTITLE": "Jos muutata CSV-datan URLia, edellien lakkaa toimimasta. Oletko varma?",
-            "CSV_TYPE_US": "käyttäjätarinat",
-            "CSV_TYPE_TASK": "tehtävät",
-            "CSV_TYPE_ISSUE": "pyynnöt"
+            "REGENERATE_SUBTITLE": "Jos muutata CSV-datan URLia, edellien lakkaa toimimasta. Oletko varma?"
+        },
+        "CSV": {
+            "SECTION_TITLE_US": "user stories reports",
+            "SECTION_TITLE_TASK": "tasks reports",
+            "SECTION_TITLE_ISSUE": "issues reports",
+            "DOWNLOAD": "Lataa CSV-tiedosto",
+            "URL_FIELD_PLACEHOLDER": "Tee uusi CSV-url",
+            "TITLE_REGENERATE_URL": "Tee uusi CSV-url",
+            "ACTION_GENERATE_URL": "Luo URL",
+            "ACTION_REGENERATE": "Tee uusi"
         },
         "CUSTOM_FIELDS": {
             "TITLE": "Omat kentät",
@@ -396,14 +403,6 @@
             "LABEL_ISSUE_TYPE": "Oletusarvo pyynnön tyypin valintaan",
             "LABEL_ISSUE_STATUS": "Oletusarvo pyyntöjen statuksen valintaan"
         },
-        "CSV": {
-            "TITLE": "{{csvType}} raportit",
-            "DOWNLOAD": "Lataa CSV-tiedosto",
-            "URL_FIELD_PLACEHOLDER": "Tee uusi CSV-url",
-            "TITLE_REGENERATE_URL": "Tee uusi CSV-url",
-            "ACTION_GENERATE_URL": "Luo URL",
-            "ACTION_REGENERATE": "Tee uusi"
-        },
         "STATUS": {
             "PLACEHOLDER_WRITE_STATUS_NAME": "Anna uuden tilan nimi"
         },
@@ -477,9 +476,11 @@
             "DESCRIPTION": "Tämä voi kestää hetken, pidä ikkuna auki.",
             "ASYNC_IN_PROGRESS_TITLE": " Oompa Loompas tuovat projektia",
             "ASYNC_IN_PROGRESS_MESSAGE": "Tämä voi kestää muutaman minuutin <br/>Lähetämme sähköpostin on valmista",
+            "UPLOAD_IN_PROGRESS_MESSAGE": "Uploaded {{uploadedSize}} of {{totalSize}}",
             "ERROR": "Oompa Loompas eivät onnistuneet tuomaan tiedostoasi. Yritä uudestaan.",
             "ERROR_TOO_MANY_REQUEST": "Oompa Loompas ovat kiireisiä juuri nyt. Yritä hetken päästä uudelleen.",
             "ERROR_MESSAGE": "Oompa Loompas eivät pysty lukemaan tiedostoasi: {{error_message}}",
+            "ERROR_MAX_SIZE_EXCEEDED": "'{{fileName}}' ({{fileSize}}) is too heavy for our Oompa Loompas, try it with a smaller than ({{maxFileSize}})",
             "SYNC_SUCCESS": "Projektisi on tuotu sisään onnistuneesti"
         }
     },
@@ -793,7 +794,7 @@
         "PLACEHOLDER_FIELD": "Käyttäjänimi tai sähköposti",
         "ACTION_RESET_PASSWORD": "Uusi salsanasi",
         "LINK_CANCEL": "Vie minut takaisin, muistan sen.",
-        "SUCCESS": "<strong>Tarkista sähköpostisi</strong><br />Lähetimme ohjeet<br /><strong>{{email}}</strong><br />uuden salasanan asettamiseen",
+        "SUCCESS": "<strong>Check your inbox!</strong><br />We have sent you an email with the instructions to set a new password",
         "ERROR": "Oompa Loompas sanovat että käyttäjänimesi tai sähköpostisi tai salasanasi on väärä."
     },
     "LOGIN_COMMON": {
