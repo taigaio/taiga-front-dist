@@ -36,6 +36,70 @@
         "EXTERNAL_USER": "un usuari extern",
         "GENERIC_ERROR": "Un Oompa Loompas diu {{error}}.",
         "IOCAINE_TEXT": "Un poc saturat per una tasca? Fes-ho saber als teus companys clicant a Iocaina quan edites la tasca. Es possible ser inmune a aquesta (fictícia) poció mortal consumint xicotetes dòsis poc a poc, així com es possible millorar amb xicotets nous desafiaments!",
+        "FORM_ERRORS": {
+            "DEFAULT_MESSAGE": "Aquest valor pareix invàlid.",
+            "TYPE_EMAIL": "Deu ser un correu vàlid.",
+            "TYPE_URL": "Deu ser una URL vàlida.",
+            "TYPE_URLSTRICT": "Deu ser una URL vàlida.",
+            "TYPE_NUMBER": "Deu ser un nombre vàlid.",
+            "TYPE_DIGITS": "This value should be digits.",
+            "TYPE_DATEISO": "This value should be a valid date (YYYY-MM-DD).",
+            "TYPE_ALPHANUM": "This value should be alphanumeric.",
+            "TYPE_PHONE": "This value should be a valid phone number.",
+            "NOTNULL": "This value should not be null.",
+            "NOT_BLANK": "This value should not be blank.",
+            "REQUIRED": "This value is required.",
+            "REGEXP": "Aquest valor pareix invàlid.",
+            "MIN": "This value should be greater than or equal to %s.",
+            "MAX": "This value should be lower than or equal to %s.",
+            "RANGE": "This value should be between %s and %s.",
+            "MIN_LENGTH": "This value is too short. It should have %s characters or more.",
+            "MAX_LENGTH": "This value is too long. It should have %s characters or less.",
+            "RANGE_LENGTH": "This value length is invalid. It should be between %s and %s characters long.",
+            "MIN_CHECK": "You must select at least %s choices.",
+            "MAX_CHECK": "You must select %s choices or less.",
+            "RANGE_CHECK": "You must select between %s and %s choices.",
+            "EQUAL_TO": "This value should be the same."
+        },
+        "PICKERDATE": {
+            "FORMAT": "DD MMM YYYY",
+            "IS_RTL": "false",
+            "FIRST_DAY_OF_WEEK": "1",
+            "PREV_MONTH": "Mes anterior",
+            "NEXT_MONTH": "Mes que ve",
+            "MONTHS": {
+                "JAN": "Gener",
+                "FEB": "Febrer",
+                "MAR": "Març",
+                "APR": "Abril",
+                "MAY": "Maig",
+                "JUN": "Juny",
+                "JUL": "Juliol",
+                "AUG": "Agost",
+                "SEP": "Setembre",
+                "OCT": "Octubre",
+                "NOV": "Novembre",
+                "DEC": "Desembre"
+            },
+            "WEEK_DAYS": {
+                "SUN": "Diumenge",
+                "MON": "Dilluns",
+                "TUE": "Dimarts",
+                "WED": "Dimecres",
+                "THU": "Dijous",
+                "FRI": "Divendres",
+                "SAT": "Dissabte"
+            },
+            "WEEK_DAYS_SHORT": {
+                "SUN": "Dg",
+                "MON": "Dl",
+                "TUE": "Dt",
+                "WED": "Dc",
+                "THU": "Dj",
+                "FRI": "Dv",
+                "SAT": "Ds"
+            }
+        },
         "TAGS": {
             "PLACEHOLDER": "Afegir tag",
             "DELETE": "Esborrar tag",
@@ -55,6 +119,9 @@
             "COLOR": "Color",
             "IS_CLOSED": "Està tancat?",
             "STATUS": "Estatus",
+            "TYPE": "Tipus",
+            "SEVERITY": "Severitat",
+            "PRIORITY": "Prioritat",
             "ASSIGNED_TO": "Assignat a",
             "POINTS": "Punts",
             "BLOCKED_NOTE": "Nota de bloqueig",
@@ -175,13 +242,14 @@
     "ATTACHMENT": {
         "SECTION_NAME": "Adjunts",
         "TITLE": "{{ fileName }} pujat el {{ date }}",
-        "DESCIPTION": "Escriu una descripció curta",
+        "DESCRIPTION": "Escriu una descripció curta",
+        "DEPRECATED": "(deprecated)",
         "DEPRECATED_FILE": "Obsolet?",
         "ADD": "Afegir nou adjunt. <%- maxFileSizeMsg %>",
         "MAX_FILE_SIZE": "[Max. grandària:  {{maxFileSize}}]",
         "SHOW_DEPRECATED": "+ mostra els adjunts obsolets",
         "HIDE_DEPRECATED": "- Amagar els adjunts obsolets",
-        "COUNT_DEPRECATED": "({{ctrl.deprecatedAttachmentsCount }} obsolet)",
+        "COUNT_DEPRECATED": "({{ counter }} deprecated)",
         "MAX_UPLOAD_SIZE": "El tamany màxim de pujada es ",
         "DATE": "DD MMM YYYY [at] hh:mm",
         "ERROR_UPLOAD_ATTACHMENT": "No hem pogut pujar '{{fileName}}'. {{errorMessage}}",
@@ -249,6 +317,7 @@
             "PROJECT_SLUG": "Slug de projecte",
             "NUMBER_SPRINTS": "Nombre de sprints",
             "NUMBER_US_POINTS": "Nombre de punts de US",
+            "TAGS": "Tags",
             "DESCRIPTION": "Descripció",
             "PUBLIC_PROJECT": "Projecte públic",
             "PRIVATE_PROJECT": "Projecte privat",
@@ -264,8 +333,8 @@
         },
         "CSV": {
             "SECTION_TITLE_US": "user stories reports",
-            "SECTION_TITLE_TASK": "tasks reports",
-            "SECTION_TITLE_ISSUE": "issues reports",
+            "SECTION_TITLE_TASK": "infome de tasques",
+            "SECTION_TITLE_ISSUE": "informe d'incidències",
             "DOWNLOAD": "Descarrega el CSV",
             "URL_FIELD_PLACEHOLDER": "Per favor regenera la url del CSV",
             "TITLE_REGENERATE_URL": "Regenera l'Url del CSV",
@@ -294,11 +363,13 @@
         },
         "PROJECT_VALUES_PRIORITIES": {
             "TITLE": "Prioritats d'incidències",
-            "SUBTITLE": "Especifica les prioritats que tindran les teues tasques"
+            "SUBTITLE": "Especifica les prioritats que tindran les teues tasques",
+            "ACTION_ADD": "Add new priority"
         },
         "PROJECT_VALUES_SEVERITIES": {
             "TITLE": "Severitat d'incidències",
-            "SUBTITLE": "Especifica les severitats que tindran les teues incidències"
+            "SUBTITLE": "Especifica les severitats que tindran les teues incidències",
+            "ACTION_ADD": "Add new severity"
         },
         "PROJECT_VALUES_STATUS": {
             "TITLE": "Estatus",
@@ -311,7 +382,7 @@
             "TITLE": "Tipus",
             "SUBTITLE": "Especifica quin tipus d'incidència podria ser.",
             "ISSUE_TITLE": "Tipus d'incidències",
-            "ACTION_ADD": "Afegir now {{objName}}"
+            "ACTION_ADD": "Add new type"
         },
         "ROLES": {
             "SECTION_NAME": "Rols - {{projectName}}",
@@ -424,6 +495,9 @@
             "INTEGRATIONS": "Integracions",
             "PLUGINS": "Plugins"
         },
+        "SUBMENU_PROJECT_ATTRIBUTES": {
+            "TITLE": "Attributes"
+        },
         "SUBMENU_PROJECT_VALUES": {
             "STATUS": "Estatus",
             "POINTS": "Punts",
@@ -464,7 +538,7 @@
             "ADMIN": "Admin"
         },
         "NAVIGATION": {
-            "SECTION_TITLE": "El teu projecte",
+            "SECTION_TITLE": "Els teus projectes",
             "PLACEHOLDER_SEARCH": "Buscar en...",
             "ACTION_CREATE_PROJECT": "Crear projecte",
             "TITLE_ACTION_IMPORT": "Importar projecte",
@@ -473,14 +547,15 @@
         },
         "IMPORT": {
             "TITLE": "Important Projecte",
+            "UPLOADING_FILE": "Uploading dump file",
             "DESCRIPTION": "Aquest procés pot durar una mica, pero favor mantinga la finestra oberta",
             "ASYNC_IN_PROGRESS_TITLE": "Els Oompa Loompas estàn important el teu projecte",
             "ASYNC_IN_PROGRESS_MESSAGE": "Aquest procés pot durar uns moments <br/> T'enviarem un correo quan estiga llest.",
-            "UPLOAD_IN_PROGRESS_MESSAGE": "Uploaded {{uploadedSize}} of {{totalSize}}",
+            "UPLOAD_IN_PROGRESS_MESSAGE": "Pujat {{uploadedSize}} de {{totalSize}}",
             "ERROR": "Els Oompa Loompas han tingut problemes pujan les teues dades. Per favor intenta-ho de nou.",
             "ERROR_TOO_MANY_REQUEST": "Ho sentim, els Oompa Loompas estàn molt ocupats ara mateix. Intenta-ho de nou en uns moments.",
             "ERROR_MESSAGE": "Els Oompa Loompas tenen problemes important les teues dades: {{error_message}}",
-            "ERROR_MAX_SIZE_EXCEEDED": "'{{fileName}}' ({{fileSize}}) is too heavy for our Oompa Loompas, try it with a smaller than ({{maxFileSize}})",
+            "ERROR_MAX_SIZE_EXCEEDED": "'{{fileName}}' ({{fileSize}}) es massa gran per als nostres Oompa Loompas, prova amb algun inferior a ({{maxFileSize}})",
             "SYNC_SUCCESS": "El teu projecte s'ha importat correctament"
         }
     },
@@ -488,7 +563,8 @@
         "DELETE_ACCOUNT": {
             "SECTION_NAME": "Esborrar compte de Taiga",
             "CONFIRM": "Segur que vols borrar el teu compte de Taiga? ",
-            "SUBTITLE": "Te trobarem a faltar! :-("
+            "SUBTITLE": "Te trobarem a faltar! :-(",
+            "NEWSLETTER_LABEL_TEXT": "I don't wanna receive your newsletter anymore"
         },
         "DELETE_PROJECT": {
             "TITLE": "Esborrar projecte",
@@ -548,6 +624,7 @@
         }
     },
     "US": {
+        "SECTION_NAME": "User story details",
         "LINK_TASKBOARD": "Panell de tasques",
         "TITLE_LINK_TASKBOARD": "Anar a panell de tasques",
         "TOTAL_POINTS": "total",
@@ -660,6 +737,7 @@
             "INCREMENT_CLIENT": "Punts incrementat per requeriment de client {{xval}} és {{yval}}"
         },
         "TAGS": {
+            "TOGGLE": "Toggle tags visibility",
             "SHOW": "Mostrar tags",
             "HIDE": "Amaga tags"
         },
@@ -682,8 +760,10 @@
             "POINTS_PER_SPRINT": "punts<br/> sprint"
         },
         "FILTERS": {
+            "TOGGLE": "Toggle filters visibility",
             "TITLE": "Filtres",
             "REMOVE": "Esborra filtres",
+            "HIDE": "Hide Filters",
             "SHOW": "Mostra filtres",
             "FILTER_CATEGORY_STATUS": "Estatus",
             "FILTER_CATEGORY_TAGS": "Tags"
@@ -733,6 +813,7 @@
         }
     },
     "TASK": {
+        "SECTION_NAME": "Task details",
         "LINK_TASKBOARD": "Panell de tasques",
         "TITLE_LINK_TASKBOARD": "Anar a panell de tasques",
         "PLACEHOLDER_SUBJECT": "Afegix la descripció de la tasca",
@@ -817,6 +898,7 @@
         "ERROR": "Segons els nostres OOmpa Loompas, no estàs registrat encara o has escrit una contrasenya invàlida."
     },
     "REGISTER_FORM": {
+        "TITLE": "Register a new Taiga account (free)",
         "PLACEHOLDER_NAME": "Tria un mot d'usuari (sensible a majúscules i minúscules)",
         "PLACEHOLDER_FULL_NAME": "Escriu el teu nom complet",
         "PLACEHOLDER_EMAIL": "El teu correu",
@@ -827,7 +909,7 @@
     },
     "ISSUES": {
         "LIST_SECTION_NAME": "Incidències",
-        "SECTION_NAME": "Detalls de incidència",
+        "SECTION_NAME": "Issue details",
         "ACTION_NEW_ISSUE": "+ NOVA INCIDÈNCIA",
         "ACTION_PROMOTE_TO_US": "Promocionar història d'usuari",
         "PLACEHOLDER_FILTER_NAME": "Escriu el filtre i pressiona Intro",

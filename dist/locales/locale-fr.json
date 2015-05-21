@@ -36,6 +36,70 @@
         "EXTERNAL_USER": "an external user",
         "GENERIC_ERROR": "L'un de nos Ooompa Loompas dit {{error}}.",
         "IOCAINE_TEXT": "Vous vous sentez un peu submergé par une tâche ? Soyez certains d'en informer les autres en cliquant su Iocaine lors de la modification de la tâche. Il est possible de s'immuniser contre ce poison (fictif) en consommant de petites quantités en heures supplémentaires, tout comme il est possible de s'améliorer en acceptant parfois de nouveaux défis !",
+        "FORM_ERRORS": {
+            "DEFAULT_MESSAGE": "Cette valeur semble être invalide.",
+            "TYPE_EMAIL": "This value should be a valid email.",
+            "TYPE_URL": "This value should be a valid url.",
+            "TYPE_URLSTRICT": "This value should be a valid url.",
+            "TYPE_NUMBER": "This value should be a valid number.",
+            "TYPE_DIGITS": "This value should be digits.",
+            "TYPE_DATEISO": "Cette valeur n'est pas une date valide (AAAA-MM-JJ).",
+            "TYPE_ALPHANUM": "Cette valeur doit être alphanumérique.",
+            "TYPE_PHONE": "This value should be a valid phone number.",
+            "NOTNULL": "This value should not be null.",
+            "NOT_BLANK": "Cette valeur ne doit pas être vide.",
+            "REQUIRED": "Cette valeur est obligatoire.",
+            "REGEXP": "Cette valeur semble être invalide.",
+            "MIN": "This value should be greater than or equal to %s.",
+            "MAX": "This value should be lower than or equal to %s.",
+            "RANGE": "This value should be between %s and %s.",
+            "MIN_LENGTH": "This value is too short. It should have %s characters or more.",
+            "MAX_LENGTH": "This value is too long. It should have %s characters or less.",
+            "RANGE_LENGTH": "This value length is invalid. It should be between %s and %s characters long.",
+            "MIN_CHECK": "You must select at least %s choices.",
+            "MAX_CHECK": "You must select %s choices or less.",
+            "RANGE_CHECK": "You must select between %s and %s choices.",
+            "EQUAL_TO": "This value should be the same."
+        },
+        "PICKERDATE": {
+            "FORMAT": "DD MMM YYYY",
+            "IS_RTL": "false",
+            "FIRST_DAY_OF_WEEK": "1",
+            "PREV_MONTH": "Mois précédent",
+            "NEXT_MONTH": "Mois suivant",
+            "MONTHS": {
+                "JAN": "Janvier",
+                "FEB": "Février",
+                "MAR": "Mars",
+                "APR": "Avril",
+                "MAY": "Mai",
+                "JUN": "Juin",
+                "JUL": "Juillet",
+                "AUG": "Août",
+                "SEP": "Septembre",
+                "OCT": "Octobre",
+                "NOV": "Novembre",
+                "DEC": "Décembre"
+            },
+            "WEEK_DAYS": {
+                "SUN": "Dimanche",
+                "MON": "Lundi",
+                "TUE": "Mardi",
+                "WED": "Mercredi",
+                "THU": "Jeudi",
+                "FRI": "Vendredi",
+                "SAT": "Dimanche"
+            },
+            "WEEK_DAYS_SHORT": {
+                "SUN": "Dim",
+                "MON": "Lun",
+                "TUE": "Mar",
+                "WED": "Mer",
+                "THU": "Jeu",
+                "FRI": "Ven",
+                "SAT": "Sam"
+            }
+        },
         "TAGS": {
             "PLACEHOLDER": "Taggez moi !",
             "DELETE": "Supprimer l'étiquette",
@@ -55,6 +119,9 @@
             "COLOR": "Couleur",
             "IS_CLOSED": "Fermé ?",
             "STATUS": "Etat",
+            "TYPE": "Type",
+            "SEVERITY": "Sévérité",
+            "PRIORITY": "Priorité",
             "ASSIGNED_TO": "Affecté à",
             "POINTS": "Points",
             "BLOCKED_NOTE": "note bloquée",
@@ -69,7 +136,7 @@
             "REMOVE_ASSIGNED": "Supprimer l'affectation",
             "TOO_MANY": "...trop d'utilisateurs ; filtrez davantage",
             "CONFIRM_UNASSIGNED": "Etes-vous sûr de vouloir continuer sans affectation ?",
-            "TITLE_ACTION_EDIT_ASSIGNMENT": "Edit assignment"
+            "TITLE_ACTION_EDIT_ASSIGNMENT": "Modifier l'affectation"
         },
         "STATUS": {
             "CLOSED": "Clos",
@@ -128,41 +195,41 @@
         "PERMISIONS_CATEGORIES": {
             "SPRINTS": {
                 "NAME": "Sprints",
-                "VIEW_SPRINTS": "View sprints",
-                "ADD_SPRINTS": "Add sprints",
-                "MODIFY_SPRINTS": "Modify sprints",
-                "DELETE_SPRINTS": "Delete sprints"
+                "VIEW_SPRINTS": "Voir les sprints",
+                "ADD_SPRINTS": "Ajouter des sprints",
+                "MODIFY_SPRINTS": "Modifier des sprints",
+                "DELETE_SPRINTS": "Supprimer des sprints"
             },
             "USER_STORIES": {
                 "NAME": "Histoires Utilisateur",
-                "VIEW_USER_STORIES": "View user stories",
-                "ADD_USER_STORIES": "Add user stories",
-                "MODIFY_USER_STORIES": "Modify user stories",
-                "DELETE_USER_STORIES": "Delete user stories"
+                "VIEW_USER_STORIES": "Voir les histoires utilisateur",
+                "ADD_USER_STORIES": "Ajouter des histoires utilisateur",
+                "MODIFY_USER_STORIES": "Modifier des histoires utilisateur",
+                "DELETE_USER_STORIES": "Supprimer des histoires utilisateur"
             },
             "TASKS": {
                 "NAME": "Tâches",
-                "VIEW_TASKS": "View tasks",
-                "ADD_TASKS": "Add tasks",
-                "MODIFY_TASKS": "Modify tasks",
-                "DELETE_TASKS": "Delete tasks"
+                "VIEW_TASKS": "Voir les tâches",
+                "ADD_TASKS": "Ajouter des tâches",
+                "MODIFY_TASKS": "Modifier des tâches",
+                "DELETE_TASKS": "Supprimer des tâches"
             },
             "ISSUES": {
                 "NAME": "Problèmes",
-                "VIEW_ISSUES": "View issues",
-                "ADD_ISSUES": "Add issues",
-                "MODIFY_ISSUES": "Modify issues",
-                "DELETE_ISSUES": "Delete issues"
+                "VIEW_ISSUES": "Voir les problèmes",
+                "ADD_ISSUES": "Ajouter des problèmes",
+                "MODIFY_ISSUES": "Modifier des problèmes",
+                "DELETE_ISSUES": "Supprimer des problèmes"
             },
             "WIKI": {
                 "NAME": "Wiki",
-                "VIEW_WIKI_PAGES": "View wiki pages",
-                "ADD_WIKI_PAGES": "Add wiki pages",
-                "MODIFY_WIKI_PAGES": "Modify wiki pages",
-                "DELETE_WIKI_PAGES": "Delete wiki pages",
-                "VIEW_WIKI_LINKS": "View wiki links",
-                "ADD_WIKI_LINKS": "Add wiki links",
-                "DELETE_WIKI_LINKS": "Delete wiki links"
+                "VIEW_WIKI_PAGES": "Voir les pages wiki",
+                "ADD_WIKI_PAGES": "Ajouter des pages wiki",
+                "MODIFY_WIKI_PAGES": "Modifier des pages wiki",
+                "DELETE_WIKI_PAGES": "Supprimer des pages wiki",
+                "VIEW_WIKI_LINKS": "Voir les liens wiki",
+                "ADD_WIKI_LINKS": "Ajouter des liens wiki",
+                "DELETE_WIKI_LINKS": "Supprimer des liens wiki"
             }
         }
     },
@@ -175,18 +242,19 @@
     "ATTACHMENT": {
         "SECTION_NAME": "pièces jointes",
         "TITLE": "{{ fileName }} transmis le {{ date }}\n",
-        "DESCIPTION": "Entrez une courte description",
+        "DESCRIPTION": "Saisissez une description courte",
+        "DEPRECATED": "(deprecated)",
         "DEPRECATED_FILE": "Obsolète?",
         "ADD": "Ajouter une pièce jointe. <%- maxFileSizeMsg %>",
         "MAX_FILE_SIZE": "[Taille max.: {{maxFileSize}}]",
         "SHOW_DEPRECATED": "+ montrer les pièces jointes obsolètes",
         "HIDE_DEPRECATED": "- cacher les pièces jointes obsolètes",
-        "COUNT_DEPRECATED": "({{ctrl.deprecatedAttachmentsCount }} obsolète)",
+        "COUNT_DEPRECATED": "({{ counter }} deprecated)",
         "MAX_UPLOAD_SIZE": "La taille maximum d'upload est {{maxFileSize}}",
         "DATE": "DD MMM YYYY [at] hh:mm",
         "ERROR_UPLOAD_ATTACHMENT": "We have not been able to upload '{{fileName}}'. {{errorMessage}}",
-        "TITLE_LIGHTBOX_DELETE_ATTACHMENT": "Delete attachment...",
-        "MSG_LIGHTBOX_DELETE_ATTACHMENT": "the attachment '{{fileName}}'",
+        "TITLE_LIGHTBOX_DELETE_ATTACHMENT": "Supprimer la pièce jointe...",
+        "MSG_LIGHTBOX_DELETE_ATTACHMENT": "la pièce jointe \"{{fileName}}\"",
         "ERROR_DELETE_ATTACHMENT": "We have not been able to delete: {{errorMessage}}",
         "FIELDS": {
             "IS_DEPRECATED": "est obsolète"
@@ -249,6 +317,7 @@
             "PROJECT_SLUG": "Slug du projet",
             "NUMBER_SPRINTS": "Nombre de sprints",
             "NUMBER_US_POINTS": "Nombre de points HU",
+            "TAGS": "Étiquettes",
             "DESCRIPTION": "Description",
             "PUBLIC_PROJECT": "Projet public",
             "PRIVATE_PROJECT": "Projet privé",
@@ -264,7 +333,7 @@
         },
         "CSV": {
             "SECTION_TITLE_US": "user stories reports",
-            "SECTION_TITLE_TASK": "tasks reports",
+            "SECTION_TITLE_TASK": "Rapports des tâches",
             "SECTION_TITLE_ISSUE": "issues reports",
             "DOWNLOAD": "Télécharger au format CSV",
             "URL_FIELD_PLACEHOLDER": "Merci de regénérer l'url de téléchargement au format CSV",
@@ -294,11 +363,13 @@
         },
         "PROJECT_VALUES_PRIORITIES": {
             "TITLE": "Priorités des problèmes",
-            "SUBTITLE": "Spécifiez les priorités qu'auront vos problèmes"
+            "SUBTITLE": "Spécifiez les priorités qu'auront vos problèmes",
+            "ACTION_ADD": "Ajouter une priorité"
         },
         "PROJECT_VALUES_SEVERITIES": {
             "TITLE": "Sévérités des problèmes",
-            "SUBTITLE": "Spécifiez les sévérités qu'auront vos problèmes"
+            "SUBTITLE": "Spécifiez les sévérités qu'auront vos problèmes",
+            "ACTION_ADD": "Add new severity"
         },
         "PROJECT_VALUES_STATUS": {
             "TITLE": "Statut",
@@ -311,7 +382,7 @@
             "TITLE": "Types",
             "SUBTITLE": "Spécifiez les priorités qu'auront vos bugs",
             "ISSUE_TITLE": "Types de problèmes",
-            "ACTION_ADD": "Ajouter un nouveau {{objName}}"
+            "ACTION_ADD": "Add new type"
         },
         "ROLES": {
             "SECTION_NAME": "Rôles - {{projectName}}",
@@ -424,6 +495,9 @@
             "INTEGRATIONS": "Intégrations",
             "PLUGINS": "Plugins"
         },
+        "SUBMENU_PROJECT_ATTRIBUTES": {
+            "TITLE": "Attributes"
+        },
         "SUBMENU_PROJECT_VALUES": {
             "STATUS": "Etats",
             "POINTS": "Points",
@@ -464,7 +538,7 @@
             "ADMIN": "Admin"
         },
         "NAVIGATION": {
-            "SECTION_TITLE": "Votre projet",
+            "SECTION_TITLE": "Vos projets",
             "PLACEHOLDER_SEARCH": "Rechercher dans",
             "ACTION_CREATE_PROJECT": "Créer un projet",
             "TITLE_ACTION_IMPORT": "Importer un projet",
@@ -473,6 +547,7 @@
         },
         "IMPORT": {
             "TITLE": "Import du projet en cours",
+            "UPLOADING_FILE": "Uploading dump file",
             "DESCRIPTION": "Ce processus peut prendre du temps, veuillez garder cette fenêtre ouverte.",
             "ASYNC_IN_PROGRESS_TITLE": "Nos Oompas Loompas sont en train d'importer votre projet",
             "ASYNC_IN_PROGRESS_MESSAGE": "Ce processus pourrait durer plusieurs minutes <br/> Nous vous enverrons un emai quand ce sera prêt",
@@ -488,7 +563,8 @@
         "DELETE_ACCOUNT": {
             "SECTION_NAME": "Supprimer le compte Taiga",
             "CONFIRM": "Etes-vous sûr de vouloir votre compte Taiga ?",
-            "SUBTITLE": "Vous allez nous manquer :("
+            "SUBTITLE": "Vous allez nous manquer :(",
+            "NEWSLETTER_LABEL_TEXT": "Je ne veux plus recevoir votre newsletter"
         },
         "DELETE_PROJECT": {
             "TITLE": "Supprimer le projet",
@@ -548,6 +624,7 @@
         }
     },
     "US": {
+        "SECTION_NAME": "User story details",
         "LINK_TASKBOARD": "Tableau des tâches",
         "TITLE_LINK_TASKBOARD": "Aller au tableau des tâches",
         "TOTAL_POINTS": "total",
@@ -629,7 +706,7 @@
             "BACKLOG_ORDER": "backlog order",
             "SPRINT_ORDER": "sprint order",
             "KANBAN_ORDER": "kanban order",
-            "TASKBOARD_ORDER": "taskboard order",
+            "TASKBOARD_ORDER": "trier le tableau des tâches",
             "US_ORDER": "us order"
         }
     },
@@ -660,6 +737,7 @@
             "INCREMENT_CLIENT": "Le nombre de points ajoutés par les exigences du client pour le sprint {{xval}} est {{yval}}"
         },
         "TAGS": {
+            "TOGGLE": "Toggle tags visibility",
             "SHOW": "Montrer les étiquettes",
             "HIDE": "Cacher les étiquettes"
         },
@@ -682,8 +760,10 @@
             "POINTS_PER_SPRINT": "points /<br />sprint"
         },
         "FILTERS": {
+            "TOGGLE": "Toggle filters visibility",
             "TITLE": "Filtres",
             "REMOVE": "Supprimer les filtres",
+            "HIDE": "Hide Filters",
             "SHOW": "Afficher les filtres",
             "FILTER_CATEGORY_STATUS": "Etat",
             "FILTER_CATEGORY_TAGS": "Labels"
@@ -733,6 +813,7 @@
         }
     },
     "TASK": {
+        "SECTION_NAME": "Détails de la tâche",
         "LINK_TASKBOARD": "Tableau des tâches",
         "TITLE_LINK_TASKBOARD": "Aller au tableau des tâches",
         "PLACEHOLDER_SUBJECT": "Entrez le sujet de la nouvelle tâche",
@@ -817,6 +898,7 @@
         "ERROR": "Selon nos Oompa Loompas, vous n'êtes pas encore enregistrés ou vous avez saisi un mot de passe incorrecte."
     },
     "REGISTER_FORM": {
+        "TITLE": "Register a new Taiga account (free)",
         "PLACEHOLDER_NAME": "Choisissez un nom d'utilisateur (sensible à la casse)",
         "PLACEHOLDER_FULL_NAME": "Choisissez votre nom complet",
         "PLACEHOLDER_EMAIL": "Votre email",
@@ -827,7 +909,7 @@
     },
     "ISSUES": {
         "LIST_SECTION_NAME": "Problèmes",
-        "SECTION_NAME": "Détails du problème",
+        "SECTION_NAME": "Issue details",
         "ACTION_NEW_ISSUE": "+ NOUVEAU PROBLÈME",
         "ACTION_PROMOTE_TO_US": "Transformer en User Story",
         "PLACEHOLDER_FILTER_NAME": "Écrivez le nom du filtre et appuyez sur \"Entrée\"",

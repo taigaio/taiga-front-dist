@@ -46,7 +46,7 @@
                 <input type="text" name="name" ng-model="data.name" data-required="true" placeholder="{{'COMMON.FIELDS.NAME' | translate}}" maxlength="45">
               </fieldset>
               <fieldset>
-                <textarea name="description" ng-model="data.description" data-required="true" placeholder="{{'COMMON.FIELDS.DESCRIPTION' | translate}}"></textarea>
+                <textarea name="description" ng-model="data.description" data-required="true" ng-attr-placeholder="{{'COMMON.FIELDS.DESCRIPTION' | translate}}"></textarea>
               </fieldset>
               <fieldset class="wizard-action">
                 <div><a href="" title="{{'PAGINATION.PREVIOUS' | translate}}" translate="PAGINATION.PREVIOUS" class="button-prev button button-gray"></a>
@@ -145,7 +145,7 @@
       <form>
         <h2 translate="LIGHTBOX.FEEDBACK.TITLE" class="title"></h2>
         <fieldset>
-          <textarea ng-model="feedback.comment" data-required="true" placeholder="{{'LIGHTBOX.FEEDBACK.COMMENT' | translate}}"></textarea>
+          <textarea ng-model="feedback.comment" data-required="true" ng-attr-placeholder="{{'LIGHTBOX.FEEDBACK.COMMENT' | translate}}"></textarea>
         </fieldset>
         <fieldset>
           <button type="submit" title="{{'LIGHTBOX.FEEDBACK.ACTION_SEND' | translate}}" translate="LIGHTBOX.FEEDBACK.ACTION_SEND" class="button-green submit-button"></button>
@@ -158,8 +158,8 @@
         <p translate="COMMON.LOADING"></p>
       </div>
     </div>
-    <script src="/js/libs.js?v=1431451072552"></script>
-    <script src="/js/templates.js?v=1431451072552"></script>
-    <script src="/js/app-loader.js?v=1431451072552"></script>
+    <script src="/js/libs.js?v=1432197876460"></script>
+    <script src="/js/templates.js?v=1432197876460"></script>
+    <script src="/js/app-loader.js?v=1432197876460"></script>
   </body>
 </html>

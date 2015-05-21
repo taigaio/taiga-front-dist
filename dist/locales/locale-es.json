@@ -36,6 +36,70 @@
         "EXTERNAL_USER": "un usuario externo",
         "GENERIC_ERROR": "Uno de nuestros Oompa Loompas dice {{error}}.",
         "IOCAINE_TEXT": "¿Te sientes fuera de tu zona de confort en una tarea? Asegúrate de que los demás están al tanto de ello, marca el check de la Iocaína al editar una tarea. Igual eu era posible llegar a ser inmune a este veneno mortal a base de consumir pequeñas dosis a lo largo del tiempo, es posible conseguir mejor en lo que estás haciendo si afrontas de vez en cuando esta clase de retos!",
+        "FORM_ERRORS": {
+            "DEFAULT_MESSAGE": "Este valor parece inválido.",
+            "TYPE_EMAIL": "El valor debe ser un email.",
+            "TYPE_URL": "El valor debe ser una url.",
+            "TYPE_URLSTRICT": "El valor debe ser una url.",
+            "TYPE_NUMBER": "El valor debe ser un número.",
+            "TYPE_DIGITS": "El valor deben ser digitos.",
+            "TYPE_DATEISO": "El valor debe ser una fecha válida (DD-MM-YYY)",
+            "TYPE_ALPHANUM": "El valor debe ser alfanumérico.",
+            "TYPE_PHONE": "El valor debe ser un teléfono válido.",
+            "NOTNULL": "No puede ser un valor nulo.",
+            "NOT_BLANK": "El valor no puede quedar en blanco.",
+            "REQUIRED": "Valor requerido.",
+            "REGEXP": "Este valor parece inválido.",
+            "MIN": "El valor debe ser mayor o igual que %s.",
+            "MAX": "El valor debe ser menor o igual que %s.",
+            "RANGE": "El valor debe estar entre %s y %s.",
+            "MIN_LENGTH": "El valor es demasiado corto. Debe contener al menos %s caracteres.",
+            "MAX_LENGTH": "El valor es demasiado corto. Debe contener %s caracteres como máximo.",
+            "RANGE_LENGTH": "Longitud erronea. Debe estar entre %s y %s caracteres.",
+            "MIN_CHECK": "Debes seleccionar al menos %s.",
+            "MAX_CHECK": "Debes seleccionar %s o menos.",
+            "RANGE_CHECK": "Debes seleccionar de %s a %s.",
+            "EQUAL_TO": "Este valor debe ser el mismo."
+        },
+        "PICKERDATE": {
+            "FORMAT": "DD MMM YYYY",
+            "IS_RTL": "false",
+            "FIRST_DAY_OF_WEEK": "1",
+            "PREV_MONTH": "Mes Anterior",
+            "NEXT_MONTH": "Mes Siguiente",
+            "MONTHS": {
+                "JAN": "Enero",
+                "FEB": "Febrero",
+                "MAR": "Marzo",
+                "APR": "Abril",
+                "MAY": "Mayo",
+                "JUN": "Junio",
+                "JUL": "Julio",
+                "AUG": "Agosto",
+                "SEP": "Septiembre",
+                "OCT": "Octubre",
+                "NOV": "Noviembre",
+                "DEC": "Diciembre"
+            },
+            "WEEK_DAYS": {
+                "SUN": "Domingo",
+                "MON": "Lunes",
+                "TUE": "Martes",
+                "WED": "Miércoles",
+                "THU": "Jueves",
+                "FRI": "Viernes",
+                "SAT": "Sábado"
+            },
+            "WEEK_DAYS_SHORT": {
+                "SUN": "Dom",
+                "MON": "Lun",
+                "TUE": "Mar",
+                "WED": "Mie",
+                "THU": "Jue",
+                "FRI": "Vie",
+                "SAT": "Sáb"
+            }
+        },
         "TAGS": {
             "PLACEHOLDER": "¿Qué soy? Etiquétame...",
             "DELETE": "Borrar etiqueta",
@@ -55,6 +119,9 @@
             "COLOR": "Color",
             "IS_CLOSED": "¿Está Cerrado?",
             "STATUS": "Estado",
+            "TYPE": "Tipo",
+            "SEVERITY": "Gravedad",
+            "PRIORITY": "Prioridad",
             "ASSIGNED_TO": "Asignado a",
             "POINTS": "Puntos",
             "BLOCKED_NOTE": "Motivo del bloqueo",
@@ -83,7 +150,7 @@
         },
         "CUSTOM_ATTRIBUTES": {
             "CUSTOM_FIELDS": "Atributo Personalizados",
-            "SAVE": "Guardar Atributo Personalizado",
+            "SAVE": "Guardar atributo personalizado",
             "EDIT": "Editar Atributo Personalizado",
             "DELETE": "Borrar atributos personalizados",
             "CONFIRM_DELETE": "Recuerda que todos los valores en este atributo personalizado serán borrados. </br>¿Estás seguro que desea continuar?"
@@ -175,13 +242,14 @@
     "ATTACHMENT": {
         "SECTION_NAME": "adjuntos",
         "TITLE": "{{ fileName }} subido el {{ date }}",
-        "DESCIPTION": "Escribe una descripción corta",
+        "DESCRIPTION": "Escribe una pequeña descripción",
+        "DEPRECATED": "(obsoleto)",
         "DEPRECATED_FILE": "¿Desactualizado?",
         "ADD": "Agrega nuevos adjunto",
         "MAX_FILE_SIZE": "[Tamaño Max. : {{maxFileSize}}]",
         "SHOW_DEPRECATED": "+ muestra adjuntos desactualizados",
         "HIDE_DEPRECATED": "- ocultar adjuntos obsoletos",
-        "COUNT_DEPRECATED": "({{ctrl.deprecatedAttachmentsCount }} obsoleto)",
+        "COUNT_DEPRECATED": "({{ counter }} obsoletos)\n",
         "MAX_UPLOAD_SIZE": "El tamaño máximo de subida es de {{maxFileSize}}",
         "DATE": "DD MMM YYYY [a las] hh:mm\n",
         "ERROR_UPLOAD_ATTACHMENT": "No hemos podido subir el fichero '{{fileName}}'. {{errorMessage}}",
@@ -215,7 +283,7 @@
             "TITLE": "Exportar",
             "SUBTITLE": "Exportar tu proyecto para guardar una copia de seguridad o para crear uno nuevo basado en este.",
             "EXPORT_BUTTON": "Exportar",
-            "EXPORT_BUTTON_TITLE": "Exportar su proyecto",
+            "EXPORT_BUTTON_TITLE": "Exportar tus proyecto",
             "LOADING_TITLE": "Estamos generando tu fichero con el volcado de datos",
             "DUMP_READY": "¡Tu fichero con el volcado de datos está listo!",
             "LOADING_MESSAGE": "Por favor no cierres la ventana.",
@@ -223,7 +291,7 @@
             "SYNC_MESSAGE": "Si la descarga no comienza automáticamente haz click <a href='{{url}}' download title='Descargar el fichero con el volcado de datos'>aquí</a>.",
             "ERROR": "Nuestros Oompa Loompas tienen algunos problemas generando el volcado de tus datos. Por favor inténtalo de nuevo.",
             "ERROR_BUSY": "Lo sentimos, nuestros Oompa Loompas están muy ocupados en este momento. Por favor inténtalo nuevamente en unos minutos.",
-            "ERROR_MESSAGE": "Nuestros Oompa Loompas tienen algunos problemas generando su volcado de datos: {{message}}"
+            "ERROR_MESSAGE": "Nuestros Oompa Loompas han tenido algunos problemas generando el volcado de datos: {{message}}"
         },
         "MODULES": {
             "TITLE": "Módulos",
@@ -249,6 +317,7 @@
             "PROJECT_SLUG": "Slug de proyecto",
             "NUMBER_SPRINTS": "Número de sprints totales estimado",
             "NUMBER_US_POINTS": "Número de puntos de historia totales estimados",
+            "TAGS": "Etiquetas",
             "DESCRIPTION": "Descripción",
             "PUBLIC_PROJECT": "Proyecto público",
             "PRIVATE_PROJECT": "Proyecto privado",
@@ -294,11 +363,13 @@
         },
         "PROJECT_VALUES_PRIORITIES": {
             "TITLE": "Prioridades de las peticiones",
-            "SUBTITLE": "Especifica las prioridades que podrán tener tus peticiones"
+            "SUBTITLE": "Especifica las prioridades que podrán tener tus peticiones",
+            "ACTION_ADD": "Añadir nueva prioridad"
         },
         "PROJECT_VALUES_SEVERITIES": {
             "TITLE": "Gravedad de las peticiones",
-            "SUBTITLE": "Especifica la gravedad que tendrán tus peticiones"
+            "SUBTITLE": "Especifica la gravedad que tendrán tus peticiones",
+            "ACTION_ADD": "Añadir nueva gravedad"
         },
         "PROJECT_VALUES_STATUS": {
             "TITLE": "Estado",
@@ -311,17 +382,17 @@
             "TITLE": "Tipos",
             "SUBTITLE": "Especifica los deferentes tipos posibles de peticiones que pueden existir.",
             "ISSUE_TITLE": "Tipos de la petición",
-            "ACTION_ADD": "Añadir nuevo {{objName}}"
+            "ACTION_ADD": "Añadir nuevo tipo"
         },
         "ROLES": {
             "SECTION_NAME": "Roles - {{projectName}}",
-            "WARNING_NO_ROLE": "Cuidado, ningún rol en su proyecto podrá estimar el valor de los puntos para historias de usuario",
-            "HELP_ROLE_ENABLED": "Si lo activas, los miembros que posean este rol serán capaces de estimar sus propios puntos en las histórias de usuario",
+            "WARNING_NO_ROLE": "Ojo, ningún rol en tu proyecto podrá estimar historias de usuario",
+            "HELP_ROLE_ENABLED": "Si lo activas, los miembros que posean este rol serán capaces de estimar las histórias de usuario",
             "COUNT_MEMBERS": "{{ role.members_count }} miembros con este rol",
             "TITLE_DELETE_ROLE": "Borrar Rol",
             "REPLACEMENT_ROLE": "Todos los usuarios con este rol serán movidos a",
             "WARNING_DELETE_ROLE": "<strong>Cuidado, todas las estimaciones asociadas a este rol se perderán</strong>",
-            "ERROR_DELETE_ALL": "Usted no puede eliminar todos los valores",
+            "ERROR_DELETE_ALL": "No puedes eliminar todos los valores",
             "EXTERNAL_USER": "Usuario externo"
         },
         "THIRD_PARTIES": {
@@ -373,7 +444,7 @@
             "ADD": "Añadir atributo personalizado",
             "EDIT": "Editar atributo personalizado",
             "DELETE": "Eliminar atributo personalizado",
-            "SAVE_TITLE": "Guardar Atributo Personalizado",
+            "SAVE_TITLE": "Guardar atributo personalizado",
             "CANCEL_TITLE": "Cancelar la creación",
             "SET_FIELD_NAME": "Escribe el nombre del atributo personalizado",
             "SET_FIELD_DESCRIPTION": "Escribe una descripción para el atributo personalizado",
@@ -424,6 +495,9 @@
             "INTEGRATIONS": "Integraciones",
             "PLUGINS": "Plugins"
         },
+        "SUBMENU_PROJECT_ATTRIBUTES": {
+            "TITLE": "Atributos"
+        },
         "SUBMENU_PROJECT_VALUES": {
             "STATUS": "Estados",
             "POINTS": "Puntos",
@@ -464,7 +538,7 @@
             "ADMIN": "Admin"
         },
         "NAVIGATION": {
-            "SECTION_TITLE": "Su proyecto",
+            "SECTION_TITLE": "Tus proyectos",
             "PLACEHOLDER_SEARCH": "Buscar en...",
             "ACTION_CREATE_PROJECT": "Crear proyecto",
             "TITLE_ACTION_IMPORT": "Importar proyecto",
@@ -473,8 +547,9 @@
         },
         "IMPORT": {
             "TITLE": "Importando Proyecto",
+            "UPLOADING_FILE": "Subiendo el fichero con el volcado de datos",
             "DESCRIPTION": "Este proceso puede tardar un ratito, por favor mantén la ventana abierta.",
-            "ASYNC_IN_PROGRESS_TITLE": "Nuestros Oompa Loompa están importando su proyecto",
+            "ASYNC_IN_PROGRESS_TITLE": "Nuestros Oompa Loompa están importando tu proyecto",
             "ASYNC_IN_PROGRESS_MESSAGE": "Este proceso puede llevarnos algún tiempo <br/> Te enviaremos un email cuando esté listo",
             "UPLOAD_IN_PROGRESS_MESSAGE": "Subidos {{uploadedSize}} de {{totalSize}}",
             "ERROR": "Nuestros Oompa Loompas tienen problemas para importar tus datos. Por favor inténtalo nuevamente.",
@@ -487,8 +562,9 @@
     "LIGHTBOX": {
         "DELETE_ACCOUNT": {
             "SECTION_NAME": "Eliminar cuenta de Taiga",
-            "CONFIRM": "¿Está seguro que decea eliminar su cuenta de Taiga?",
-            "SUBTITLE": "¡Te extrañaremos! :-("
+            "CONFIRM": "¿Está seguro que deseas eliminar tu cuenta de Taiga?",
+            "SUBTITLE": "¡Te extrañaremos! :-(",
+            "NEWSLETTER_LABEL_TEXT": "No quiero recibir la newsletter nunca más."
         },
         "DELETE_PROJECT": {
             "TITLE": "Borrar proyecto",
@@ -502,7 +578,7 @@
         },
         "ADD_MEMBER": {
             "TITLE": "Nuevo miembro",
-            "HELP_TEXT": "Si los usuarios ya están registrado en Taiga, se añadirán automáticamente. De lo contrario recivirán una invitación."
+            "HELP_TEXT": "Si los usuarios ya están registrado en Taiga, se añadirán automáticamente. De lo contrario recibirán una invitación."
         },
         "CREATE_ISSUE": {
             "TITLE": "Añadir petición"
@@ -548,6 +624,7 @@
         }
     },
     "US": {
+        "SECTION_NAME": "Detalles de historia de usuario",
         "LINK_TASKBOARD": "Panel de tareas",
         "TITLE_LINK_TASKBOARD": "Ir al panel de tareas",
         "TOTAL_POINTS": "total",
@@ -629,7 +706,7 @@
             "BACKLOG_ORDER": "orden en backlog",
             "SPRINT_ORDER": "orden en sprint",
             "KANBAN_ORDER": "orden en kanban",
-            "TASKBOARD_ORDER": "orden en panel de tareras",
+            "TASKBOARD_ORDER": "orden en panel de tareas",
             "US_ORDER": "orden en historia"
         }
     },
@@ -660,6 +737,7 @@
             "INCREMENT_CLIENT": "El número de puntos incrementados por requerimientos del cliente para el sprint {{xval}} es de {{yval}}"
         },
         "TAGS": {
+            "TOGGLE": "Cambia la visibilidad de los tags",
             "SHOW": "Mostrar etiquetas",
             "HIDE": "Ocultar etiquetas"
         },
@@ -682,8 +760,10 @@
             "POINTS_PER_SPRINT": "puntos /<br />sprint"
         },
         "FILTERS": {
+            "TOGGLE": "Cambia la visibilidad de los filtros",
             "TITLE": "Filtros",
             "REMOVE": "Borrar Filtros",
+            "HIDE": "Ocultar filtros",
             "SHOW": "Ver Filtros",
             "FILTER_CATEGORY_STATUS": "Estado",
             "FILTER_CATEGORY_TAGS": "Etiquetas"
@@ -733,7 +813,8 @@
         }
     },
     "TASK": {
-        "LINK_TASKBOARD": "Panel de tereas",
+        "SECTION_NAME": "Detalles de tarea",
+        "LINK_TASKBOARD": "Panel de tareas",
         "TITLE_LINK_TASKBOARD": "Ir al panel de tareas",
         "PLACEHOLDER_SUBJECT": "Escribe el asunto de la nueva tarea",
         "TITLE_SELECT_STATUS": "Nombre del estado",
@@ -755,8 +836,8 @@
         "TITLE_ACTION_IOCAINE": "¿Te sientes fuera de tu zona de confort en una tarea? Asegúrate de que los demás están al tanto de ello, marca el check de la Iocaína al editar una tarea. Igual eu era posible llegar a ser inmune a este veneno mortal a base de consumir pequeñas dosis a lo largo del tiempo, es posible conseguir mejor en lo que estás haciendo si afrontas de vez en cuando esta clase de retos!"
     },
     "NOTIFICATION": {
-        "OK": "Todo está bien",
-        "WARNING": "Vaya, algo pasó...",
+        "OK": "¡Todo Ok!",
+        "WARNING": "¡Cáspitas!, algo no ha ido bien...",
         "WARNING_TEXT": "Nuestros Oompa Loompas están tristes, ¡Tus cambios no fueron guardados!",
         "SAVED": "¡Nuestros Oompa Loompas guardaron todos tus cambios!",
         "CLOSE": "Cerrar notificación",
@@ -767,15 +848,15 @@
         "TITLE": "Cancelar tu cuenta de usuario",
         "SUBTITLE": "Sentimos que estés abandonando la taiga, esperamos que hayas disfrutado de tu estancia :)",
         "PLACEHOLDER_INPUT_TOKEN": "token de cancelación de cuenta",
-        "ACTION_LEAVING": "̀¡Sí, me largo!",
-        "SUCCESS": "Nuestros Oompa Loompas eliminaron su cuenta"
+        "ACTION_LEAVING": "¡Sí, me largo!",
+        "SUCCESS": "Nuestros Oompa Loompas eliminaron tu cuenta"
     },
     "CHANGE_EMAIL_FORM": {
         "TITLE": "Cambiar tu email",
         "SUBTITLE": "̀¡Un click más y tu email se actualizará!",
         "PLACEHOLDER_INPUT_TOKEN": "token de cambio de email",
         "ACTION_CHANGE_EMAIL": "Cambiar email",
-        "SUCCESS": "Nuestros Oompa Loompas actualizaron su correo"
+        "SUCCESS": "Nuestros Oompa Loompas actualizaron tu correo"
     },
     "CHANGE_PASSWORD_RECOVERY_FORM": {
         "TITLE": "Crear una nueva contraseña de Taiga",
@@ -795,7 +876,7 @@
         "ACTION_RESET_PASSWORD": "Restablecer Contraseña",
         "LINK_CANCEL": "Nah, llévame de vuelta, creo que lo recordé.",
         "SUCCESS": "<strong>¡Revisa tu bandeja de entrada!</strong><br />Te hemos enviado un mail con las instrucciones necesarias para restablecer tu contraseña\n",
-        "ERROR": "De acuerdo a nuestros Oompa Loompas, Usted no se encuentra registrado todavía."
+        "ERROR": "Según nuestros Oompa Loompas tú no estás registrado"
     },
     "LOGIN_COMMON": {
         "HEADER": "Ya tengo una cuenta en Taiga",
@@ -807,16 +888,17 @@
         "PLACEHOLDER_AUTH_PASSWORD": "Contraseña (distingue mayúsculas y minúsculas)"
     },
     "LOGIN_FORM": {
-        "ERROR_AUTH_INCORRECT": "De acuerdo a nuestros Oompa Loompas, su usuario/correo o contraseña son incorrectos",
-        "ERROR_GENERIC": "De acuerdo a nuestros Oompa Loompas hubo un error.",
+        "ERROR_AUTH_INCORRECT": "Nuestros Oompa Loompas indican que tu nombre de usuario/correo o contraseña son incorrectos",
+        "ERROR_GENERIC": "Nuestros Oompa Loompas indican que ha habido un error.",
         "SUCCESS": "Nuestros Oompa Loompas están felices, bienvenido a Taiga."
     },
     "INVITATION_LOGIN_FORM": {
         "NOT_FOUND": "<strong>Ooops, tenemos un problema</strong><br /> Nuestros Oompa Loompas no pueden encontrar tu invitación.",
         "SUCCESS": "¡Acabas de unirte al proyecto! Bienvenido a {{project_name}}",
-        "ERROR": "De acuerdo a nuestros Oompa Loompas, Usted no se encuentra registrado todavía o escribió una contraseña invalida."
+        "ERROR": "Según nuestros Oompa Loompas tú no estás registrado o has escrito mal tu contraseña."
     },
     "REGISTER_FORM": {
+        "TITLE": "Crea tu nueva cuenta en Taiga, ¡es gratis!",
         "PLACEHOLDER_NAME": "Escribe un nombre de usuario (distingue mayúsculas y minúsculas)",
         "PLACEHOLDER_FULL_NAME": "Escribe tu nombre completo",
         "PLACEHOLDER_EMAIL": "Tu email",
@@ -827,7 +909,7 @@
     },
     "ISSUES": {
         "LIST_SECTION_NAME": "Peticiones",
-        "SECTION_NAME": "Detalles de la petición",
+        "SECTION_NAME": "Detalles de petición",
         "ACTION_NEW_ISSUE": "+ NUEVA PETICIÓN",
         "ACTION_PROMOTE_TO_US": "Promover a Historia de Usuario",
         "PLACEHOLDER_FILTER_NAME": "Escribe un nombre para el filtro y pulsa enter",
@@ -847,7 +929,7 @@
             "TITLE": "Filtros",
             "INPUT_SEARCH_PLACEHOLDER": "Asunto o referencia",
             "TITLE_ACTION_SEARCH": "Buscar",
-            "ACTION_SAVE_CUSTOM_FILTER": "guardar como atributo personalizado",
+            "ACTION_SAVE_CUSTOM_FILTER": "guardar como filtro personalizado",
             "BREADCRUMB": "Filtros",
             "TITLE_BREADCRUMB": "Filtros",
             "CATEGORIES": {
@@ -862,7 +944,7 @@
             },
             "CONFIRM_DELETE": {
                 "TITLE": "Eliminar filtros personalizados",
-                "MESSAGE": "el atributo personalizado '{{customFilterName}}'"
+                "MESSAGE": "el filtro personalizado '{{customFilterName}}'"
             }
         },
         "TABLE": {
@@ -899,14 +981,14 @@
         "UNDO_ARCHIVED": "Arrástrala y suéltala de nuevo para deshacer el cambio"
     },
     "SEARCH": {
-        "FILTER_USER_STORIES": "Usar Historia",
+        "FILTER_USER_STORIES": "Historias de Usuario",
         "FILTER_ISSUES": "Peticiones",
         "FILTER_TASKS": "Tareas",
         "FILTER_WIKI": "Páginas del Wiki",
         "PLACEHOLDER_SEARCH": "Buscar...",
         "TITLE_ACTION_SEARCH": "buscar",
         "EMPTY_TITLE": "Parece que no se ha encontrado nada con tus criterios de búsqueda.",
-        "EMPTY_DESCRIPTION": "Prueba con otra pestaña de las de arriba o busque nuevamente"
+        "EMPTY_DESCRIPTION": "Prueba con otra pestaña de las de arriba o busca de nuevo"
     },
     "TEAM": {
         "SECTION_NAME": "Equipo",
@@ -921,7 +1003,7 @@
         "COLUMN_BUG_HUNTER": "Cazador de Bugs",
         "EXPLANATION_COLUMN_BUG_HUNTER": "Peticiones reportadas",
         "COLUMN_NIGHT_SHIFT": "Turno de noche",
-        "EXPLANATION_COLUMN_NIGHT_SHIFT": "Actividades cerradas",
+        "EXPLANATION_COLUMN_NIGHT_SHIFT": "Tareas cerradas",
         "COLUMN_TOTAL_POWER": "Potencia Total",
         "EXPLANATION_COLUMN_TOTAL_POWER": "Puntos Totales",
         "SECTION_TITLE_TEAM": "Equipo >",
@@ -985,7 +1067,7 @@
     },
     "WIZARD": {
         "SECTION_TITLE_CHOOSE_TEMPLATE": "Elija una plantilla",
-        "CHOOSE_TEMPLATE_TEXT": "¿Que plantilla se ajusta mejor en su proyecto?",
+        "CHOOSE_TEMPLATE_TEXT": "¿Que plantilla se ajusta mejor con tu proyecto?",
         "SECTION_TITLE_CREATE_PROJECT": "Crear Proyecto",
         "CREATE_PROJECT_TEXT": "Fresco y claro. ¡Es emocionante!",
         "PROGRESS_TEMPLATE_SELECTION": "Selección de plantilla",

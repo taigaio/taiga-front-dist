@@ -21,7 +21,7 @@
  */
 
 (function() {
-  var configure, init, module, modules, taiga;
+  var configure, i18nInit, init, module, modules, taiga;
 
   this.taiga = taiga = {};
 
@@ -303,9 +303,41 @@
       suffix: ".json"
     }).addInterpolation('$translateMessageFormatInterpolation').preferredLanguage(preferedLangCode);
     if (!window.taigaConfig.debugInfo) {
-      $translateProvider.fallbackLanguage(preferedLangCode);
+      return $translateProvider.fallbackLanguage(preferedLangCode);
     }
-    return moment.locale(preferedLangCode);
+  };
+
+  i18nInit = function(lang, $translate) {
+    var messages;
+    moment.locale(lang);
+    messages = {
+      defaultMessage: $translate.instant("COMMON.FORM_ERRORS.DEFAULT_MESSAGE"),
+      type: {
+        email: $translate.instant("COMMON.FORM_ERRORS.TYPE_EMAIL"),
+        url: $translate.instant("COMMON.FORM_ERRORS.TYPE_URL"),
+        urlstrict: $translate.instant("COMMON.FORM_ERRORS.TYPE_URLSTRICT"),
+        number: $translate.instant("COMMON.FORM_ERRORS.TYPE_NUMBER"),
+        digits: $translate.instant("COMMON.FORM_ERRORS.TYPE_DIGITS"),
+        dateIso: $translate.instant("COMMON.FORM_ERRORS.TYPE_DATEISO"),
+        alphanum: $translate.instant("COMMON.FORM_ERRORS.TYPE_ALPHANUM"),
+        phone: $translate.instant("COMMON.FORM_ERRORS.TYPE_PHONE")
+      },
+      notnull: $translate.instant("COMMON.FORM_ERRORS.NOTNULL"),
+      notblank: $translate.instant("COMMON.FORM_ERRORS.NOT_BLANK"),
+      required: $translate.instant("COMMON.FORM_ERRORS.REQUIRED"),
+      regexp: $translate.instant("COMMON.FORM_ERRORS.REGEXP"),
+      min: $translate.instant("COMMON.FORM_ERRORS.MIN"),
+      max: $translate.instant("COMMON.FORM_ERRORS.MAX"),
+      range: $translate.instant("COMMON.FORM_ERRORS.RANGE"),
+      minlength: $translate.instant("COMMON.FORM_ERRORS.MIN_LENGTH"),
+      maxlength: $translate.instant("COMMON.FORM_ERRORS.MAX_LENGTH"),
+      rangelength: $translate.instant("COMMON.FORM_ERRORS.RANGE_LENGTH"),
+      mincheck: $translate.instant("COMMON.FORM_ERRORS.MIN_CHECK"),
+      maxcheck: $translate.instant("COMMON.FORM_ERRORS.MAX_CHECK"),
+      rangecheck: $translate.instant("COMMON.FORM_ERRORS.RANGE_CHECK"),
+      equalto: $translate.instant("COMMON.FORM_ERRORS.EQUAL_TO")
+    };
+    return checksley.updateMessages('default', messages);
   };
 
   init = function($log, $config, $rootscope, $auth, $events, $analytics, $translate) {
@@ -315,12 +347,14 @@
     $rootscope.adminPlugins = _.where(this.taigaContribPlugins, {
       "type": "admin"
     });
+    $rootscope.$on("$translateChangeEnd", function(e, ctx) {
+      var lang;
+      lang = ctx.language;
+      return i18nInit(lang, $translate);
+    });
     if ($auth.isAuthenticated()) {
       $events.setupConnection();
       user = $auth.getUser();
-      if (user.lang) {
-        $translate.use(user.lang);
-      }
     }
     return $analytics.initialize();
   };
@@ -881,24 +915,24 @@
   AuthService = (function(superClass) {
     extend(AuthService, superClass);
 
-    AuthService.$inject = ["$rootScope", "$tgStorage", "$tgModel", "$tgResources", "$tgHttp", "$tgUrls", "$translate"];
+    AuthService.$inject = ["$rootScope", "$tgStorage", "$tgModel", "$tgResources", "$tgHttp", "$tgUrls", "$tgConfig", "$translate"];
 
-    function AuthService(rootscope, storage, model, rs, http, urls, translate) {
+    function AuthService(rootscope, storage, model, rs, http, urls, config, translate) {
       this.rootscope = rootscope;
       this.storage = storage;
       this.model = model;
       this.rs = rs;
       this.http = http;
       this.urls = urls;
+      this.config = config;
       this.translate = translate;
       AuthService.__super__.constructor.call(this);
     }
 
     AuthService.prototype._setLocales = function() {
-      if (this.rootscope.user.lang) {
-        this.translate.use(this.rootscope.user.lang);
-        return moment.locale(this.rootscope.user.lang);
-      }
+      var lang;
+      lang = this.rootscope.user.lang || this.config.get("defaultLanguage") || "en";
+      return this.translate.use(lang);
     };
 
     AuthService.prototype.getUser = function() {
@@ -3871,7 +3905,7 @@
 
   })(taiga.Controller);
 
-  AttachmentsDirective = function($config, $confirm, $templates) {
+  AttachmentsDirective = function($config, $confirm, $templates, $translate) {
     var link, template, templateFn;
     template = $templates.get("attachment/attachments.html", true);
     link = function($scope, $el, $attrs, $ctrls) {
@@ -3944,8 +3978,9 @@
       if (maxFileSize) {
         maxFileSize = sizeFormat(maxFileSize);
       }
-      maxFileSizeMsg = maxFileSize ? $translation.instant("ATTACHMENT.MAX_UPLOAD_SIZE") : "";
-      maxFileSize = 4000;
+      maxFileSizeMsg = maxFileSize ? $translate.instant("ATTACHMENT.MAX_UPLOAD_SIZE", {
+        maxFileSize: maxFileSize
+      }) : "";
       ctx = {
         type: $attrs.type,
         maxFileSize: maxFileSize,
@@ -3964,7 +3999,7 @@
     };
   };
 
-  module.directive("tgAttachments", ["$tgConfig", "$tgConfirm", "$tgTemplate", AttachmentsDirective]);
+  module.directive("tgAttachments", ["$tgConfig", "$tgConfirm", "$tgTemplate", "$translate", AttachmentsDirective]);
 
   AttachmentDirective = function($template, $compile, $translate) {
     var link, template, templateEdit;
@@ -4140,31 +4175,54 @@
 
   module.directive("tgDateRange", ["$translate", DateRangeDirective]);
 
-  DateSelectorDirective = function($translate) {
+  DateSelectorDirective = function($rootscope, $translate) {
     var link;
     link = function($scope, $el, $attrs, $model) {
-      var selectedDate;
+      var initialize, selectedDate, unbind;
       selectedDate = null;
-      $el.picker = new Pikaday({
-        field: $el[0],
-        format: $translate.instant("COMMON.DATE"),
-        onSelect: (function(_this) {
-          return function(date) {
-            return selectedDate = date;
-          };
-        })(this),
-        onOpen: (function(_this) {
-          return function() {
-            if (selectedDate != null) {
-              return $el.picker.setDate(selectedDate);
-            }
-          };
-        })(this)
-      });
-      return $scope.$watch($attrs.ngModel, function(val) {
+      initialize = function() {
+        return $el.picker = new Pikaday({
+          field: $el[0],
+          onSelect: (function(_this) {
+            return function(date) {
+              return selectedDate = date;
+            };
+          })(this),
+          onOpen: (function(_this) {
+            return function() {
+              if (selectedDate != null) {
+                return $el.picker.setDate(selectedDate);
+              }
+            };
+          })(this),
+          i18n: {
+            previousMonth: $translate.instant("COMMON.PICKERDATE.PREV_MONTH"),
+            nextMonth: $translate.instant("COMMON.PICKERDATE.NEXT_MONTH"),
+            months: [$translate.instant("COMMON.PICKERDATE.MONTHS.JAN"), $translate.instant("COMMON.PICKERDATE.MONTHS.FEB"), $translate.instant("COMMON.PICKERDATE.MONTHS.MAR"), $translate.instant("COMMON.PICKERDATE.MONTHS.APR"), $translate.instant("COMMON.PICKERDATE.MONTHS.MAY"), $translate.instant("COMMON.PICKERDATE.MONTHS.JUN"), $translate.instant("COMMON.PICKERDATE.MONTHS.JUL"), $translate.instant("COMMON.PICKERDATE.MONTHS.AUG"), $translate.instant("COMMON.PICKERDATE.MONTHS.SEP"), $translate.instant("COMMON.PICKERDATE.MONTHS.OCT"), $translate.instant("COMMON.PICKERDATE.MONTHS.NOV"), $translate.instant("COMMON.PICKERDATE.MONTHS.DEC")],
+            weekdays: [$translate.instant("COMMON.PICKERDATE.WEEK_DAYS.SUN"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.MON"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.TUE"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.WED"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.THU"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.FRI"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.SAT")],
+            weekdaysShort: [$translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.SUN"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.MON"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.TUE"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.WED"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.THU"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.FRI"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.SAT")]
+          },
+          isRTL: $translate.instant("COMMON.PICKERDATE.IS_RTL") === "true",
+          firstDay: parseInt($translate.instant("COMMON.PICKERDATE.FIRST_DAY_OF_WEEK"), 10),
+          format: $translate.instant("COMMON.PICKERDATE.FORMAT")
+        });
+      };
+      unbind = $rootscope.$on("$translateChangeEnd", (function(_this) {
+        return function(ctx) {
+          return initialize();
+        };
+      })(this));
+      $scope.$watch($attrs.ngModel, function(val) {
+        if ((val != null) && !$el.picker) {
+          initialize();
+        }
         if (val != null) {
           return $el.picker.setDate(val);
         }
+      });
+      return $scope.$on("$destroy", function() {
+        $el.off();
+        return unbind();
       });
     };
     return {
@@ -4173,7 +4231,7 @@
     };
   };
 
-  module.directive("tgDateSelector", ["$translate", DateSelectorDirective]);
+  module.directive("tgDateSelector", ["$rootScope", "$translate", DateSelectorDirective]);
 
   SprintProgressBarDirective = function() {
     var link, renderProgress;
@@ -4186,7 +4244,7 @@
       }
     };
     link = function($scope, $el, $attrs) {
-      return bindOnce($scope, $attrs.tgSprintProgressbar, function(sprint) {
+      bindOnce($scope, $attrs.tgSprintProgressbar, function(sprint) {
         var closedPoints, percentage, totalPoints, visual_percentage;
         closedPoints = sprint.closed_points;
         totalPoints = sprint.total_points;
@@ -4199,6 +4257,9 @@
           visual_percentage = Math.round(98 * (closedPoints / totalPoints));
         }
         return renderProgress($el, percentage, visual_percentage);
+      });
+      return $scope.$on("$destroy", function() {
+        return $el.off();
       });
     };
     return {
@@ -4701,9 +4762,9 @@
         if (isEditable()) {
           $el.find('.view-description .edit').show();
           $el.find('.view-description .us-content').addClass('editable');
-          return $scope.noDescriptionMsg = noDescriptionMegEditMode;
+          return $scope.noDescriptionMsg = $compile(noDescriptionMegEditMode)($scope);
         } else {
-          return $scope.noDescriptionMsg = noDescriptionMegReadMode;
+          return $scope.noDescriptionMsg = $compile(noDescriptionMegReadMode)($scope);
         }
       });
       return $scope.$on("$destroy", function() {
@@ -5461,12 +5522,14 @@
           return;
         }
         render(attributeValue, true);
-        return $el.find("input[name='description']").focus().select();
+        $el.find("input[name='description']").focus().select();
+        return $scope.$apply();
       });
       $el.on("click", "a.icon-edit", function(event) {
         event.preventDefault();
         render(attributeValue, true);
-        return $el.find("input[name='description']").focus().select();
+        $el.find("input[name='description']").focus().select();
+        return $scope.$apply();
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
@@ -6423,7 +6486,7 @@
         if (!file) {
           return;
         }
-        loader = $confirm.loader("Uploading dump file");
+        loader = $confirm.loader($translate.instant("PROJECT.IMPORT.UPLOADING_FILE"));
         onSuccess = function(result) {
           var ctx, message, msg, title;
           loader.stop();
@@ -8693,10 +8756,9 @@
   CreateEditSprint = function($repo, $confirm, $rs, $rootscope, lightboxService, $loading, $translate) {
     var link;
     link = function($scope, $el, attrs) {
-      var createSprint, hasErrors, prettyDate, remove, submit, submitButton;
+      var createSprint, hasErrors, remove, submit;
       hasErrors = false;
       createSprint = true;
-      prettyDate = $translate.instant("BACKLOG.SPRINTS.DATE");
       $scope.sprint = {
         project: null,
         name: null,
@@ -8705,9 +8767,11 @@
       };
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var broadcastEvent, form, newSprint, promise, target;
+          var broadcastEvent, form, newSprint, prettyDate, promise, submitButton, target;
           event.preventDefault();
           target = angular.element(event.currentTarget);
+          prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
+          submitButton = $el.find(".submit-button");
           form = $el.find("form").checksley();
           if (!form.validate()) {
             hasErrors = true;
@@ -8718,13 +8782,13 @@
           newSprint = angular.copy($scope.sprint);
           broadcastEvent = null;
           if (createSprint) {
-            newSprint.estimated_start = moment(newSprint.estimated_start).format("YYYY-MM-DD");
-            newSprint.estimated_finish = moment(newSprint.estimated_finish).format("YYYY-MM-DD");
+            newSprint.estimated_start = moment(newSprint.estimated_start, prettyDate).format("YYYY-MM-DD");
+            newSprint.estimated_finish = moment(newSprint.estimated_finish, prettyDate).format("YYYY-MM-DD");
             promise = $repo.create("milestones", newSprint);
             broadcastEvent = "sprintform:create:success";
           } else {
-            newSprint.setAttr("estimated_start", moment(newSprint.estimated_start).format("YYYY-MM-DD"));
-            newSprint.setAttr("estimated_finish", moment(newSprint.estimated_finish).format("YYYY-MM-DD"));
+            newSprint.setAttr("estimated_start", moment(newSprint.estimated_start, prettyDate).format("YYYY-MM-DD"));
+            newSprint.setAttr("estimated_finish", moment(newSprint.estimated_finish, prettyDate).format("YYYY-MM-DD"));
             promise = $repo.save(newSprint);
             broadcastEvent = "sprintform:edit:success";
           }
@@ -8770,10 +8834,11 @@
         })(this));
       };
       $scope.$on("sprintform:create", function(event, projectId) {
-        var estimatedFinish, estimatedStart, form, lastSprint, lastSprintNameDom, text;
+        var estimatedFinish, estimatedStart, form, lastSprint, lastSprintNameDom, prettyDate, text;
         form = $el.find("form").checksley();
         form.reset();
         createSprint = true;
+        prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
         $scope.sprint.project = projectId;
         $scope.sprint.name = null;
         $scope.sprint.slug = null;
@@ -8809,8 +8874,9 @@
         return $el.find(".last-sprint-name").removeClass("disappear");
       });
       $scope.$on("sprintform:edit", function(ctx, sprint) {
-        var editSprint, save;
+        var editSprint, prettyDate, save;
         createSprint = false;
+        prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
         $scope.$apply(function() {
           $scope.sprint = sprint;
           $scope.sprint.estimated_start = moment($scope.sprint.estimated_start).format(prettyDate);
@@ -8832,7 +8898,6 @@
           return $el.find(".last-sprint-name").removeClass("disappear");
         }
       });
-      submitButton = $el.find(".submit-button");
       $el.on("submit", "form", submit);
       $el.on("click", ".delete-sprint .icon-delete", function(event) {
         event.preventDefault();
@@ -9657,7 +9722,7 @@
       }
     };
     showHideFilter = function($scope, $el, $ctrl) {
-      var removeText, showText, sidebar, target;
+      var hideText, showText, sidebar, target;
       sidebar = $el.find("sidebar.filters-bar");
       sidebar.one("transitionend", function() {
         return timeout(150, function() {
@@ -9669,9 +9734,9 @@
       $('.burndown').css("visibility", "hidden");
       sidebar.toggleClass("active");
       target.toggleClass("active");
-      removeText = $translate.instant("BACKLOG.FILTERS.REMOVE");
+      hideText = $translate.instant("BACKLOG.FILTERS.HIDE");
       showText = $translate.instant("BACKLOG.FILTERS.SHOW");
-      toggleText(target.find(".text"), [removeText, showText]);
+      toggleText(target.find(".text"), [hideText, showText]);
       if (!sidebar.hasClass("active")) {
         $ctrl.resetFilters();
       }
@@ -12033,22 +12098,27 @@
   KanbanWipLimitDirective = function() {
     var link;
     link = function($scope, $el, $attrs) {
-      var redrawWipLimit;
+      var redrawWipLimit, status;
       $el.disableSelection();
-      redrawWipLimit = function() {
-        $el.find(".kanban-wip-limit").remove();
-        return timeout(200, function() {
-          var element;
-          element = $el.find(".kanban-task")[$scope.$eval($attrs.tgKanbanWipLimit)];
-          if (element) {
-            return angular.element(element).before("<div class='kanban-wip-limit'></div>");
-          }
-        });
-      };
-      $scope.$on("redraw:wip", redrawWipLimit);
-      $scope.$on("kanban:us:move", redrawWipLimit);
-      $scope.$on("usform:new:success", redrawWipLimit);
-      $scope.$on("usform:bulk:success", redrawWipLimit);
+      status = $scope.$eval($attrs.tgKanbanWipLimit);
+      redrawWipLimit = (function(_this) {
+        return function() {
+          $el.find(".kanban-wip-limit").remove();
+          return timeout(200, function() {
+            var element;
+            element = $el.find(".kanban-task")[status.wip_limit];
+            if (element) {
+              return angular.element(element).before("<div class='kanban-wip-limit'></div>");
+            }
+          });
+        };
+      })(this);
+      if (status && !status.is_archived) {
+        $scope.$on("redraw:wip", redrawWipLimit);
+        $scope.$on("kanban:us:move", redrawWipLimit);
+        $scope.$on("usform:new:success", redrawWipLimit);
+        $scope.$on("usform:bulk:success", redrawWipLimit);
+      }
       return $scope.$on("$destroy", function() {
         return $el.off();
       });
@@ -12553,12 +12623,12 @@
         return function(issue) {
           var html, type;
           type = $scope.typeById[issue.type];
-          html = $compile(html)($scope);
           html = template({
             type: type,
             typees: $scope.typeList,
             editable: isEditable()
           });
+          html = $compile(html)($scope);
           return $el.html(html);
         };
       })(this);
@@ -13526,7 +13596,7 @@
 
   module.directive("tgIssues", ["$log", "$tgLocation", "$tgTemplate", "$compile", IssuesDirective]);
 
-  IssuesFiltersDirective = function($log, $location, $rs, $confirm, $loading, $template, $translate) {
+  IssuesFiltersDirective = function($log, $location, $rs, $confirm, $loading, $template, $translate, $compile) {
     var link, template, templateSelected;
     template = $template.get("issue/issues-filters.html", true);
     templateSelected = $template.get("issue/issues-filters-selected.html", true);
@@ -13572,6 +13642,7 @@
         html = templateSelected({
           filters: selectedFilters
         });
+        html = $compile(html)($scope);
         $el.find(".filters-applied").html(html);
         if (selectedFilters.length > 0) {
           return $el.find(".save-filters").show();
@@ -13591,6 +13662,7 @@
         html = template({
           filters: filters
         });
+        html = $compile(html)($scope);
         return $el.find(".filter-list").html(html);
       };
       toggleFilterSelection = function(type, id) {
@@ -13649,6 +13721,7 @@
         html = template({
           filters: filters.statuses
         });
+        html = $compile(html)($scope);
         return $el.find(".filter-list").html(html);
       });
       selectQFilter = debounceLeading(100, function(value) {
@@ -13734,7 +13807,8 @@
         showFilters("My filters", "myFilters");
         $el.find('.save-filters').hide();
         $el.find('.my-filter-name').removeClass("hidden");
-        return $el.find('.my-filter-name').focus();
+        $el.find('.my-filter-name').focus();
+        return $scope.$apply();
       });
       return $el.on("keyup", ".my-filter-name", function(event) {
         var newFilter, promise, target;
@@ -13780,7 +13854,7 @@
     };
   };
 
-  module.directive("tgIssuesFilters", ["$log", "$tgLocation", "$tgResources", "$tgConfirm", "$tgLoading", "$tgTemplate", "$translate", IssuesFiltersDirective]);
+  module.directive("tgIssuesFilters", ["$log", "$tgLocation", "$tgResources", "$tgConfirm", "$tgLoading", "$tgTemplate", "$translate", "$compile", IssuesFiltersDirective]);
 
   IssueStatusInlineEditionDirective = function($repo, $template, $rootscope) {
 
@@ -13833,7 +13907,8 @@
         $el.find(".pop-status").popover().close();
         updateIssueStatus($el, issue, $scope.issueStatusById);
         return $scope.$apply(function() {
-          return $repo.save(issue).then(function() {
+          var k, len1, ref1;
+          $repo.save(issue).then(function() {
             var el, filtering, i, k, l, len1, len2, len3, m, ref1, ref2, ref3, results;
             ref1 = $scope.filters.statuses;
             for (k = 0, len1 = ref1.length; k < len1; k++) {
@@ -13869,6 +13944,14 @@
             }
             return results;
           });
+          ref1 = $scope.filters.statuses;
+          for (k = 0, len1 = ref1.length; k < len1; k++) {
+            filter = ref1[k];
+            if (filter.id === issue.status) {
+              filter.count++;
+            }
+          }
+          return $rootscope.$broadcast("filters:issueupdate", $scope.filters);
         });
       });
       taiga.bindOnce($scope, "project", function(project) {
@@ -13995,9 +14078,9 @@
   UserStoryDetailController = (function(superClass) {
     extend(UserStoryDetailController, superClass);
 
-    UserStoryDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "$appTitle", "$tgNavUrls", "$tgAnalytics", "tgLoader"];
+    UserStoryDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "$appTitle", "$tgNavUrls", "$tgAnalytics", "$translate", "tgLoader"];
 
-    function UserStoryDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appTitle, navUrls, analytics, tgLoader) {
+    function UserStoryDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appTitle, navUrls, analytics, translate, tgLoader) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -14011,8 +14094,9 @@
       this.appTitle = appTitle;
       this.navUrls = navUrls;
       this.analytics = analytics;
+      this.translate = translate;
       this.scope.usRef = this.params.usref;
-      this.scope.sectionName = "User Story Details";
+      this.scope.sectionName = this.translate.instant("US.SECTION_NAME");
       this.initializeEventHandlers();
       promise = this.loadInitialData();
       promise.then((function(_this) {
@@ -14515,9 +14599,9 @@
   TaskDetailController = (function(superClass) {
     extend(TaskDetailController, superClass);
 
-    TaskDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "$appTitle", "$tgNavUrls", "$tgAnalytics", "tgLoader"];
+    TaskDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "$appTitle", "$tgNavUrls", "$tgAnalytics", "$translate", "tgLoader"];
 
-    function TaskDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appTitle, navUrls, analytics, tgLoader) {
+    function TaskDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appTitle, navUrls, analytics, translate, tgLoader) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -14531,8 +14615,9 @@
       this.appTitle = appTitle;
       this.navUrls = navUrls;
       this.analytics = analytics;
+      this.translate = translate;
       this.scope.taskRef = this.params.taskref;
-      this.scope.sectionName = "Task Details";
+      this.scope.sectionName = this.translate.instant("TASK.SECTION_NAME");
       this.initializeEventHandlers();
       promise = this.loadInitialData();
       promise.then((function(_this) {
@@ -15133,7 +15218,7 @@
     };
   };
 
-  module.directive("tgLeaveProject", ["$tgRepo", "$tgConfirm", "$tgLocation", "$tgResources", "$tgNavUrls", LeaveProjectDirective]);
+  module.directive("tgLeaveProject", ["$tgRepo", "$tgConfirm", "$tgLocation", "$tgResources", "$tgNavUrls", "$translate", LeaveProjectDirective]);
 
   membersFilter = function() {
     return function(members, filtersQ, filtersRole) {
@@ -15414,7 +15499,7 @@
           if (wiki.id == null) {
             $analytics.trackEvent("wikipage", "create", "create wiki page", 1);
           }
-          $model.$setViewValue(wikiPage);
+          $model.$setViewValue(wikiPage.clone());
           $confirm.notify("success");
           return switchToReadMode();
         };
@@ -15705,7 +15790,7 @@
 
   CreateMembersDirective = function($rs, $rootScope, $confirm, $loading, lightboxService, $compile) {
     var extraTextTemplate, link, template;
-    extraTextTemplate = "<fieldset class=\"extra-text\">\n    <textarea placeholder=\"{{'LIGHTBOX.CREATE_MEMBER.PLACEHOLDER_INVITATION_TEXT' | translate}}\"\n              maxlength=\"255\"></textarea>\n</fieldset>";
+    extraTextTemplate = "<fieldset class=\"extra-text\">\n    <textarea ng-attr-placeholder=\"{{'LIGHTBOX.CREATE_MEMBER.PLACEHOLDER_INVITATION_TEXT' | translate}}\"\n              maxlength=\"255\"></textarea>\n</fieldset>";
     template = _.template("<div class=\"add-member-wrapper\">\n    <fieldset>\n        <input type=\"email\" placeholder=\"{{'LIGHTBOX.CREATE_MEMBER.PLACEHOLDER_TYPE_EMAIL' | translate}}\"\n               <% if(required) { %> data-required=\"true\" <% } %> data-type=\"email\" />\n    </fieldset>\n    <fieldset>\n        <select <% if(required) { %> data-required=\"true\" <% } %> data-required=\"true\">\n            <% _.each(roleList, function(role) { %>\n            <option value=\"<%- role.id %>\"><%- role.name %></option>\n            <% }); %>\n        </select>\n        <a class=\"icon icon-plus add-fieldset\" href=\"\"></a>\n    </fieldset>\n</div>");
     link = function($scope, $el, $attrs) {
       var createFieldSet, resetForm, submit, submitButton;
@@ -16499,7 +16584,7 @@
             return $scope.$emit("project:loaded", $scope.project);
           });
           return promise.then(null, function(data) {
-            $loading.finish(target);
+            $loading.finish(submitButton);
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -16648,7 +16733,7 @@
         return resultTitleEl.html($translate.instant("ADMIN.PROJECT_EXPORT.DUMP_READY"));
       };
       asyn_message = function() {
-        return resultTitleEl.html($translate.instant("ADMIN.PROJECT_EXPORT.ASYN_MESSAGE"));
+        return resultTitleEl.html($translate.instant("ADMIN.PROJECT_EXPORT.ASYNC_MESSAGE"));
       };
       syn_message = function(url) {
         return resultTitleEl.html($translate.instant("ADMIN.PROJECT_EXPORT.SYNC_MESSAGE", {
@@ -17056,8 +17141,9 @@
 
   module.controller("ProjectValuesController", ProjectValuesController);
 
-  ProjectValuesDirective = function($log, $repo, $confirm, $location, animationFrame) {
+  ProjectValuesDirective = function($log, $repo, $confirm, $location, animationFrame, translate, $rootscope) {
     var link, linkDragAndDrop, linkValue;
+    this.translate = translate;
     linkDragAndDrop = function($scope, $el, $attrs) {
       var itemEl, newParentScope, oldParentScope, tdom;
       oldParentScope = null;
@@ -17083,9 +17169,10 @@
       });
     };
     linkValue = function($scope, $el, $attrs) {
-      var $ctrl, cancel, goToBottomList, initializeNewValue, saveNewValue, saveValue, valueType;
+      var $ctrl, cancel, goToBottomList, initializeNewValue, initializeTextTranslations, objName, saveNewValue, saveValue, valueType;
       $ctrl = $el.controller();
       valueType = $attrs.type;
+      objName = $attrs.objname;
       initializeNewValue = function() {
         return $scope.newValue = {
           "name": "",
@@ -17093,7 +17180,14 @@
           "is_archived": false
         };
       };
+      initializeTextTranslations = function() {
+        return $scope.addNewElementText = this.translate.instant("ADMIN.PROJECT_VALUES_" + (objName.toUpperCase()) + ".ACTION_ADD");
+      };
       initializeNewValue();
+      initializeTextTranslations();
+      $rootscope.$on("$translateChangeEnd", function() {
+        return $scope.$evalAsync(initializeTextTranslations);
+      });
       goToBottomList = (function(_this) {
         return function(focus) {
           var table;
@@ -17263,7 +17357,7 @@
     };
   };
 
-  module.directive("tgProjectValues", ["$log", "$tgRepo", "$tgConfirm", "$tgLocation", "animationFrame", ProjectValuesDirective]);
+  module.directive("tgProjectValues", ["$log", "$tgRepo", "$tgConfirm", "$tgLocation", "animationFrame", "$translate", "$rootScope", ProjectValuesDirective]);
 
   ColorSelectionDirective = function() {
     var link;
@@ -17771,7 +17865,7 @@
       return this.confirm.askChoice(title, subtitle, choices, replacement, warning).then((function(_this) {
         return function(response) {
           var onError, onSuccess;
-          onSuccess = function(response) {
+          onSuccess = function() {
             _this.loadProject();
             return _this.loadRoles()["finally"](function() {
               return response.finish();
@@ -18075,9 +18169,9 @@
         return setActivePermissionsPerCategory(categories);
       };
       renderResume = function(element, category) {
-        return element.find(".resume").html(resumeTemplate({
+        return element.find(".resume").html($compile(resumeTemplate({
           category: category
-        }));
+        }))($scope));
       };
       renderCategory = function(category, index) {
         var html;
@@ -22844,9 +22938,13 @@
       this.scope.lang = this.getLan();
       maxFileSize = this.config.get("maxUploadFileSize", null);
       if (maxFileSize) {
-        this.scope.maxFileSizeMsg = this.translate.instant("USER_SETTINGS.AVATAR_MAX_SIZE", {
+        this.translate("USER_SETTINGS.AVATAR_MAX_SIZE", {
           "maxFileSize": sizeFormat(maxFileSize)
-        });
+        }).then((function(_this) {
+          return function(text) {
+            return _this.scope.maxFileSizeMsg = text;
+          };
+        })(this));
       }
       promise = this.loadInitialData();
       promise.then(null, this.onInitialDataError.bind(this));
@@ -23371,6 +23469,400 @@
   };
 
   module.directive("tgTermsNotice", ["$tgConfig", TermsNoticeDirective]);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "تنسيق الحقل غير صحيح",
+    type: {
+      email: "اكتب البريد الإلكتروني بالطريقة المطلوبة",
+      url: "اكتب الرابط بالطريقة المطلوبة",
+      urlstrict: "اكتب الرابط بالطريقة المطلوبة",
+      number: "اكتب أرقام ففط (عدد صحيح)",
+      digits: "اكتب أرقاما فقط",
+      dateIso: "اكتب التاريخ بهذه الصيغة (YYYY-MM-DD).",
+      alphanum: "اكتب حروف وأرقام فقط",
+      phone: "اكتب رقم هاتف بالطريقة المطلوبة"
+    },
+    notnull: "هذا الحقل مطلوب",
+    notblank: "هذا الحقل مطلوب",
+    required: "هذا الحقل مطلوب",
+    regexp: "تنسيق الحقل غير صحيح",
+    min: "الرقم يجب أن يكون أكبر من أو يساوي : %s.",
+    max: "الرقم يجب أن يكون أصغر من أو يساوي : %s.",
+    range: "الرقم يجب أن يكون بين %s و %s.",
+    minlength: "الحقل قصير. يجب أن يحتوي على %s حرف/أحرف أو أكثر",
+    maxlength: "الحقل طويل. يجب أن يحتوي على %s حرف/أحرف أو أقل",
+    rangelength: "طول الحقل غير مقبول. يجب أن يكون بين %s و %s حرف/أحرف",
+    mincheck: "يجب أن تختار %s (اختيار) على الأقل",
+    maxcheck: "يجب أن تختار %s (اختبار) أو أقل",
+    rangecheck: "يجب أن تختار بين %s و %s (اختبار).",
+    equalto: "يجب أن يتساوى الحقلان",
+    minwords: "يجب أن يحتوي الحقل على %s كلمة/كلمات على الأقل",
+    maxwords: "يجب أن يحتوي الحقل على %s كلمة/كلمات كحد أعلى",
+    rangewords: "عدد الكلمات المسوح بها مابين %s و %s كلمة/كلمات.",
+    greaterthan: "يجب أن تكون القيمة أكبر من %s.",
+    lessthan: "يجب أن تكون القيمة أقل من %s.",
+    beforedate: "التاريخ يجب أن يكون قبل  %s.",
+    afterdate: "التاريخ يجب أن يكون بعد  %s.",
+    americandate: "اكتب التاريخ بالطريقة المطلوبة (MM/DD/YYYY)."
+  };
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Aquest valor sembla ser invàlid.",
+    type: {
+      email: "Aquest valor ha de ser una adreça de correu electrònic vàlida.",
+      url: "Aquest valor ha de ser una URL vàlida.",
+      urlstrict: "Aquest valor ha de ser una URL vàlida.",
+      number: "Aquest valor ha de ser un nombre vàlid.",
+      digits: "Aquest valor ha només pot contenir dígits.",
+      dateIso: "Aquest valor ha de ser una data vàlida (YYYY-MM-DD).",
+      alphanum: "Aquest valor ha de ser alfanumèric."
+    },
+    notnull: "Aquest valor no pot ser nul.",
+    notblank: "Aquest valor no pot ser buit.",
+    required: "Aquest valor és requerit.",
+    regexp: "Aquest valor és incorrecte.",
+    min: "Aquest valor no pot ser menor que %s.",
+    max: "Aquest valor no pot ser major que %s.",
+    range: "Aquest valor ha d'estar entre %s i %s.",
+    minlength: "Aquest valor és massa curt. La longitud mínima és de %s caràcters.",
+    maxlength: "Aquest valor és massa llarg. La longitud màxima és de %s caràcters.",
+    rangelength: "La longitud d'aquest valor ha de ser d'entre %s i %s caràcters.",
+    equalto: "Aquest valor ha de ser idèntic.",
+    mincheck: "Has de marcar un mínim de %s opcions.",
+    maxcheck: "Has de marcar un màxim de %s opcions.",
+    rangecheck: "Has de marcar entre %s i %s opcions.",
+    minwords: "Aquest valor ha de tenir %s paraules com a mínim.",
+    maxwords: "Aquest valor no pot superar les %s paraules.",
+    rangewords: "Aquest valor ha de tenir entre %s i %s paraules.",
+    greaterthan: "Aquest valor no pot ser major que %s.",
+    lessthan: "Aquest valor no pot ser menor que %s."
+  };
+
+  this.checksley.updateMessages("ca", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Tato položka je neplatná.",
+    type: {
+      email: "Tato položka musí být e-mailová adresa.",
+      url: "Tato položka musí být url adresa.",
+      urlstrict: "Tato položka musí být url adresa.",
+      number: "Tato položka musí být platné číslo.",
+      digits: "Tato položka musí být číslice.",
+      dateIso: "Tato položka musí být datum ve formátu YYYY-MM-DD.",
+      alphanum: "Tato položka musí být alfanumerická."
+    },
+    notnull: "Tato položka nesmí být null.",
+    notblank: "Tato položka nesmí být prázdná.",
+    required: "Tato položka je povinná.",
+    regexp: "Tato položka je neplatná.",
+    min: "Tato položka musí být větší než %s.",
+    max: "Tato položka musí byt menší než %s.",
+    range: "Tato položka musí být v rozmezí %s a %s.",
+    minlength: "Tato položka je příliš krátká. Musí mít %s nebo více znaků.",
+    maxlength: "Tato položka je příliš dlouhá. Musí mít %s nebo méně znaků.",
+    rangelength: "Tato položka je mimo rozsah. Musí být rozmezí %s a %s znaků.",
+    equalto: "Tato položka by měla být stejná.",
+    minwords: "Tato položka musí obsahovat alespoň %s slov.",
+    maxwords: "Tato položka nesmí přesánout %s slov.",
+    rangewords: "Tato položka musí obsahovat %s až %s slov.",
+    greaterthan: "Tato položka musí být větší než %s.",
+    lessthan: "Tato položka musí být menší než %s."
+  };
+
+  this.checksley.updateMessages("cs", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Die Eingabe scheint nicht korrekt zu sein.",
+    type: {
+      email: "Die Eingabe muss eine gültige E-Mail-Adresse sein.",
+      url: "Die Eingabe muss eine gültige URL sein.",
+      urlstrict: "Die Eingabe muss eine gültige URL sein.",
+      number: "Die Eingabe muss eine Zahl sein.",
+      digits: "Die Eingabe darf nur Ziffern enthalten.",
+      dateIso: "Die Eingabe muss ein gültiges Datum im Format YYYY-MM-DD sein.",
+      alphanum: "Die Eingabe muss alphanumerisch sein.",
+      phone: "Die Eingabe muss eine gültige Telefonnummer sein."
+    },
+    notnull: "Die Eingabe darf nicht leer sein.",
+    notblank: "Die Eingabe darf nicht leer sein.",
+    required: "Dies ist ein Pflichtfeld.",
+    regexp: "Die Eingabe scheint ungültig zu sein.",
+    min: "Die Eingabe muss größer oder gleich %s sein.",
+    max: "Die Eingabe muss kleiner oder gleich %s sein.",
+    range: "Die Eingabe muss zwischen %s und %s liegen.",
+    minlength: "Die Eingabe ist zu kurz. Es müssen mindestens %s Zeichen eingegeben werden.",
+    maxlength: "Die Eingabe ist zu lang. Es dürfen höchstens %s Zeichen eingegeben werden.",
+    rangelength: "Die Länge der Eingabe ist ungültig. Es müssen zwischen %s und %s Zeichen eingegeben werden.",
+    equalto: "Dieses Feld muss dem anderen entsprechen.",
+    minwords: "Die Eingabe muss mindestens %s Wörter enthalten.",
+    maxwords: "Die Eingabe darf höchstens %s Wörter enthalten.",
+    rangewords: "Die Eingabe muss zwischen %s und %s Wörter enthalten.",
+    greaterthan: "Die Eingabe muss größer als %s sein.",
+    lessthan: "Die Eingabe muss kleiner als %s sein."
+  };
+
+  this.checksley.updateMessages("de", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Este valor parece ser inválido.",
+    type: {
+      email: "Este valor debe ser un correo válido.",
+      url: "Este valor debe ser una URL válida.",
+      urlstrict: "Este valor debe ser una URL válida.",
+      number: "Este valor debe ser un número válido.",
+      digits: "Este valor debe ser un dígito válido.",
+      dateIso: "Este valor debe ser una fecha válida (YYYY-MM-DD).",
+      alphanum: "Este valor debe ser alfanumérico."
+    },
+    notnull: "Este valor no debe ser nulo.",
+    notblank: "Este valor no debe estar en blanco.",
+    required: "Este valor es requerido.",
+    regexp: "Este valor es incorrecto.",
+    min: "Este valor no debe ser menor que %s.",
+    max: "Este valor no debe ser mayor que %s.",
+    range: "Este valor debe estar entre %s y %s.",
+    minlength: "Este valor es muy corto. La longitud mínima es de %s caracteres.",
+    maxlength: "Este valor es muy largo. La longitud máxima es de %s caracteres.",
+    rangelength: "La longitud de este valor debe estar entre %s y %s caracteres.",
+    equalto: "Este valor debe ser idéntico.",
+    minwords: "Este valor debe tener al menos %s palabras.",
+    maxwords: "Este valor no debe exceder las %s palabras.",
+    rangewords: "Este valor debe tener entre %s y %s palabras.",
+    greaterthan: "Este valor no debe ser mayor que %s.",
+    lessthan: "Este valor no debe ser menor que %s."
+  };
+
+  this.checksley.updateMessages("es", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Cette valeur semble non valide.",
+    type: {
+      email: "Cette valeur n'est pas une adresse email valide.",
+      url: "Cette valeur n'est pas une URL valide.",
+      urlstrict: "Cette valeur n'est pas une URL valide.",
+      number: "Cette valeur doit être un nombre.",
+      digits: "Cette valeur doit être numérique.",
+      dateIso: "Cette valeur n'est pas une date valide (YYYY-MM-DD).",
+      alphanum: "Cette valeur doit être alphanumérique."
+    },
+    notnull: "Cette valeur ne peut pas être nulle.",
+    notblank: "Cette valeur ne peut pas être vide.",
+    required: "Ce champ est requis.",
+    regexp: "Cette valeur semble non valide.",
+    min: "Cette valeur ne doit pas être inféreure à %s.",
+    max: "Cette valeur ne doit pas excéder %s.",
+    range: "Cette valeur doit être comprise entre %s et %s.",
+    minlength: "Cette chaîne est trop courte. Elle doit avoir au minimum %s caractères.",
+    maxlength: "Cette chaîne est trop longue. Elle doit avoir au maximum %s caractères.",
+    rangelength: "Cette valeur doit contenir entre %s et %s caractères.",
+    equalto: "Cette valeur devrait être identique.",
+    mincheck: "Vous devez sélectionner au moins %s choix.",
+    maxcheck: "Vous devez sélectionner %s choix maximum.",
+    rangecheck: "Vous devez sélectionner entre %s et %s choix.",
+    minwords: "Cette valeur doit contenir plus de %s mots.",
+    maxwords: "Cette valeur ne peut pas dépasser %s mots.",
+    rangewords: "Cette valeur doit comprendre %s à %s mots.",
+    greaterthan: "Cette valeur doit être plus grande que %s.",
+    lessthan: "Cette valeur doit être plus petite que %s."
+  };
+
+  this.checksley.updateMessages("fr", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Questo valore sembra essere non valido.",
+    type: {
+      email: "Questo valore deve essere un indirizzo email valido.",
+      url: "Questo valore deve essere un URL valido.",
+      urlstrict: "Questo valore deve essere un URL valido.",
+      number: "Questo valore deve essere un numero valido.",
+      digits: "Questo valore deve essere di tipo numerico.",
+      dateIso: "Questo valore deve essere una data valida (YYYY-MM-DD).",
+      alphanum: "Questo valore deve essere di tipo alfanumerico."
+    },
+    notnull: "Questo valore non deve essere nullo.",
+    notblank: "Questo valore non deve essere vuoto.",
+    required: "Questo valore è richiesto.",
+    regexp: "Questo valore non è corretto.",
+    min: "Questo valore deve essere maggiore di %s.",
+    max: "Questo valore deve essere minore di %s.",
+    range: "Questo valore deve essere compreso tra %s e %s.",
+    minlength: "Questo valore è troppo corto. La lunghezza minima è di %s caratteri.",
+    maxlength: "Questo valore è troppo lungo. La lunghezza massima è di %s caratteri.",
+    rangelength: "La lunghezza di questo valore deve essere compresa fra %s e %s caratteri.",
+    equalto: "Questo valore deve essere identico.",
+    minwords: "Questo valore deve contenere almeno %s parole.",
+    maxwords: "Questo valore non deve superare le %s parole.",
+    rangewords: "Questo valore deve contenere tra %s e %s parole.",
+    greaterthan: "Questo valore deve essere maggiore di %s.",
+    lessthan: "Questo valore deve essere minore di %s.",
+    beforedate: "Questa data deve essere anteriore al %s.",
+    afterdate: "Questa data deve essere posteriore al %s.",
+    luhn: "Questo valore deve superare il test di Luhn."
+  };
+
+  this.checksley.updateMessages("it", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Deze waarde lijkt onjuist.",
+    type: {
+      email: "Dit lijkt geen geldig e-mail adres te zijn.",
+      url: "Dit lijkt geen geldige URL te zijn.",
+      urlstrict: "Dit is geen geldige URL.",
+      number: "Deze waarde moet een nummer zijn.",
+      digits: "Deze waarde moet numeriek zijn.",
+      dateIso: "Deze waarde moet een datum in het volgende formaat zijn: (YYYY-MM-DD).",
+      alphanum: "Deze waarde moet alfanumeriek zijn.",
+      phone: "Deze waarde moet een geldig telefoonnummer zijn."
+    },
+    notnull: "Deze waarde mag niet leeg zijn.",
+    notblank: "Deze waarde mag niet leeg zijn.",
+    required: "Dit veld is verplicht",
+    regexp: "Deze waarde lijkt onjuist te zijn.",
+    min: "Deze waarde mag niet lager zijn dan %s.",
+    max: "Deze waarde mag niet groter zijn dan %s.",
+    range: "Deze waarde moet tussen %s en %s liggen.",
+    minlength: "Deze tekst is te kort. Deze moet uit minimaal %s karakters bestaan.",
+    maxlength: "Deze waarde is te lang. Deze mag maximaal %s karakters lang zijn.",
+    mincheck: "Je moet minstens %s opties selecteren.",
+    maxcheck: "Je moet %s of minder opties selecteren.",
+    rangecheck: "Je moet tussen de %s en %s opties selecteren.",
+    rangelength: "Deze waarde moet tussen %s en %s karakters lang zijn.",
+    equalto: "Deze waardes moeten identiek zijn.",
+    minwords: "Deze waarde moet minstens %s woorden bevatten.",
+    maxwords: "Deze waarde mag maximaal %s woorden bevatten.",
+    rangewords: "Deze waarde moet tussen de %s en %s woorden bevatten.",
+    greaterthan: "Deze waarde moet groter dan %s zijn.",
+    lessthan: "Deze waarde moet kleiner dan %s zijn.",
+    beforedate: "Deze datum moet voor %s liggne.",
+    afterdate: "Deze datum moet na %s liggen.",
+    americandate: "Dit moet een geldige datum zijn (MM/DD/YYYY)."
+  };
+
+  this.checksley.updateMessages("nl", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "Поле заполнено некорректно.",
+    type: {
+      email: "Поле должно быть адресом электронной почты.",
+      url: "Поле должно быть ссылкой на сайт.",
+      urlstrict: "Поле должно быть ссылкой на сайт.",
+      number: "Поле должно быть числом.",
+      digits: "Поле должно содержать только цифры.",
+      dateIso: "Поле должно быть датой в формате (ГГГГ-ММ-ДД).",
+      alphanum: "Поле должно содержать только цифры и буквы",
+      phone: "Поле должно содержать корректный номер телефона"
+    },
+    notnull: "Поле должно быть не нулевым.",
+    notblank: "Поле не должно быть пустым.",
+    required: "Поле обязательно для заполнения.",
+    regexp: "Поле заполнено некорректно.",
+    min: "Значение поля должно быть больше %s.",
+    max: "Значение поля должно быть меньше %s.",
+    range: "Значение поля должно быть между %s и %s.",
+    minlength: "В поле должно быть минимум %s символов(а).",
+    maxlength: "В поле должно быть не больше %s символов(а).",
+    rangelength: "В поле должно быть от %s до %s символов(а).",
+    mincheck: "Необходимо выбрать не менее %s пунктов(а).",
+    maxcheck: "Необходимо выбрать не более %s пунктов(а).",
+    rangecheck: "Необходимо выбрать от %s до %s пунктов.",
+    equalto: "Значения полей должны быть одинаковыми.",
+    minwords: "В поле должно быть не менее %s слов.",
+    maxwords: "В поле должно быть не более %s слов.",
+    rangewords: "Количество слов в поле должно быть в диапазоне от %s до %s.",
+    greaterthan: "Значение в поле должно быть более %s.",
+    lessthan: "Значение в поле должно быть менее %s.",
+    beforedate: "Дата должна быть до %s.",
+    afterdate: "Дата должна быть после %s.",
+    americandate: "В поле должна быть корректная дата в формате MM/DD/YYYY."
+  };
+
+  this.checksley.updateMessages("ru", messages);
+
+}).call(this);
+
+(function() {
+  var messages;
+
+  messages = {
+    defaultMessage: "不正确的值",
+    type: {
+      email: "字段值应该是一个正确的电子邮件地址",
+      url: "字段值应该是一个正确的URL地址",
+      urlstrict: "字段值应该是一个正确的URL地址",
+      number: "字段值应该是一个合法的数字",
+      digits: "字段值应该是一个单独的数字",
+      dateIso: "字段值应该是一个正确的日期描述(YYYY-MM-DD).",
+      alphanum: "字段值应该是只包含字母和数字"
+    },
+    notnull: "字段值不可为null",
+    notblank: "字段值不可为空",
+    required: "字段值是必填的",
+    regexp: "字段值不合法",
+    min: "字段值应该大于 %s",
+    max: "字段值应该小于 %s.",
+    range: "字段值应该大于 %s 并小于 %s.",
+    minlength: "字段值太短了，长度应该大于等于 %s 个字符",
+    maxlength: "字段值太长了，长度应该小于等于 %s 个字符",
+    rangelength: "字段值长度错了，长度应该在 %s 和 %s 个字符之间",
+    mincheck: "你至少要选择 %s 个选项",
+    maxcheck: "你最多只能选择 %s 个选项",
+    rangecheck: "你只能选择 %s 到 %s 个选项",
+    equalto: "字段值应该和给定的值一样",
+    minwords: "字段值应该至少有 %s 个词",
+    maxwords: "字段值最多只能有 %s 个词",
+    rangewords: "字段值应该有 %s 到 %s 个词",
+    greaterthan: "字段值应该大于 %s",
+    lessthan: "字段值应该小于 %s",
+    beforedate: "字段值所表示的日期应该早于 %s.",
+    afterdate: "字段值所表示的日期应该晚于 %s."
+  };
+
+  this.checksley.updateMessages("zh-cn", messages);
 
 }).call(this);
 
