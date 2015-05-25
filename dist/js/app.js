@@ -2502,23 +2502,28 @@
       return container.replaceWith(dom);
     };
     videoConferenceUrl = function(project) {
-      var baseUrl, url, urlSeparator;
-      urlSeparator = "-";
+      var baseUrl, url, urlFixer;
+      urlFixer = function(url) {
+        return url;
+      };
       if (project.videoconferences === "appear-in") {
         baseUrl = "https://appear.in/";
       } else if (project.videoconferences === "talky") {
         baseUrl = "https://talky.io/";
       } else if (project.videoconferences === "jitsi") {
-        urlSeparator = "";
         baseUrl = "https://meet.jit.si/";
+        urlFixer = function(url) {
+          return url.replace(/ /g, "").replace(/-/g, "");
+        };
       } else {
         return "";
       }
       if (project.videoconferences_salt) {
-        url = "" + project.slug + urlSeparator + project.videoconferences_salt;
+        url = project.slug + "-" + project.videoconferences_salt;
       } else {
         url = "" + project.slug;
       }
+      url = urlFixer(url);
       return baseUrl + url;
     };
     link = function($scope, $el, $attrs, $ctrl) {
