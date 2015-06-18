@@ -2,92 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Taiga</title>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <meta name="description" content="Taiga Landing page">
-    <meta name="keywords" content="Agile, Taiga, Management, Github">
+    <meta name="fragment" content="!">
+    <!-- Main meta-->
+    <title>Taiga</title>
+    <meta name="description" content="Taiga is a project management platform for startups and agile developers &amp; designers who want a simple, beautiful tool that makes work truly enjoyable.">
+    <meta name="keywords" content="agile, scrum, taiga, management, project, developer, designer, user experience">
     <link rel="stylesheet" href="/styles/main.css">
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script type="text/javascript">
+      window.prerenderReady = false;
+      
+    </script>
   </head>
   <body tg-main>
-    <div class="projects-nav-overlay">
-      <div class="container">
-        <p translate="COMMON.LOADING_PROJECT"></p>
-      </div>
-    </div>
-    <div tg-lb-create-project class="wizard-create-project">
-      <form>
-        <section data-step="step1" class="wizard-step create-step1">
-          <div class="title">
-            <h1 translate="WIZARD.SECTION_TITLE_CHOOSE_TEMPLATE"></h1>
-            <p translate="WIZARD.CHOOSE_TEMPLATE_TEXT"></p>
-          </div>
-          <div class="template-wrapper">
-            <div class="template-inner">
-              <fieldset ng-repeat="template in templates">
-                <input type="radio" name="template" id="template-{{ template.id }}" ng-value="template.id" ng-model="data.creation_template" data-required="true">
-                <label for="template-{{ template.id }}" class="backlog"><span class="icon icon-backlog"></span>
-                  <h2>{{ template.name }}</h2>
-                </label>
-                <p>{{ template.description }}</p>
-              </fieldset>
-            </div>
-          </div>
-          <fieldset><a href="" title="{{'PAGINATION.NEXT' | translate}}" translate="PAGINATION.NEXT" class="button-next button button-green"></a></fieldset>
-        </section>
-        <section data-step="step2" class="wizard-step create-step2 active">
-          <div class="title">
-            <h1 translate="WIZARD.SECTION_TITLE_CREATE_PROJECT"></h1>
-            <p translate="WIZARD.CREATE_PROJECT_TEXT"></p>
-          </div>
-          <div class="template-wrapper">
-            <div class="template-inner">
-              <fieldset>
-                <input type="text" name="name" ng-model="data.name" data-required="true" placeholder="{{'COMMON.FIELDS.NAME' | translate}}" maxlength="45">
-              </fieldset>
-              <fieldset>
-                <textarea name="description" ng-model="data.description" data-required="true" ng-attr-placeholder="{{'COMMON.FIELDS.DESCRIPTION' | translate}}"></textarea>
-              </fieldset>
-              <fieldset class="wizard-action">
-                <div><a href="" title="{{'PAGINATION.PREVIOUS' | translate}}" translate="PAGINATION.PREVIOUS" class="button-prev button button-gray"></a>
-                  <button type="submit" title="{{'COMMON.CREATE' | translate}}" translate="COMMON.CREATE" class="button-green submit-button"></button>
-                </div>
-                <button type="submit" class="hidden"></button>
-              </fieldset>
-            </div>
-          </div>
-        </section>
-      </form>
-      <div class="progress-bar">
-        <div class="progress-state"><span translate="WIZARD.PROGRESS_TEMPLATE_SELECTION"></span><span translate="WIZARD.PROGRESS_NAME_DESCRIPTION"></span>
-          <!-- span Final touches-->
-        </div>
-        <div class="progress-bar-wrapper">
-          <div class="bar"></div>
-        </div>
-      </div><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close"><span class="icon icon-delete"></span></a>
-    </div>
-    <nav tg-projects-nav class="projects-nav"></nav>
-    <nav tg-project-menu class="menu hidden"></nav>
-    <div class="notification-message notification-message-success">
-      <div class="text">
-        <h4 translate="NOTIFICATION.OK" class="warning"></h4>
-        <p translate="NOTIFICATION.SAVED"></p>
-      </div>
-    </div>
-    <div class="notification-message notification-message-error">
-      <div class="icon icon-notification-error"></div>
-      <div class="text">
-        <h4 translate="NOTIFICATION.WARNING" class="warning"></h4>
-        <p translate="NOTIFICATION.WARNING_TEXT"></p>
-      </div><a href="" title="{{'NOTIFICATION.CLOSE' | translate}}" class="icon icon-delete"></a>
-    </div>
-    <div class="notification-light notification-message-light-error">
-      <div class="text">
-        <h4 translate="NOTIFICATION.WARNING" class="warning"></h4>
-        <p translate="NOTIFICATION.WARNING_TEXT"></p>
-      </div><a href="" title="{{'NOTIFICATION.CLOSE' | translate}}" class="icon icon-delete"></a>
-    </div>
+    <div tg-navigation-bar></div>
     <div ng-view class="master"></div>
     <div class="lightbox lightbox-generic-ask"><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close"><span class="icon icon-delete"></span></a>
       <form>
@@ -130,36 +59,33 @@
         <p class="message"></p>
       </section>
     </div>
-    <div tg-search-box class="lightbox lightbox-search"><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close"><span class="icon icon-delete"></span></a>
-      <form>
-        <h2 translate="LIGHTBOX.SEARCH.TITLE" class="title"></h2>
-        <fieldset>
-          <input type="text" name="text" id="search-text" placeholder="{{'LIGHTBOX.SEARCH.PLACEHOLDER_SEARCH' | translate}}" data-required="true">
-        </fieldset>
-        <fieldset>
-          <button type="submit" title="{{' LIGHTBOX.SEARCH.TITLE' | translate}}" translate="LIGHTBOX.SEARCH.TITLE" class="button-green submit-button"></button>
-        </fieldset>
-      </form>
-    </div>
-    <div tg-lb-feedback class="lightbox lightbox-feedback lightbox-generic-form"><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close"><span class="icon icon-delete"></span></a>
-      <form>
-        <h2 translate="LIGHTBOX.FEEDBACK.TITLE" class="title"></h2>
-        <fieldset>
-          <textarea ng-model="feedback.comment" data-required="true" ng-attr-placeholder="{{'LIGHTBOX.FEEDBACK.COMMENT' | translate}}"></textarea>
-        </fieldset>
-        <fieldset>
-          <button type="submit" title="{{'LIGHTBOX.FEEDBACK.ACTION_SEND' | translate}}" translate="LIGHTBOX.FEEDBACK.ACTION_SEND" class="button-green submit-button"></button>
-        </fieldset>
-      </form>
-    </div>
     <div tg-loader class="loader">
       <div class="loading-bar"><span class="item item-1"></span><span class="item item-2"></span><span class="item item-3"></span><span class="item item-4"></span><span class="item item-5"></span></div>
       <div class="container">
         <p translate="COMMON.LOADING"></p>
       </div>
     </div>
-    <script src="/js/libs.js?v=1432565690468"></script>
-    <script src="/js/templates.js?v=1432565690468"></script>
-    <script src="/js/app-loader.js?v=1432565690468"></script>
+    <div class="notification-message notification-message-success">
+      <div class="text">
+        <h4 translate="NOTIFICATION.OK" class="warning"></h4>
+        <p translate="NOTIFICATION.SAVED"></p>
+      </div>
+    </div>
+    <div class="notification-message notification-message-error">
+      <div class="icon icon-notification-error"></div>
+      <div class="text">
+        <h4 translate="NOTIFICATION.WARNING" class="warning"></h4>
+        <p translate="NOTIFICATION.WARNING_TEXT"></p>
+      </div><a href="" title="{{'NOTIFICATION.CLOSE' | translate}}" class="icon icon-delete"></a>
+    </div>
+    <div class="notification-light notification-message-light-error">
+      <div class="text">
+        <h4 translate="NOTIFICATION.WARNING" class="warning"></h4>
+        <p translate="NOTIFICATION.WARNING_TEXT"></p>
+      </div><a href="" title="{{'NOTIFICATION.CLOSE' | translate}}" class="icon icon-delete"></a>
+    </div>
+    <script src="/js/libs.js?v=1434623588457"></script>
+    <script src="/js/templates.js?v=1434623588457"></script>
+    <script src="/js/app-loader.js?v=1434623588457"></script>
   </body>
 </html>
