@@ -46,50 +46,81 @@
 
   taiga.sessionId = taiga.generateUniqueSessionIdentifier();
 
-  configure = function($routeProvider, $locationProvider, $httpProvider, $provide, $tgEventsProvider, tgLoaderProvider, $compileProvider, $translateProvider) {
-    var authHttpIntercept, defaultHeaders, preferedLangCode, userInfo, versionCheckHttpIntercept;
+  configure = function($routeProvider, $locationProvider, $httpProvider, $provide, $tgEventsProvider, $compileProvider, $translateProvider) {
+    var authHttpIntercept, defaultHeaders, loaderIntercept, originalWhen, preferedLangCode, userInfo, versionCheckHttpIntercept;
+    originalWhen = $routeProvider.when;
+    $routeProvider.when = function(path, route) {
+      route.resolve || (route.resolve = {});
+      angular.extend(route.resolve, {
+        languageLoad: [
+          "$q", "$translate", function($q, $translate) {
+            var deferred;
+            deferred = $q.defer();
+            $translate().then(function() {
+              return deferred.resolve();
+            });
+            return deferred.promise;
+          }
+        ]
+      });
+      return originalWhen.call($routeProvider, path, route);
+    };
     $routeProvider.when("/", {
-      templateUrl: "project/projects.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      templateUrl: "home/home.html",
+      access: {
+        requiresLogin: true
+      },
+      title: "HOME.PAGE_TITLE",
+      description: "HOME.PAGE_DESCRIPTION",
+      loader: true
+    });
+    $routeProvider.when("/projects/", {
+      templateUrl: "projects/listing/projects-listing.html",
+      access: {
+        requiresLogin: true
+      },
+      title: "PROJECTS.PAGE_TITLE",
+      description: "PROJECTS.PAGE_DESCRIPTION",
+      loader: true,
+      controller: "ProjectsListing",
+      controllerAs: "vm"
     });
     $routeProvider.when("/project/:pslug/", {
-      templateUrl: "project/project.html"
+      templateUrl: "projects/project/project.html",
+      loader: true,
+      controller: "Project",
+      controllerAs: "vm",
+      section: "project-timeline"
     });
     $routeProvider.when("/project/:pslug/search", {
       templateUrl: "search/search.html",
-      reloadOnSearch: false
+      reloadOnSearch: false,
+      section: "search"
     });
     $routeProvider.when("/project/:pslug/backlog", {
       templateUrl: "backlog/backlog.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "backlog"
     });
     $routeProvider.when("/project/:pslug/kanban", {
       templateUrl: "kanban/kanban.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "kanban"
     });
     $routeProvider.when("/project/:pslug/taskboard/:sslug", {
       templateUrl: "taskboard/taskboard.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "backlog"
     });
     $routeProvider.when("/project/:pslug/us/:usref", {
       templateUrl: "us/us-detail.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "backlog-kanban"
     });
     $routeProvider.when("/project/:pslug/task/:taskref", {
       templateUrl: "task/task-detail.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "backlog-kanban"
     });
     $routeProvider.when("/project/:pslug/wiki", {
       redirectTo: function(params) {
@@ -98,92 +129,102 @@
     });
     $routeProvider.when("/project/:pslug/wiki/:slug", {
       templateUrl: "wiki/wiki.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "wiki"
     });
     $routeProvider.when("/project/:pslug/team", {
       templateUrl: "team/team.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "team"
     });
     $routeProvider.when("/project/:pslug/issues", {
       templateUrl: "issue/issues.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "issues"
     });
     $routeProvider.when("/project/:pslug/issue/:issueref", {
       templateUrl: "issue/issues-detail.html",
-      resolve: {
-        loader: tgLoaderProvider.add()
-      }
+      loader: true,
+      section: "issues"
     });
     $routeProvider.when("/project/:pslug/admin/project-profile/details", {
-      templateUrl: "admin/admin-project-profile.html"
+      templateUrl: "admin/admin-project-profile.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-profile/default-values", {
-      templateUrl: "admin/admin-project-default-values.html"
+      templateUrl: "admin/admin-project-default-values.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-profile/modules", {
-      templateUrl: "admin/admin-project-modules.html"
+      templateUrl: "admin/admin-project-modules.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-profile/export", {
-      templateUrl: "admin/admin-project-export.html"
+      templateUrl: "admin/admin-project-export.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-profile/reports", {
-      templateUrl: "admin/admin-project-reports.html"
+      templateUrl: "admin/admin-project-reports.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-values/status", {
-      templateUrl: "admin/admin-project-values-status.html"
+      templateUrl: "admin/admin-project-values-status.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-values/points", {
-      templateUrl: "admin/admin-project-values-points.html"
+      templateUrl: "admin/admin-project-values-points.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-values/priorities", {
-      templateUrl: "admin/admin-project-values-priorities.html"
+      templateUrl: "admin/admin-project-values-priorities.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-values/severities", {
-      templateUrl: "admin/admin-project-values-severities.html"
+      templateUrl: "admin/admin-project-values-severities.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-values/types", {
-      templateUrl: "admin/admin-project-values-types.html"
+      templateUrl: "admin/admin-project-values-types.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/project-values/custom-fields", {
-      templateUrl: "admin/admin-project-values-custom-fields.html"
+      templateUrl: "admin/admin-project-values-custom-fields.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/memberships", {
-      templateUrl: "admin/admin-memberships.html"
+      templateUrl: "admin/admin-memberships.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/roles", {
-      templateUrl: "admin/admin-roles.html"
+      templateUrl: "admin/admin-roles.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/third-parties/webhooks", {
-      templateUrl: "admin/admin-third-parties-webhooks.html"
+      templateUrl: "admin/admin-third-parties-webhooks.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/third-parties/github", {
-      templateUrl: "admin/admin-third-parties-github.html"
+      templateUrl: "admin/admin-third-parties-github.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/third-parties/gitlab", {
-      templateUrl: "admin/admin-third-parties-gitlab.html"
+      templateUrl: "admin/admin-third-parties-gitlab.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/third-parties/bitbucket", {
-      templateUrl: "admin/admin-third-parties-bitbucket.html"
+      templateUrl: "admin/admin-third-parties-bitbucket.html",
+      section: "admin"
     });
     $routeProvider.when("/project/:pslug/admin/contrib/:plugin", {
       templateUrl: "contrib/main.html"
     });
-    $routeProvider.when("/project/:pslug/user-settings/user-profile", {
+    $routeProvider.when("/user-settings/user-profile", {
       templateUrl: "user/user-profile.html"
     });
-    $routeProvider.when("/project/:pslug/user-settings/user-change-password", {
+    $routeProvider.when("/user-settings/user-change-password", {
       templateUrl: "user/user-change-password.html"
     });
-    $routeProvider.when("/project/:pslug/user-settings/user-avatar", {
-      templateUrl: "user/user-avatar.html"
-    });
-    $routeProvider.when("/project/:pslug/user-settings/mail-notifications", {
+    $routeProvider.when("/user-settings/mail-notifications", {
       templateUrl: "user/mail-notifications.html"
     });
     $routeProvider.when("/change-email/:email_token", {
@@ -192,23 +233,50 @@
     $routeProvider.when("/cancel-account/:cancel_token", {
       templateUrl: "user/cancel-account.html"
     });
+    $routeProvider.when("/profile", {
+      templateUrl: "profile/profile.html",
+      loader: true,
+      access: {
+        requiresLogin: true
+      },
+      controller: "Profile",
+      controllerAs: "vm"
+    });
+    $routeProvider.when("/profile/:slug", {
+      templateUrl: "profile/profile.html",
+      loader: true,
+      controller: "Profile",
+      controllerAs: "vm"
+    });
     $routeProvider.when("/login", {
-      templateUrl: "auth/login.html"
+      templateUrl: "auth/login.html",
+      title: "LOGIN.PAGE_TITLE",
+      description: "LOGIN.PAGE_DESCRIPTION"
     });
     $routeProvider.when("/register", {
-      templateUrl: "auth/register.html"
+      templateUrl: "auth/register.html",
+      title: "REGISTER.PAGE_TITLE",
+      description: "REGISTER.PAGE_DESCRIPTION"
     });
     $routeProvider.when("/forgot-password", {
-      templateUrl: "auth/forgot-password.html"
+      templateUrl: "auth/forgot-password.html",
+      title: "FORGOT_PASSWORD.PAGE_TITLE",
+      description: "FORGOT_PASSWORD.PAGE_DESCRIPTION"
     });
     $routeProvider.when("/change-password", {
-      templateUrl: "auth/change-password-from-recovery.html"
+      templateUrl: "auth/change-password-from-recovery.html",
+      title: "CHANGE_PASSWORD.PAGE_TITLE",
+      description: "CHANGE_PASSWORD.PAGE_TITLE"
     });
     $routeProvider.when("/change-password/:token", {
-      templateUrl: "auth/change-password-from-recovery.html"
+      templateUrl: "auth/change-password-from-recovery.html",
+      title: "CHANGE_PASSWORD.PAGE_TITLE",
+      description: "CHANGE_PASSWORD.PAGE_TITLE"
     });
     $routeProvider.when("/invitation/:token", {
-      templateUrl: "auth/invitation.html"
+      templateUrl: "auth/invitation.html",
+      title: "INVITATION.PAGE_TITLE",
+      description: "INVITATION.PAGE_DESCRIPTION"
     });
     $routeProvider.when("/error", {
       templateUrl: "error/error.html"
@@ -238,6 +306,7 @@
     $httpProvider.defaults.headers.get = {
       "X-Session-Id": taiga.sessionId
     };
+    $httpProvider.useApplyAsync(true);
     $tgEventsProvider.setSessionId(taiga.sessionId);
     authHttpIntercept = function($q, $location, $navUrls, $lightboxService) {
       var httpResponseError;
@@ -259,6 +328,28 @@
     };
     $provide.factory("authHttpIntercept", ["$q", "$location", "$tgNavUrls", "lightboxService", authHttpIntercept]);
     $httpProvider.interceptors.push("authHttpIntercept");
+    loaderIntercept = function($q, loaderService) {
+      return {
+        request: function(config) {
+          loaderService.logRequest();
+          return config;
+        },
+        requestError: function(rejection) {
+          loaderService.logResponse();
+          return $q.reject(rejection);
+        },
+        responseError: function(rejection) {
+          loaderService.logResponse();
+          return $q.reject(rejection);
+        },
+        response: function(response) {
+          loaderService.logResponse();
+          return response;
+        }
+      };
+    };
+    $provide.factory("loaderIntercept", ["$q", "tgLoader", loaderIntercept]);
+    $httpProvider.interceptors.push("loaderIntercept");
     versionCheckHttpIntercept = function($q) {
       var httpResponseError;
       httpResponseError = function(response) {
@@ -340,8 +431,8 @@
     return checksley.updateMessages('default', messages);
   };
 
-  init = function($log, $config, $rootscope, $auth, $events, $analytics, $translate) {
-    var user;
+  init = function($log, $rootscope, $auth, $events, $analytics, $translate, $location, $navUrls, appMetaService, projectService, loaderService) {
+    var un, user;
     $log.debug("Initialize application");
     $rootscope.contribPlugins = this.taigaContribPlugins;
     $rootscope.adminPlugins = _.where(this.taigaContribPlugins, {
@@ -352,22 +443,53 @@
       lang = ctx.language;
       return i18nInit(lang, $translate);
     });
+    Promise.setScheduler(function(cb) {
+      return $rootscope.$evalAsync(cb);
+    });
     if ($auth.isAuthenticated()) {
       $events.setupConnection();
       user = $auth.getUser();
     }
-    return $analytics.initialize();
+    $analytics.initialize();
+    un = $rootscope.$on('$routeChangeStart', function(event, next) {
+      if (next.loader) {
+        loaderService.start(true);
+      }
+      return un();
+    });
+    return $rootscope.$on('$routeChangeSuccess', function(event, next) {
+      var description, title;
+      if (next.loader) {
+        loaderService.start(true);
+      }
+      if (next.access && next.access.requiresLogin) {
+        if (!$auth.isAuthenticated()) {
+          $location.path($navUrls.resolve("login"));
+        }
+      }
+      projectService.setSection(next.section);
+      if (next.params.pslug) {
+        projectService.setProject(next.params.pslug);
+      } else {
+        projectService.cleanProject();
+      }
+      if (next.title || next.description) {
+        title = $translate.instant(next.title || "");
+        description = $translate.instant(next.description || "");
+        return appMetaService.setAll(title, description);
+      }
+    });
   };
 
-  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaAuth", "taigaEvents", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaNavMenu", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "templates", "ngRoute", "ngAnimate", "pascalprecht.translate"].concat(_.map(this.taigaContribPlugins, function(plugin) {
+  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaResources2", "taigaAuth", "taigaEvents", "taigaHome", "taigaNavigationBar", "taigaProjects", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "taigaProfile", "taigaHome", "taigaUserTimeline", "templates", "ngRoute", "ngAnimate", "pascalprecht.translate", "infinite-scroll", "tgRepeat"].concat(_.map(this.taigaContribPlugins, function(plugin) {
     return plugin.module;
   }));
 
   module = angular.module("taiga", modules);
 
-  module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "tgLoaderProvider", "$compileProvider", "$translateProvider", configure]);
+  module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "$compileProvider", "$translateProvider", configure]);
 
-  module.run(["$log", "$tgConfig", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", init]);
+  module.run(["$log", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "tgProjectService", "tgLoader", init]);
 
 }).call(this);
 
@@ -473,7 +595,7 @@
  */
 
 (function() {
-  var bindMethods, bindOnce, cancelTimeout, debounce, debounceLeading, groupBy, joinStr, mixOf, nl2br, scopeDefer, sizeFormat, slugify, startswith, taiga, timeout, toString, toggleText, trim, unslugify,
+  var bindMethods, bindOnce, cancelTimeout, debounce, debounceLeading, defineImmutableProperty, groupBy, joinStr, mixOf, nl2br, replaceTags, scopeDefer, sizeFormat, slugify, startswith, stripTags, taiga, timeout, toString, toggleText, trim, truncate, unslugify,
     indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     slice = [].slice,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
@@ -632,6 +754,23 @@
     return _.str.startsWith(str1, str2);
   };
 
+  truncate = function(str, maxLength, suffix) {
+    var out;
+    if (suffix == null) {
+      suffix = "...";
+    }
+    if ((typeof str !== "string") && !(str instanceof String)) {
+      return str;
+    }
+    out = str.slice(0);
+    if (out.length > maxLength) {
+      out = out.substring(0, maxLength + 1);
+      out = out.substring(0, Math.min(out.length, out.lastIndexOf(" ")));
+      out = out + suffix;
+    }
+    return out;
+  };
+
   sizeFormat = function(input, precision) {
     var number, size, units;
     if (precision == null) {
@@ -651,6 +790,45 @@
     size = (input / Math.pow(1024, number)).toFixed(precision);
     return size + " " + units[number];
   };
+
+  stripTags = function(str, exception) {
+    var pattern;
+    if (exception) {
+      pattern = new RegExp('<(?!' + exception + '\s*\/?)[^>]+>', 'gi');
+      return String(str).replace(pattern, '');
+    } else {
+      return String(str).replace(/<\/?[^>]+>/g, '');
+    }
+  };
+
+  replaceTags = function(str, tags, replace) {
+    var pattern;
+    pattern = new RegExp('<(' + tags + ')>', 'gi');
+    str = str.replace(pattern, '<' + replace + '>');
+    pattern = new RegExp('<\/(' + tags + ')>', 'gi');
+    str = str.replace(pattern, '</' + replace + '>');
+    return str;
+  };
+
+  defineImmutableProperty = (function(_this) {
+    return function(obj, name, fn) {
+      return Object.defineProperty(obj, name, {
+        get: function() {
+          var fn_result;
+          if (!_.isFunction(fn)) {
+            throw "defineImmutableProperty third param must be a function";
+          }
+          fn_result = fn();
+          if (fn_result && _.isObject(fn_result)) {
+            if (fn_result.size === void 0) {
+              throw "defineImmutableProperty must return immutable data";
+            }
+          }
+          return fn_result;
+        }
+      });
+    };
+  })(this);
 
   taiga = this.taiga;
 
@@ -682,6 +860,8 @@
 
   taiga.joinStr = joinStr;
 
+  taiga.truncate = truncate;
+
   taiga.debounce = debounce;
 
   taiga.debounceLeading = debounceLeading;
@@ -689,6 +869,12 @@
   taiga.startswith = startswith;
 
   taiga.sizeFormat = sizeFormat;
+
+  taiga.stripTags = stripTags;
+
+  taiga.replaceTags = replaceTags;
+
+  taiga.defineImmutableProperty = defineImmutableProperty;
 
 }).call(this);
 
@@ -915,9 +1101,10 @@
   AuthService = (function(superClass) {
     extend(AuthService, superClass);
 
-    AuthService.$inject = ["$rootScope", "$tgStorage", "$tgModel", "$tgResources", "$tgHttp", "$tgUrls", "$tgConfig", "$translate"];
+    AuthService.$inject = ["$rootScope", "$tgStorage", "$tgModel", "$tgResources", "$tgHttp", "$tgUrls", "$tgConfig", "$translate", "tgCurrentUserService"];
 
-    function AuthService(rootscope, storage, model, rs, http, urls, config, translate) {
+    function AuthService(rootscope, storage, model, rs, http, urls, config, translate, currentUserService) {
+      var userModel;
       this.rootscope = rootscope;
       this.storage = storage;
       this.model = model;
@@ -926,12 +1113,25 @@
       this.urls = urls;
       this.config = config;
       this.translate = translate;
+      this.currentUserService = currentUserService;
       AuthService.__super__.constructor.call(this);
+      userModel = this.getUser();
+      this.setUserdata(userModel);
     }
+
+    AuthService.prototype.setUserdata = function(userModel) {
+      if (userModel) {
+        this.userData = Immutable.fromJS(userModel.getAttrs());
+        return this.currentUserService.setUser(this.userData);
+      } else {
+        return this.userData = null;
+      }
+    };
 
     AuthService.prototype._setLocales = function() {
       var lang;
       lang = this.rootscope.user.lang || this.config.get("defaultLanguage") || "en";
+      this.translate.preferredLanguage(lang);
       return this.translate.use(lang);
     };
 
@@ -954,6 +1154,7 @@
       this.rootscope.auth = user;
       this.storage.set("userInfo", user.getAttrs());
       this.rootscope.user = user;
+      this.setUserdata(user);
       return this._setLocales();
     };
 
@@ -1001,7 +1202,8 @@
 
     AuthService.prototype.logout = function() {
       this.removeToken();
-      return this.clear();
+      this.clear();
+      return this.currentUserService.removeUser();
     };
 
     AuthService.prototype.register = function(data, type, existing) {
@@ -1128,7 +1330,11 @@
           return promise.then(onSuccess, onError);
         };
       })(this));
-      return $el.on("submit", "form", submit);
+      $el.on("submit", "form", submit);
+      window.prerenderReady = true;
+      return $scope.$on("$destroy", function() {
+        return $el.off();
+      });
     };
     return {
       link: link
@@ -1156,9 +1362,11 @@
       };
       onErrorSubmit = function(response) {
         var text;
-        if (response.data._error_message != null) {
-          text = $translate.instant("LOGIN_FORM.ERROR_GENERIC") + " " + response.data._error_message;
-          $confirm.notify("light-error", text + " " + response.data._error_message);
+        if (response.data._error_message) {
+          text = $translate.instant("COMMON.GENERIC_ERROR", {
+            error: response.data._error_message
+          });
+          $confirm.notify("light-error", text);
         }
         return form.setErrors(response.data);
       };
@@ -1173,7 +1381,11 @@
           return promise.then(onSuccessSubmit, onErrorSubmit);
         };
       })(this));
-      return $el.on("submit", "form", submit);
+      $el.on("submit", "form", submit);
+      $scope.$on("$destroy", function() {
+        return $el.off();
+      });
+      return window.prerenderReady = true;
     };
     return {
       link: link
@@ -1210,7 +1422,11 @@
           return promise.then(onSuccessSubmit, onErrorSubmit);
         };
       })(this));
-      return $el.on("submit", "form", submit);
+      $el.on("submit", "form", submit);
+      $scope.$on("$destroy", function() {
+        return $el.off();
+      });
+      return window.prerenderReady = true;
     };
     return {
       link: link
@@ -1255,7 +1471,10 @@
           return promise.then(onSuccessSubmit, onErrorSubmit);
         };
       })(this));
-      return $el.on("submit", "form", submit);
+      $el.on("submit", "form", submit);
+      return $scope.$on("$destroy", function() {
+        return $el.off();
+      });
     };
     return {
       link: link
@@ -1316,7 +1535,9 @@
       $scope.dataRegister = {
         token: token
       };
-      registerForm = $el.find("form.register-form").checksley();
+      registerForm = $el.find("form.register-form").checksley({
+        onlyOneErrorElement: true
+      });
       onSuccessSubmitRegister = function(response) {
         $analytics.trackEvent("auth", "invitationAccept", "invitation accept with new user", 1);
         $location.path($navUrls.resolve("project", {
@@ -1326,8 +1547,13 @@
       };
       onErrorSubmitRegister = function(response) {
         var text;
-        text = $translate.instant("LOGIN_FORM.ERROR_AUTH_INCORRECT");
-        return $confirm.notify("light-error", text);
+        if (response.data._error_message) {
+          text = $translate.instant("COMMON.GENERIC_ERROR", {
+            error: response.data._error_message
+          });
+          $confirm.notify("light-error", text);
+        }
+        return registerForm.setErrors(response.data);
       };
       submitRegister = debounce(2000, (function(_this) {
         return function(event) {
@@ -1340,7 +1566,10 @@
         };
       })(this));
       $el.on("submit", "form.register-form", submitRegister);
-      return $el.on("click", ".button-register", submitRegister);
+      $el.on("click", ".button-register", submitRegister);
+      return $scope.$on("$destroy", function() {
+        return $el.off();
+      });
     };
     return {
       link: link
@@ -1357,15 +1586,19 @@
       $scope.data.email_token = $params.email_token;
       form = $el.find("form").checksley();
       onSuccessSubmit = function(response) {
-        return $repo.queryOne("users", $auth.getUser().id).then((function(_this) {
-          return function(data) {
-            var text;
-            $auth.setUser(data);
-            $location.path($navUrls.resolve("home"));
-            text = $translate.instant("CHANGE_EMAIL_FORM.SUCCESS");
-            return $confirm.success(text);
-          };
-        })(this));
+        var text;
+        if ($auth.isAuthenticated()) {
+          $repo.queryOne("users", $auth.getUser().id).then((function(_this) {
+            return function(data) {
+              $auth.setUser(data);
+              return $location.path($navUrls.resolve("home"));
+            };
+          })(this));
+        } else {
+          $location.path($navUrls.resolve("login"));
+        }
+        text = $translate.instant("CHANGE_EMAIL_FORM.SUCCESS");
+        return $confirm.success(text);
       };
       onErrorSubmit = function(response) {
         var text;
@@ -1386,9 +1619,12 @@
         event.preventDefault();
         return submit();
       });
-      return $el.on("click", "a.button-change-email", function(event) {
+      $el.on("click", "a.button-change-email", function(event) {
         event.preventDefault();
         return submit();
+      });
+      return $scope.$on("$destroy", function() {
+        return $el.off();
       });
     };
     return {
@@ -1430,7 +1666,10 @@
           return promise.then(onSuccessSubmit, onErrorSubmit);
         };
       })(this));
-      return $el.on("submit", "form", submit);
+      $el.on("submit", "form", submit);
+      return $scope.$on("$destroy", function() {
+        return $el.off();
+      });
     };
     return {
       link: link
@@ -1519,6 +1758,7 @@
 
   urls = {
     "home": "/",
+    "projects": "/projects",
     "error": "/error",
     "not-found": "/not-found",
     "permission-denied": "/permission-denied",
@@ -1530,7 +1770,8 @@
     "register": "/register",
     "invitation": "/invitation/:token",
     "create-project": "/create-project",
-    "profile": "/:user",
+    "profile": "/profile",
+    "user-profile": "/profile/:username",
     "project": "/project/:project",
     "project-backlog": "/project/:project/backlog",
     "project-taskboard": "/project/:project/taskboard/:sprint",
@@ -1562,10 +1803,10 @@
     "project-admin-third-parties-gitlab": "/project/:project/admin/third-parties/gitlab",
     "project-admin-third-parties-bitbucket": "/project/:project/admin/third-parties/bitbucket",
     "project-admin-contrib": "/project/:project/admin/contrib/:plugin",
-    "user-settings-user-profile": "/project/:project/user-settings/user-profile",
-    "user-settings-user-change-password": "/project/:project/user-settings/user-change-password",
-    "user-settings-user-avatar": "/project/:project/user-settings/user-avatar",
-    "user-settings-mail-notifications": "/project/:project/user-settings/mail-notifications"
+    "user-settings-user-profile": "/user-settings/user-profile",
+    "user-settings-user-change-password": "/user-settings/user-change-password",
+    "user-settings-user-avatar": "/user-settings/user-avatar",
+    "user-settings-mail-notifications": "/user-settings/mail-notifications"
   };
 
   init = function($log, $navurls) {
@@ -1600,7 +1841,7 @@
  */
 
 (function() {
-  var AnimationFrame, AppTitle, CheckPermissionDirective, ClassPermissionDirective, LimitLineLengthDirective, ProjectUrl, Qqueue, SelectedText, Template, ToggleCommentDirective, module, taiga,
+  var AnimationFrame, CheckPermissionDirective, ClassPermissionDirective, LimitLineLengthDirective, ProjectUrl, Qqueue, SelectedText, Template, ToggleCommentDirective, module, taiga,
     slice = [].slice;
 
   taiga = this.taiga;
@@ -1740,18 +1981,6 @@
   };
 
   module.directive("tgToggleComment", ToggleCommentDirective);
-
-  AppTitle = function() {
-    var set;
-    set = function(text) {
-      return $("title").text(text);
-    };
-    return {
-      set: set
-    };
-  };
-
-  module.factory("$appTitle", AppTitle);
 
   ProjectUrl = function($navurls) {
     var get;
@@ -2113,10 +2342,10 @@
 
   module = angular.module("taigaFeedback", []);
 
-  FeedbackDirective = function($lightboxService, $repo, $confirm, $loading) {
-    var link;
+  FeedbackDirective = function($lightboxService, $repo, $confirm, $loading, feedbackService) {
+    var directive, link;
     link = function($scope, $el, $attrs) {
-      var form, submit, submitButton;
+      var form, openLightbox, submit, submitButton;
       form = $el.find("form").checksley();
       submit = debounce(2000, (function(_this) {
         return function(event) {
@@ -2140,23 +2369,25 @@
       })(this));
       submitButton = $el.find(".submit-button");
       $el.on("submit", "form", submit);
-      $scope.$on("feedback:show", function() {
-        $scope.$apply(function() {
-          return $scope.feedback = {};
-        });
+      openLightbox = function() {
+        $scope.feedback = {};
         $lightboxService.open($el);
         return $el.find("textarea").focus();
-      });
-      return $scope.$on("$destroy", function() {
+      };
+      $scope.$on("$destroy", function() {
         return $el.off();
       });
+      return openLightbox();
     };
-    return {
-      link: link
+    directive = {
+      link: link,
+      templateUrl: "common/lightbox-feedback.html",
+      scope: {}
     };
+    return directive;
   };
 
-  module.directive("tgLbFeedback", ["lightboxService", "$tgRepo", "$tgConfirm", "$tgLoading", FeedbackDirective]);
+  module.directive("tgLbFeedback", ["lightboxService", "$tgRepo", "$tgConfirm", "$tgLoading", "tgFeedbackService", FeedbackDirective]);
 
 }).call(this);
 
@@ -2244,336 +2475,6 @@
   var module;
 
   module = angular.module("taigaKanban", []);
-
-}).call(this);
-
-
-/*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
-#
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
-#
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
- * File: modules/nav.coffee
- */
-
-(function() {
-  var ProjectMenuDirective, ProjectsNavigationController, ProjectsNavigationDirective, bindOnce, groupBy, module, taiga, timeout,
-    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  taiga = this.taiga;
-
-  groupBy = this.taiga.groupBy;
-
-  bindOnce = this.taiga.bindOnce;
-
-  timeout = this.taiga.timeout;
-
-  module = angular.module("taigaNavMenu", []);
-
-  ProjectsNavigationController = (function(superClass) {
-    extend(ProjectsNavigationController, superClass);
-
-    ProjectsNavigationController.$inject = ["$scope", "$rootScope", "$tgResources", "$tgNavUrls", "$projectUrl"];
-
-    function ProjectsNavigationController(scope, rootscope, rs, navurls, projectUrl) {
-      var promise;
-      this.scope = scope;
-      this.rootscope = rootscope;
-      this.rs = rs;
-      this.navurls = navurls;
-      this.projectUrl = projectUrl;
-      promise = this.loadInitialData();
-      promise.then(null, function() {
-        return console.log("FAIL");
-      });
-      this.scope.$on("projects:reload", (function(_this) {
-        return function() {
-          return _this.loadInitialData();
-        };
-      })(this));
-      this.scope.$on("project:loaded", (function(_this) {
-        return function(ctx, project) {
-          return _this.loadInitialData();
-        };
-      })(this));
-    }
-
-    ProjectsNavigationController.prototype.loadInitialData = function() {
-      var ref;
-      return this.rs.projects.listByMember((ref = this.rootscope.user) != null ? ref.id : void 0).then((function(_this) {
-        return function(projects) {
-          var i, len, project;
-          for (i = 0, len = projects.length; i < len; i++) {
-            project = projects[i];
-            project.url = _this.projectUrl.get(project);
-          }
-          _this.scope.projects = projects;
-          _this.scope.filteredProjects = projects;
-          _this.scope.filterText = "";
-          return projects;
-        };
-      })(this));
-    };
-
-    ProjectsNavigationController.prototype.newProject = function() {
-      return this.scope.$apply((function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("projects:create");
-        };
-      })(this));
-    };
-
-    ProjectsNavigationController.prototype.filterProjects = function(text) {
-      this.scope.filteredProjects = _.filter(this.scope.projects, function(project) {
-        return project.name.toLowerCase().indexOf(text) > -1;
-      });
-      this.scope.filterText = text;
-      return this.rootscope.$broadcast("projects:filtered");
-    };
-
-    return ProjectsNavigationController;
-
-  })(taiga.Controller);
-
-  module.controller("ProjectsNavigationController", ProjectsNavigationController);
-
-  ProjectsNavigationDirective = function($rootscope, animationFrame, $timeout, tgLoader, $location, $compile, $template) {
-    var baseTemplate, hideMenu, link, loadingStart, overlay, projectsTemplate;
-    baseTemplate = $template.get("project/project-navigation-base.html", true);
-    projectsTemplate = $template.get("project/project-navigation-list.html", true);
-    overlay = $(".projects-nav-overlay");
-    loadingStart = 0;
-    hideMenu = function() {
-      var difftime, timeoutValue;
-      if (overlay.is(':visible')) {
-        difftime = new Date().getTime() - loadingStart;
-        timeoutValue = 0;
-        if (difftime < 1000) {
-          timeoutValue = 1000 - timeoutValue;
-        }
-        return timeout(timeoutValue, function() {
-          overlay.one('transitionend', function() {
-            $(document.body).removeClass("loading-project open-projects-nav closed-projects-nav").css("overflow-x", "visible");
-            return overlay.hide();
-          });
-          $(document.body).addClass("closed-projects-nav");
-          return tgLoader.disablePreventLoading();
-        });
-      }
-    };
-    link = function($scope, $el, $attrs, $ctrls) {
-      var $ctrl, render, renderProjects;
-      $ctrl = $ctrls[0];
-      $rootscope.$on("project:loaded", hideMenu);
-      renderProjects = function(projects) {
-        var html;
-        html = projectsTemplate({
-          projects: projects
-        });
-        $el.find(".projects-list").html(html);
-        return $scope.$emit("regenerate:project-pagination");
-      };
-      render = function(projects) {
-        $el.html($compile(baseTemplate())($scope));
-        return renderProjects(projects);
-      };
-      overlay.on('click', function() {
-        return hideMenu();
-      });
-      $(document).on('keydown', (function(_this) {
-        return function(e) {
-          var code;
-          code = e.keyCode ? e.keyCode : e.which;
-          if (code === 27) {
-            return hideMenu();
-          }
-        };
-      })(this));
-      $scope.$on("nav:projects-list:open", function() {
-        if (!$(document.body).hasClass("open-projects-nav")) {
-          animationFrame.add((function(_this) {
-            return function() {
-              return overlay.show();
-            };
-          })(this));
-        }
-        return animationFrame.add((function(_this) {
-          return function() {
-            return $(document.body).css("overflow-x", "hidden");
-          };
-        })(this), (function(_this) {
-          return function() {
-            return $(document.body).toggleClass("open-projects-nav");
-          };
-        })(this));
-      });
-      $el.on("click", ".projects-list > li > a", function(event) {
-        var currentUrl, nextUrl, target;
-        target = angular.element(event.currentTarget);
-        nextUrl = target.prop("href");
-        currentUrl = $location.absUrl();
-        if (nextUrl === currentUrl) {
-          hideMenu();
-          return;
-        }
-        $(document.body).addClass('loading-project');
-        tgLoader.preventLoading();
-        return loadingStart = new Date().getTime();
-      });
-      $el.on("click", ".create-project-button", function(event) {
-        event.preventDefault();
-        return $ctrl.newProject();
-      });
-      $el.on("keyup", ".search-project", function(event) {
-        var target;
-        target = angular.element(event.currentTarget);
-        return $ctrl.filterProjects(target.val());
-      });
-      $scope.$on("projects:filtered", function() {
-        return renderProjects($scope.filteredProjects);
-      });
-      return $scope.$watch("projects", function(projects) {
-        if (projects != null) {
-          return render(projects);
-        }
-      });
-    };
-    return {
-      require: ["tgProjectsNav"],
-      controller: ProjectsNavigationController,
-      link: link
-    };
-  };
-
-  module.directive("tgProjectsNav", ["$rootScope", "animationFrame", "$timeout", "tgLoader", "$tgLocation", "$compile", "$tgTemplate", ProjectsNavigationDirective]);
-
-  ProjectMenuDirective = function($log, $compile, $auth, $rootscope, $tgAuth, $location, $navUrls, $config, $template) {
-    var getSectionName, link, mainTemplate, menuEntriesTemplate, renderMainMenu, renderMenuEntries, videoConferenceUrl;
-    menuEntriesTemplate = $template.get("project/project-menu.html", true);
-    mainTemplate = _.template("<div class=\"logo-container logo\">\n    <svg xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 134.2 134.3\" version=\"1.1\" preserveAspectRatio=\"xMidYMid meet\">\n        <style>\n            path {\n                fill:#f5f5f5;\n                opacity:0.7;\n            }\n        </style>\n        <g transform=\"translate(-307.87667,-465.22863)\">\n            <g class=\"bottom\">\n                <path transform=\"matrix(-0.14066483,0.99005727,-0.99005727,0.14066483,0,0)\" d=\"m561.8-506.6 42 0 0 42-42 0z\" />\n                <path transform=\"matrix(0.14066483,-0.99005727,0.99005727,-0.14066483,0,0)\" d=\"m-645.7 422.6 42 0 0 42-42 0z\" />\n                <path transform=\"matrix(0.99005727,0.14066483,0.14066483,0.99005727,0,0)\" d=\"m266.6 451.9 42 0 0 42-42 0z\" />\n                <path transform=\"matrix(-0.99005727,-0.14066483,-0.14066483,-0.99005727,0,0)\" d=\"m-350.6-535.9 42 0 0 42-42 0z\" />\n            </g>\n            <g class=\"top\">\n                <path transform=\"matrix(-0.60061118,-0.79954125,0.60061118,-0.79954125,0,0)\" d=\"m-687.1-62.7 42 0 0 42-42 0z\" />\n                <path transform=\"matrix(-0.79954125,0.60061118,-0.79954125,-0.60061118,0,0)\" d=\"m166.6-719.6 42 0 0 42-42 0z\" />\n                <path transform=\"matrix(0.60061118,0.79954125,-0.60061118,0.79954125,0,0)\" d=\"m603.1-21.3 42 0 0 42-42 0z\" />\n                <path transform=\"matrix(0.79954125,-0.60061118,0.79954125,0.60061118,0,0)\" d=\"m-250.7 635.8 42 0 0 42-42 0z\" />\n                <path transform=\"matrix(0.70710678,0.70710678,-0.70710678,0.70710678,0,0)\" d=\"m630.3 100 22.6 0 0 22.6-22.6 0z\" />\n            </g>\n        </g>\n    </svg>\n    <span class=\"item\">taiga<sup>[beta]</sup></span>\n</div>\n<div class=\"menu-container\"></div>");
-    getSectionName = function($el, sectionName, project) {
-      var oldSectionName, ref;
-      oldSectionName = (ref = $el.find("a.active").parent().attr("id")) != null ? ref.replace("nav-", "") : void 0;
-      if (sectionName === "backlog-kanban") {
-        if (oldSectionName === "backlog" || oldSectionName === "kanban") {
-          sectionName = oldSectionName;
-        } else if (project.is_backlog_activated && !project.is_kanban_activated) {
-          sectionName = "backlog";
-        } else if (!project.is_backlog_activated && project.is_kanban_activated) {
-          sectionName = "kanban";
-        }
-      }
-      return sectionName;
-    };
-    renderMainMenu = function($el) {
-      var html;
-      html = mainTemplate({});
-      return $el.html(html);
-    };
-    renderMenuEntries = function($el, targetScope, project) {
-      var container, ctx, dom, sectionName;
-      if (project == null) {
-        project = {};
-      }
-      container = $el.find(".menu-container");
-      sectionName = getSectionName($el, targetScope.section, project);
-      ctx = {
-        user: $auth.getUser(),
-        project: project,
-        feedbackEnabled: $config.get("feedbackEnabled")
-      };
-      dom = $compile(menuEntriesTemplate(ctx))(targetScope);
-      dom.find("a.active").removeClass("active");
-      dom.find("#nav-" + sectionName + " > a").addClass("active");
-      return container.replaceWith(dom);
-    };
-    videoConferenceUrl = function(project) {
-      var baseUrl, url, urlFixer;
-      urlFixer = function(url) {
-        return url;
-      };
-      if (project.videoconferences === "appear-in") {
-        baseUrl = "https://appear.in/";
-      } else if (project.videoconferences === "talky") {
-        baseUrl = "https://talky.io/";
-      } else if (project.videoconferences === "jitsi") {
-        baseUrl = "https://meet.jit.si/";
-        urlFixer = function(url) {
-          return url.replace(/ /g, "").replace(/-/g, "");
-        };
-      } else {
-        return "";
-      }
-      if (project.videoconferences_salt) {
-        url = project.slug + "-" + project.videoconferences_salt;
-      } else {
-        url = "" + project.slug;
-      }
-      url = urlFixer(url);
-      return baseUrl + url;
-    };
-    link = function($scope, $el, $attrs, $ctrl) {
-      var project;
-      renderMainMenu($el);
-      project = null;
-      $el.on("click", ".logo", function(event) {
-        var target;
-        event.preventDefault();
-        target = angular.element(event.currentTarget);
-        return $rootscope.$broadcast("nav:projects-list:open");
-      });
-      $el.on("click", ".user-settings .avatar", function(event) {
-        event.preventDefault();
-        return $el.find(".user-settings .popover").popover().open();
-      });
-      $el.on("click", ".logout", function(event) {
-        event.preventDefault();
-        $auth.logout();
-        return $scope.$apply(function() {
-          return $location.path($navUrls.resolve("login"));
-        });
-      });
-      $el.on("click", "#nav-search > a", function(event) {
-        event.preventDefault();
-        return $rootscope.$broadcast("search-box:show", project);
-      });
-      $el.on("click", ".feedback", function(event) {
-        event.preventDefault();
-        return $rootscope.$broadcast("feedback:show");
-      });
-      $scope.$on("projects:loaded", function(listener) {
-        $el.addClass("hidden");
-        return listener.stopPropagation();
-      });
-      return $scope.$on("project:loaded", function(ctx, newProject) {
-        project = newProject;
-        if ($el.hasClass("hidden")) {
-          $el.removeClass("hidden");
-        }
-        project.videoconferenceUrl = videoConferenceUrl(project);
-        return renderMenuEntries($el, ctx.targetScope, project);
-      });
-    };
-    return {
-      link: link
-    };
-  };
-
-  module.directive("tgProjectMenu", ["$log", "$compile", "$tgAuth", "$rootScope", "$tgAuth", "$tgLocation", "$tgNavUrls", "$tgConfig", "$tgTemplate", ProjectMenuDirective]);
 
 }).call(this);
 
@@ -2993,11 +2894,15 @@
     "auth-register": "/auth/register",
     "invitations": "/invitations",
     "users": "/users",
+    "by_username": "/users/by_username",
     "users-password-recovery": "/users/password_recovery",
     "users-change-password-from-recovery": "/users/change_password_from_recovery",
     "users-change-password": "/users/change_password",
     "users-change-email": "/users/change_email",
     "users-cancel-account": "/users/cancel",
+    "contacts": "/users/%s/contacts",
+    "stats": "/users/%s/stats",
+    "permissions": "/permissions",
     "notify-policies": "/notify-policies",
     "user-storage": "/user-storage",
     "memberships": "/memberships",
@@ -3008,6 +2913,7 @@
     "projects": "/projects",
     "project-templates": "/project-templates",
     "project-modules": "/projects/%s/modules",
+    "bulk-update-projects-order": "/projects/bulk_update_order",
     "userstory-statuses": "/userstory-statuses",
     "points": "/points",
     "task-statuses": "/task-statuses",
@@ -3050,6 +2956,9 @@
     "userstories-csv": "/userstories/csv?uuid=%s",
     "tasks-csv": "/tasks/csv?uuid=%s",
     "issues-csv": "/issues/csv?uuid=%s",
+    "timeline-profile": "/timeline/profile",
+    "timeline-user": "/timeline/user",
+    "timeline-project": "/timeline/project",
     "search": "/search",
     "exporter": "/exporter",
     "importer": "/importer/load_dump",
@@ -3080,7 +2989,7 @@
 
   module.run(["$log", "$tgUrls", initUrls]);
 
-  module.run(["$log", "$tgResources", "$tgProjectsResourcesProvider", "$tgCustomAttributesResourcesProvider", "$tgCustomAttributesValuesResourcesProvider", "$tgMembershipsResourcesProvider", "$tgNotifyPoliciesResourcesProvider", "$tgInvitationsResourcesProvider", "$tgRolesResourcesProvider", "$tgUserSettingsResourcesProvider", "$tgSprintsResourcesProvider", "$tgUserstoriesResourcesProvider", "$tgTasksResourcesProvider", "$tgIssuesResourcesProvider", "$tgWikiResourcesProvider", "$tgSearchResourcesProvider", "$tgAttachmentsResourcesProvider", "$tgMdRenderResourcesProvider", "$tgHistoryResourcesProvider", "$tgKanbanResourcesProvider", "$tgModulesResourcesProvider", "$tgWebhooksResourcesProvider", "$tgWebhookLogsResourcesProvider", "$tgLocalesResourcesProvider", initResources]);
+  module.run(["$log", "$tgResources", "$tgProjectsResourcesProvider", "$tgCustomAttributesResourcesProvider", "$tgCustomAttributesValuesResourcesProvider", "$tgMembershipsResourcesProvider", "$tgNotifyPoliciesResourcesProvider", "$tgInvitationsResourcesProvider", "$tgRolesResourcesProvider", "$tgUserSettingsResourcesProvider", "$tgSprintsResourcesProvider", "$tgUserstoriesResourcesProvider", "$tgTasksResourcesProvider", "$tgIssuesResourcesProvider", "$tgWikiResourcesProvider", "$tgSearchResourcesProvider", "$tgAttachmentsResourcesProvider", "$tgMdRenderResourcesProvider", "$tgHistoryResourcesProvider", "$tgKanbanResourcesProvider", "$tgModulesResourcesProvider", "$tgWebhooksResourcesProvider", "$tgWebhookLogsResourcesProvider", "$tgLocalesResourcesProvider", "$tgUsersResourcesProvider", initResources]);
 
 }).call(this);
 
@@ -3130,9 +3039,9 @@
   SearchController = (function(superClass) {
     extend(SearchController, superClass);
 
-    SearchController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "$q", "$tgLocation", "$appTitle", "$tgNavUrls", "tgLoader"];
+    SearchController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$translate"];
 
-    function SearchController(scope1, repo, rs, params, q, location, appTitle, navUrls, tgLoader) {
+    function SearchController(scope1, repo, rs, params, q, location, appMetaService, navUrls, translate) {
       var loadSearchData, promise;
       this.scope = scope1;
       this.repo = repo;
@@ -3140,14 +3049,22 @@
       this.params = params;
       this.q = q;
       this.location = location;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.navUrls = navUrls;
-      this.tgLoader = tgLoader;
+      this.translate = translate;
       this.scope.sectionName = "Search";
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          return _this.appTitle.set("Search");
+          var description, title;
+          title = _this.translate.instant("SEARCH.PAGE_TITLE", {
+            projectName: _this.scope.project.name
+          });
+          description = _this.translate.instant("SEARCH.PAGE_DESCRIPTION", {
+            projectName: _this.scope.project.name,
+            projectDescription: _this.scope.project.description
+          });
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
@@ -3159,9 +3076,7 @@
       })(this));
       this.scope.$watch("searchTerm", (function(_this) {
         return function(term) {
-          if (!term) {
-            return _this.tgLoader.pageLoaded();
-          } else {
+          if (term) {
             return loadSearchData(term);
           }
         };
@@ -3211,11 +3126,6 @@
           return data;
         };
       })(this));
-      promise["finally"]((function(_this) {
-        return function() {
-          return _this.tgLoader.pageLoaded();
-        };
-      })(this));
       return promise;
     };
 
@@ -3234,10 +3144,10 @@
 
   module.controller("SearchController", SearchController);
 
-  SearchBoxDirective = function($lightboxService, $navurls, $location, $route) {
+  SearchBoxDirective = function(projectService, $lightboxService, $navurls, $location, $route) {
     var link;
     link = function($scope, $el, $attrs) {
-      var project, submit;
+      var openLightbox, project, submit;
       project = null;
       submit = debounce(2000, (function(_this) {
         return function(event) {
@@ -3249,29 +3159,34 @@
           }
           text = $el.find("#search-text").val();
           url = $navurls.resolve("project-search", {
-            project: project.slug
+            project: project.get("slug")
           });
-          $lightboxService.close($el);
           return $scope.$apply(function() {
+            $lightboxService.close($el);
             $location.path(url);
             $location.search("text", text).path(url);
             return $route.reload();
           });
         };
       })(this));
-      $scope.$on("search-box:show", function(ctx, newProject) {
-        project = newProject;
-        $lightboxService.open($el);
-        return $el.find("#search-text").val("");
-      });
-      return $el.on("submit", "form", submit);
+      openLightbox = function() {
+        project = projectService.project;
+        return $lightboxService.open($el).then(function() {
+          return $el.find("#search-text").focus();
+        });
+      };
+      $el.on("submit", "form", submit);
+      return openLightbox();
     };
     return {
+      templateUrl: "search/lightbox-search.html",
       link: link
     };
   };
 
-  module.directive("tgSearchBox", ["lightboxService", "$tgNavUrls", "$tgLocation", "$route", SearchBoxDirective]);
+  SearchBoxDirective.$inject = ["tgProjectService", "lightboxService", "$tgNavUrls", "$tgLocation", "$route"];
+
+  module.directive("tgSearchBox", SearchBoxDirective);
 
   SearchDirective = function($log, $compile, $templatecache, $routeparams, $location) {
     var link, linkTable;
@@ -3280,19 +3195,21 @@
       tabsDom = $el.find("section.search-filter");
       lastSeatchResults = null;
       getActiveSection = function(data) {
-        var maxVal, name, selectedSectionData, selectedSectionName, value;
+        var i, len, maxVal, name, ref, selectedSectionData, selectedSectionName, value;
         maxVal = 0;
         selectedSectionName = null;
         selectedSectionData = null;
-        for (name in data) {
-          value = data[name];
-          if (name === "count") {
-            continue;
-          }
-          if (value.length > maxVal) {
-            maxVal = value.length;
-            selectedSectionName = name;
-            selectedSectionData = value;
+        if (data) {
+          ref = ["userstories", "issues", "tasks", "wikipages"];
+          for (i = 0, len = ref.length; i < len; i++) {
+            name = ref[i];
+            value = data[name];
+            if (value.length > maxVal) {
+              maxVal = value.length;
+              selectedSectionName = name;
+              selectedSectionData = value;
+              break;
+            }
           }
         }
         if (maxVal === 0) {
@@ -4041,6 +3958,8 @@
         if (attachment.is_deprecated) {
           $el.addClass("deprecated");
           return $el.find("input:checkbox").prop('checked', true);
+        } else {
+          return $el.removeClass("deprecated");
         }
       };
       saveAttachment = function() {
@@ -4121,6 +4040,28 @@
   };
 
   module.directive("tgBindScope", ["$tgConfig", BindScope]);
+
+}).call(this);
+
+(function() {
+  var CompileHtmlDirective;
+
+  CompileHtmlDirective = function($compile) {
+    var link;
+    link = function(scope, element, attrs) {
+      return scope.$watch(attrs.tgCompileHtml, function(newValue, oldValue) {
+        element.html(newValue);
+        return $compile(element.contents())(scope);
+      });
+    };
+    return {
+      link: link
+    };
+  };
+
+  CompileHtmlDirective.$inject = ["$compile"];
+
+  angular.module("taigaCommon").directive("tgCompileHtml", CompileHtmlDirective);
 
 }).call(this);
 
@@ -4332,7 +4273,7 @@
               return $scope.usersById[watcherId];
             });
             renderWatchers(watchers);
-            return $rootscope.$broadcast("history:reload");
+            return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
             return $model.$modelValue.revert();
@@ -4353,7 +4294,7 @@
               return $scope.usersById[watcherId];
             });
             renderWatchers(watchers);
-            return $rootscope.$broadcast("history:reload");
+            return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
             item.revert();
@@ -4451,7 +4392,7 @@
             $loading.finish($el);
             $confirm.notify("success");
             renderAssignedTo($model.$modelValue);
-            return $rootscope.$broadcast("history:reload");
+            return $rootscope.$broadcast("object:updated");
           });
           promise.then(null, function() {
             $model.$modelValue.revert();
@@ -4617,6 +4558,10 @@
     template = $template.get("common/components/editable-subject.html");
     link = function($scope, $el, $attrs, $model) {
       var isEditable, save;
+      $scope.$on("object:updated", function() {
+        $el.find('.edit-subject').hide();
+        return $el.find('.view-subject').show();
+      });
       isEditable = function() {
         return $scope.project.my_permissions.indexOf($attrs.requiredPerm) !== -1;
       };
@@ -4628,7 +4573,7 @@
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
-            $rootscope.$broadcast("history:reload");
+            $rootscope.$broadcast("object:updated");
             $el.find('.edit-subject').hide();
             return $el.find('.view-subject').show();
           });
@@ -4649,8 +4594,9 @@
         $el.find('.view-subject').hide();
         return $el.find('input').focus();
       });
-      $el.on("click", ".save", function() {
+      $el.on("click", ".save", function(e) {
         var subject;
+        e.preventDefault();
         subject = $scope.item.subject;
         return save(subject);
       });
@@ -4703,6 +4649,10 @@
       var isEditable, save;
       $el.find('.edit-description').hide();
       $el.find('.view-description .edit').hide();
+      $scope.$on("object:updated", function() {
+        $el.find('.edit-description').hide();
+        return $el.find('.view-description').show();
+      });
       isEditable = function() {
         return $scope.project.my_permissions.indexOf($attrs.requiredPerm) !== -1;
       };
@@ -4714,7 +4664,7 @@
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
-            $rootscope.$broadcast("history:reload");
+            $rootscope.$broadcast("object:updated");
             $el.find('.edit-description').hide();
             return $el.find('.view-description').show();
           });
@@ -4975,14 +4925,7 @@
     var link;
     link = function($scope, $el, $attrs) {
       $attrs.$observe("i18nSectionName", function(i18nSectionName) {
-        var trans;
-        trans = $translate(i18nSectionName);
-        trans.then(function(sectionName) {
-          return $scope.sectionName = sectionName;
-        });
-        return trans["catch"](function(sectionName) {
-          return $scope.sectionName = sectionName;
-        });
+        return $scope.sectionName = $translate.instant(i18nSectionName);
       });
       return $scope.$on("$destroy", function() {
         return $el.off();
@@ -5643,7 +5586,7 @@
           estimationProcess = $tgEstimationsService.create($el, us, $scope.project);
           estimationProcess.onSelectedPointForRole = function(roleId, pointId) {
             return this.save(roleId, pointId).then(function() {
-              return $rootScope.$broadcast("history:reload");
+              return $rootScope.$broadcast("object:updated");
             });
           };
           estimationProcess.render = function() {
@@ -6263,7 +6206,7 @@
             deleteCommentUser: comment.delete_comment_user.name,
             deleteComment: comment.comment_html,
             activityId: comment.id,
-            canRestoreComment: comment.delete_comment_user.pk === $scope.user.id || $scope.project.my_permissions.indexOf("modify_project") > -1
+            canRestoreComment: $scope.user && (comment.delete_comment_user.pk === $scope.user.id || $scope.project.my_permissions.indexOf("modify_project") > -1)
           });
           html = $compile(html)($scope);
           return html[0].outerHTML;
@@ -6360,10 +6303,10 @@
       })(this));
       $scope.$watch("comments", renderComments);
       $scope.$watch("history", renderActivity);
-      $scope.$on("history:reload", function() {
+      $scope.$on("object:updated", function() {
         return $ctrl.loadHistory(type, objectId);
       });
-      $el.on("click", ".add-comment a.button-green", debounce(2000, function(event) {
+      $el.on("click", ".add-comment input.button-green", debounce(2000, function(event) {
         var target;
         event.preventDefault();
         target = angular.element(event.currentTarget);
@@ -6583,10 +6526,12 @@
       lightboxContent = $el.children().not(".close");
       lightboxContent.hide();
       $el.css('display', 'flex');
-      $el.find('input,textarea').first().focus();
       this.animationFrame.add((function(_this) {
         return function() {
-          return $el.addClass("open");
+          $el.addClass("open");
+          return _this.animationFrame.add(function() {
+            return $el.find('input,textarea').first().focus();
+          });
         };
       })(this));
       this.animationFrame.add((function(_this) {
@@ -6609,7 +6554,7 @@
     };
 
     LightboxService.prototype.close = function($el) {
-      var docEl;
+      var docEl, scope;
       docEl = angular.element(document);
       docEl.off(".lightbox");
       docEl.off(".keyboard-navigation");
@@ -6619,7 +6564,12 @@
           return $el.removeClass("open").removeClass('close');
         };
       })(this));
-      return $el.addClass('close');
+      $el.addClass('close');
+      if ($el.hasClass("remove-on-close")) {
+        scope = $el.data("scope");
+        scope.$destroy();
+        return $el.remove();
+      }
     };
 
     LightboxService.prototype.closeAll = function() {
@@ -6726,17 +6676,16 @@
   BlockLightboxDirective = function($rootscope, $tgrepo, $confirm, lightboxService, $loading, $qqueue, $translate) {
     var link;
     link = function($scope, $el, $attrs, $model) {
-      var block, unblock;
-      $translate($attrs.title).then(function(title) {
-        return $el.find("h2.title").text(title);
-      });
+      var block, title, unblock;
+      title = $translate.instant($attrs.title);
+      $el.find("h2.title").text(title);
       unblock = $qqueue.bindAdd((function(_this) {
         return function(item, finishCallback) {
           var promise;
           promise = $tgrepo.save(item);
           promise.then(function() {
             $confirm.notify("success");
-            $rootscope.$broadcast("history:reload");
+            $rootscope.$broadcast("object:updated");
             $model.$setViewValue(item);
             return finishCallback();
           });
@@ -6759,7 +6708,7 @@
           promise = $tgrepo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
-            return $rootscope.$broadcast("history:reload");
+            return $rootscope.$broadcast("object:updated");
           });
           promise.then(null, function() {
             $confirm.notify("error");
@@ -7039,8 +6988,7 @@
         };
         html = usersTemplate(ctx);
         html = $compile(html)($scope);
-        $el.find("div.watchers").html(html);
-        return lightboxKeyboardNavigationService.init($el);
+        return $el.find("div.watchers").html(html);
       };
       closeLightbox = function() {
         lightboxKeyboardNavigationService.stop();
@@ -7053,7 +7001,8 @@
         selectedUser = $scope.usersById[assignedToId];
         render(selectedUser);
         return lightboxService.open($el).then(function() {
-          return $el.find('input').focus();
+          $el.find('input').focus();
+          return lightboxKeyboardNavigationService.init($el);
         });
       });
       $scope.$watch("usersSearch", function(searchingText) {
@@ -7134,8 +7083,7 @@
           showMore: users.length > 5
         };
         html = usersTemplate(ctx);
-        $el.find("div.watchers").html(html);
-        return lightboxKeyboardNavigationService.init($el);
+        return $el.find("div.watchers").html(html);
       };
       closeLightbox = function() {
         lightboxKeyboardNavigationService.stop();
@@ -7146,10 +7094,10 @@
         selectedItem = item;
         users = getFilteredUsers();
         render(users);
-        lightboxService.open($el).then(function() {
-          return $el.find("input").focus();
+        return lightboxService.open($el).then(function() {
+          $el.find("input").focus();
+          return lightboxKeyboardNavigationService.init($el);
         });
-        return lightboxKeyboardNavigationService.init($el);
       });
       $scope.$watch("usersSearch", function(searchingText) {
         var users;
@@ -7233,15 +7181,9 @@
         $(document.body).addClass("loader-active");
         return $el.addClass("active");
       });
-      tgLoader.onEnd(function() {
+      return tgLoader.onEnd(function() {
         $(document.body).removeClass("loader-active");
         return $el.removeClass("active");
-      });
-      $rootscope.$on("$routeChangeSuccess", function(e) {
-        return tgLoader.startCurrentPageLoader();
-      });
-      return $rootscope.$on("$locationChangeSuccess", function(e) {
-        return tgLoader.reset();
       });
     };
     return {
@@ -7251,78 +7193,91 @@
 
   module.directive("tgLoader", ["tgLoader", "$rootScope", LoaderDirective]);
 
-  Loader = function() {
-    var config, defaultConfig, forceDisabled;
-    forceDisabled = false;
-    defaultConfig = {
-      enabled: false,
+  Loader = function($rootscope) {
+    var autoClose, config, lastResponseDate, open, pageLoaded, requestCount, start, startLoadTime;
+    config = {
       minTime: 300
     };
-    config = _.merge({}, defaultConfig);
-    this.add = function() {
-      return function() {
-        if (!forceDisabled) {
-          return config.enabled = true;
-        }
-      };
-    };
-    this.$get = [
-      "$rootScope", function($rootscope) {
-        var pageLoaded, reset, start, startLoadTime;
-        startLoadTime = 0;
-        reset = function() {
-          return config = _.merge({}, defaultConfig);
-        };
-        pageLoaded = function(force) {
-          var diff, endTime, timeoutValue;
-          if (force == null) {
-            force = false;
-          }
-          if (startLoadTime) {
-            timeoutValue = 0;
-            if (!force) {
-              endTime = new Date().getTime();
-              diff = endTime - startLoadTime;
-              if (diff < config.minTime) {
-                timeoutValue = config.minTime - diff;
-              }
-            }
-            return timeout(timeoutValue, function() {
-              return $rootscope.$broadcast("loader:end");
-            });
-          }
-        };
-        start = function() {
-          startLoadTime = new Date().getTime();
-          return $rootscope.$broadcast("loader:start");
-        };
-        return {
-          reset: reset,
-          pageLoaded: pageLoaded,
-          start: start,
-          startCurrentPageLoader: function() {
-            if (config.enabled) {
-              return start();
-            }
-          },
-          onStart: function(fn) {
-            return $rootscope.$on("loader:start", fn);
-          },
-          onEnd: function(fn) {
-            return $rootscope.$on("loader:end", fn);
-          },
-          preventLoading: function() {
-            return forceDisabled = true;
-          },
-          disablePreventLoading: function() {
-            return forceDisabled = false;
-          }
-        };
+    open = false;
+    startLoadTime = 0;
+    requestCount = 0;
+    lastResponseDate = 0;
+    pageLoaded = function(force) {
+      var diff, endTime, timeoutValue;
+      if (force == null) {
+        force = false;
       }
-    ];
+      if (startLoadTime) {
+        timeoutValue = 0;
+        if (!force) {
+          endTime = new Date().getTime();
+          diff = endTime - startLoadTime;
+          if (diff < config.minTime) {
+            timeoutValue = config.minTime - diff;
+          }
+        }
+        timeout(timeoutValue, function() {
+          $rootscope.$broadcast("loader:end");
+          open = false;
+          return window.prerenderReady = true;
+        });
+      }
+      startLoadTime = 0;
+      requestCount = 0;
+      return lastResponseDate = 0;
+    };
+    autoClose = function() {
+      var intervalAuto, maxAuto, timeoutAuto;
+      maxAuto = 5000;
+      timeoutAuto = setTimeout((function() {
+        pageLoaded();
+        return clearInterval(intervalAuto);
+      }), maxAuto);
+      return intervalAuto = setInterval((function() {
+        if (lastResponseDate && requestCount === 0) {
+          pageLoaded();
+          clearInterval(intervalAuto);
+          return clearTimeout(timeoutAuto);
+        }
+      }), 50);
+    };
+    start = function() {
+      startLoadTime = new Date().getTime();
+      $rootscope.$broadcast("loader:start");
+      return open = true;
+    };
+    return {
+      pageLoaded: pageLoaded,
+      start: function(auto) {
+        if (auto == null) {
+          auto = false;
+        }
+        if (!open) {
+          start();
+          if (auto) {
+            return autoClose();
+          }
+        }
+      },
+      onStart: function(fn) {
+        return $rootscope.$on("loader:start", fn);
+      },
+      onEnd: function(fn) {
+        return $rootscope.$on("loader:end", fn);
+      },
+      logRequest: function() {
+        return requestCount++;
+      },
+      logResponse: function() {
+        requestCount--;
+        return lastResponseDate = new Date().getTime();
+      }
+    };
   };
 
-  module.provider("tgLoader", [Loader]);
+  Loader.$inject = ["$rootScope"];
+
+  module.factory("tgLoader", Loader);
 
 }).call(this);
 
@@ -8043,7 +7998,7 @@
         model.tags = tags;
         $model.$setViewValue(model);
         onSuccess = function() {
-          return $rootScope.$broadcast("history:reload");
+          return $rootScope.$broadcast("object:updated");
         };
         onError = function() {
           $confirm.notify("error");
@@ -8065,7 +8020,7 @@
         model.tags = tags;
         $model.$setViewValue(model);
         onSuccess = function() {
-          return $rootScope.$broadcast("history:reload");
+          return $rootScope.$broadcast("object:updated");
         };
         onError = function() {
           $confirm.notify("error");
@@ -8969,9 +8924,9 @@
   BacklogController = (function(superClass) {
     extend(BacklogController, superClass);
 
-    BacklogController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$appTitle", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "tgLoader", "$translate"];
+    BacklogController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate"];
 
-    function BacklogController(scope, rootscope, repo, confirm, rs, params1, q, location, appTitle, navUrls, events, analytics, tgLoader, translate) {
+    function BacklogController(scope, rootscope, repo, confirm, rs, params1, q, location, appMetaService, navUrls, events, analytics, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -8981,7 +8936,7 @@
       this.params = params1;
       this.q = q;
       this.location = location;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.navUrls = navUrls;
       this.events = events;
       this.analytics = analytics;
@@ -8994,7 +8949,15 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          _this.appTitle.set("Backlog - " + _this.scope.project.name);
+          var description, title;
+          title = _this.translate.instant("BACKLOG.PAGE_TITLE", {
+            projectName: _this.scope.project.name
+          });
+          description = _this.translate.instant("BACKLOG.PAGE_DESCRIPTION", {
+            projectName: _this.scope.project.name,
+            projectDescription: _this.scope.project.description
+          });
+          _this.appMetaService.setAll(title, description);
           if (_this.rs.userstories.getShowTags(_this.scope.projectId)) {
             _this.showTags = true;
             return _this.scope.$broadcast("showTags", _this.showTags);
@@ -9002,7 +8965,6 @@
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
 
     BacklogController.prototype.initializeEventHandlers = function() {
@@ -9662,7 +9624,7 @@
       return $scope.$watch("stats", reloadDoomLine);
     };
     linkToolbar = function($scope, $el, $attrs, $ctrl) {
-      var moveToCurrentSprint;
+      var checkSelected, lastChecked, moveToCurrentSprint, shiftPressed;
       moveToCurrentSprint = function(selectedUss) {
         var extraPoints, totalExtraPoints, ussCurrent;
         ussCurrent = _($scope.userstories);
@@ -9681,9 +9643,11 @@
           return $ctrl.loadProjectStats();
         });
       };
-      $el.on("change", ".backlog-table-body .user-stories input:checkbox", function(event) {
-        var moveToCurrentSprintDom, selectedUsDom, target;
-        target = angular.element(event.currentTarget);
+      shiftPressed = false;
+      lastChecked = null;
+      checkSelected = function(target) {
+        var moveToCurrentSprintDom, selectedUsDom;
+        lastChecked = target.closest(".us-item-row");
         moveToCurrentSprintDom = $el.find("#move-to-current-sprint");
         selectedUsDom = $el.find(".backlog-table-body .user-stories input:checkbox:checked");
         if (selectedUsDom.length > 0 && $scope.sprints.length > 0) {
@@ -9692,6 +9656,36 @@
           moveToCurrentSprintDom.hide();
         }
         return target.closest('.us-item-row').toggleClass('ui-multisortable-multiple');
+      };
+      $(window).on("keydown.shift-pressed keyup.shift-pressed", function(event) {
+        shiftPressed = !!event.shiftKey;
+        return true;
+      });
+      $el.on("change", ".backlog-table-body .user-stories input:checkbox", function(event) {
+        var current, elements, nextAll, prevAll, target;
+        if (lastChecked && shiftPressed) {
+          elements = [];
+          current = $(event.currentTarget).closest(".us-item-row");
+          nextAll = lastChecked.nextAll();
+          prevAll = lastChecked.prevAll();
+          if (_.some(nextAll, function(next) {
+            return next === current[0];
+          })) {
+            elements = lastChecked.nextUntil(current);
+          } else if (_.some(prevAll, function(prev) {
+            return prev === current[0];
+          })) {
+            elements = lastChecked.prevUntil(current);
+          }
+          _.map(elements, function(elm) {
+            var input;
+            input = $(elm).find("input:checkbox");
+            input.prop('checked', true);
+            return checkSelected(input);
+          });
+        }
+        target = angular.element(event.currentTarget);
+        return checkSelected(target);
       });
       $el.on("click", "#move-to-current-sprint", (function(_this) {
         return function(event) {
@@ -9771,7 +9765,8 @@
         return showHideTags($ctrl);
       });
       return $scope.$on("$destroy", function() {
-        return $el.off();
+        $el.off();
+        return $(window).off(".shift-pressed");
       });
     };
     return {
@@ -10236,16 +10231,17 @@
           items: ".us-item-row",
           cancel: ".popover",
           connectWith: ".sprint",
-          containment: ".wrapper",
           dropOnEmpty: true,
           placeholder: "row us-item-row us-item-drag sortable-placeholder",
           scroll: true,
+          disableHorizontalScroll: true,
           tolerance: "pointer",
           revert: false,
-          cursorAt: {
-            right: 15
+          start: function() {
+            return $(document.body).addClass("drag-active");
           },
           stop: function() {
+            $(document.body).removeClass("drag-active");
             if ($el.hasClass("active-filters")) {
               $el.sortable("cancel");
               return filterError();
@@ -10341,7 +10337,10 @@
             scroll: true,
             dropOnEmpty: true,
             items: ".sprint-table .milestone-us-item-row",
-            connectWith: ".sprint,.backlog-table-body,.empty-backlog"
+            disableHorizontalScroll: true,
+            connectWith: ".sprint,.backlog-table-body,.empty-backlog",
+            placeholder: "row us-item-row sortable-placeholder",
+            forcePlaceholderSize: true
           });
           $el.on("multiplesortreceive", function(event, ui) {
             var index, items, us;
@@ -10954,9 +10953,9 @@
   TaskboardController = (function(superClass) {
     extend(TaskboardController, superClass);
 
-    TaskboardController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$appTitle", "$tgLocation", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "tgLoader", "$translate"];
+    TaskboardController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "tgAppMetaService", "$tgLocation", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate"];
 
-    function TaskboardController(scope, rootscope, repo, confirm, rs1, params1, q, appTitle, location, navUrls, events, analytics, tgLoader, translate) {
+    function TaskboardController(scope, rootscope, repo, confirm, rs1, params1, q, appMetaService, location, navUrls, events, analytics, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -10965,7 +10964,7 @@
       this.rs = rs1;
       this.params = params1;
       this.q = q;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.location = location;
       this.navUrls = navUrls;
       this.events = events;
@@ -10977,12 +10976,32 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          return _this.appTitle.set("Taskboard - " + _this.scope.project.name);
+          return _this._setMeta();
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
+
+    TaskboardController.prototype._setMeta = function() {
+      var description, prettyDate, title;
+      prettyDate = this.translate.instant("BACKLOG.SPRINTS.DATE");
+      title = this.translate.instant("TASKBOARD.PAGE_TITLE", {
+        projectName: this.scope.project.name,
+        sprintName: this.scope.sprint.name
+      });
+      description = this.translate.instant("TASKBOARD.PAGE_DESCRIPTION", {
+        projectName: this.scope.project.name,
+        sprintName: this.scope.sprint.name,
+        startDate: moment(this.scope.sprint.estimated_start).format(prettyDate),
+        endDate: moment(this.scope.sprint.estimated_finish).format(prettyDate),
+        completedPercentage: this.scope.stats.completedPercentage || "0",
+        completedPoints: this.scope.stats.completedPointsSum || "--",
+        totalPoints: this.scope.stats.totalPointsSum || "--",
+        openTasks: this.scope.stats.openTasks || "--",
+        totalTasks: this.scope.stats.total_tasks || "--"
+      });
+      return this.appMetaService.setAll(title, description);
+    };
 
     TaskboardController.prototype.initializeEventHandlers = function() {
       this.scope.$on("taskform:bulk:success", (function(_this) {
@@ -11625,9 +11644,9 @@
   KanbanController = (function(superClass) {
     extend(KanbanController, superClass);
 
-    KanbanController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$appTitle", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "tgLoader", "$translate"];
+    KanbanController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate"];
 
-    function KanbanController(scope, rootscope, repo, confirm, rs1, params1, q, location, appTitle, navUrls, events, analytics, tgLoader, translate) {
+    function KanbanController(scope, rootscope, repo, confirm, rs1, params1, q, location, appMetaService, navUrls, events, analytics, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -11637,7 +11656,7 @@
       this.params = params1;
       this.q = q;
       this.location = location;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.navUrls = navUrls;
       this.events = events;
       this.analytics = analytics;
@@ -11649,11 +11668,18 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          return _this.appTitle.set("Kanban - " + _this.scope.project.name);
+          var description, title;
+          title = _this.translate.instant("KANBAN.PAGE_TITLE", {
+            projectName: _this.scope.project.name
+          });
+          description = _this.translate.instant("KANBAN.PAGE_DESCRIPTION", {
+            projectName: _this.scope.project.name,
+            projectDescription: _this.scope.project.description
+          });
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
 
     KanbanController.prototype.initializeEventHandlers = function() {
@@ -12358,9 +12384,9 @@
   IssueDetailController = (function(superClass) {
     extend(IssueDetailController, superClass);
 
-    IssueDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "$appTitle", "$tgAnalytics", "$tgNavUrls", "$translate", "tgLoader"];
+    IssueDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "tgAppMetaService", "$tgAnalytics", "$tgNavUrls", "$translate"];
 
-    function IssueDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appTitle, analytics, navUrls, translate, tgLoader) {
+    function IssueDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appMetaService, analytics, navUrls, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -12371,7 +12397,7 @@
       this.q = q;
       this.location = location;
       this.log = log;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.analytics = analytics;
       this.navUrls = navUrls;
       this.translate = translate;
@@ -12381,41 +12407,57 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          _this.appTitle.set(_this.scope.issue.subject + " - " + _this.scope.project.name);
+          _this._setMeta();
           return _this.initializeOnDeleteGoToUrl();
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
+
+    IssueDetailController.prototype._setMeta = function() {
+      var description, ref, ref1, ref2, ref3, title;
+      title = this.translate.instant("ISSUE.PAGE_TITLE", {
+        issueRef: "#" + this.scope.issue.ref,
+        issueSubject: this.scope.issue.subject,
+        projectName: this.scope.project.name
+      });
+      description = this.translate.instant("ISSUE.PAGE_DESCRIPTION", {
+        issueStatus: ((ref = this.scope.statusById[this.scope.issue.status]) != null ? ref.name : void 0) || "--",
+        issueType: ((ref1 = this.scope.typeById[this.scope.issue.type]) != null ? ref1.name : void 0) || "--",
+        issueSeverity: ((ref2 = this.scope.severityById[this.scope.issue.severity]) != null ? ref2.name : void 0) || "--",
+        issuePriority: ((ref3 = this.scope.priorityById[this.scope.issue.priority]) != null ? ref3.name : void 0) || "--",
+        issueDescription: angular.element(this.scope.issue.description_html || "").text()
+      });
+      return this.appMetaService.setAll(title, description);
+    };
 
     IssueDetailController.prototype.initializeEventHandlers = function() {
       this.scope.$on("attachment:create", (function(_this) {
         return function() {
-          _this.rootscope.$broadcast("history:reload");
+          _this.rootscope.$broadcast("object:updated");
           return _this.analytics.trackEvent("attachment", "create", "create attachment on issue", 1);
         };
       })(this));
       this.scope.$on("attachment:edit", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       this.scope.$on("attachment:delete", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       this.scope.$on("promote-issue-to-us:success", (function(_this) {
         return function() {
           _this.analytics.trackEvent("issue", "promoteToUserstory", "promote issue to userstory", 1);
-          _this.rootscope.$broadcast("history:reload");
+          _this.rootscope.$broadcast("object:updated");
           return _this.loadIssue();
         };
       })(this));
       return this.scope.$on("custom-attributes-values:edit", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
     };
@@ -12567,7 +12609,7 @@
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
-            $rootScope.$broadcast("history:reload");
+            $rootScope.$broadcast("object:updated");
             return $loading.finish($el.find(".level-name"));
           };
           onError = function() {
@@ -12646,7 +12688,7 @@
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
-            $rootScope.$broadcast("history:reload");
+            $rootScope.$broadcast("object:updated");
             return $loading.finish($el.find(".level-name"));
           };
           onError = function() {
@@ -12726,7 +12768,7 @@
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
-            $rootScope.$broadcast("history:reload");
+            $rootScope.$broadcast("object:updated");
             return $loading.finish($el.find(".level-name"));
           };
           onError = function() {
@@ -12806,7 +12848,7 @@
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
-            $rootScope.$broadcast("history:reload");
+            $rootScope.$broadcast("object:updated");
             return $loading.finish($el.find(".level-name"));
           };
           onError = function() {
@@ -13100,9 +13142,9 @@
   IssuesController = (function(superClass) {
     extend(IssuesController, superClass);
 
-    IssuesController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$tgUrls", "$routeParams", "$q", "$tgLocation", "$appTitle", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "tgLoader", "$translate"];
+    IssuesController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$tgUrls", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate"];
 
-    function IssuesController(scope, rootscope, repo, confirm, rs, urls, params, q, location, appTitle, navUrls, events, analytics, tgLoader, translate) {
+    function IssuesController(scope, rootscope, repo, confirm, rs, urls, params, q, location, appMetaService, navUrls, events, analytics, translate) {
       var filters, promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -13113,13 +13155,13 @@
       this.params = params;
       this.q = q;
       this.location = location;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.navUrls = navUrls;
       this.events = events;
       this.analytics = analytics;
       this.translate = translate;
       this.loadIssues = bind(this.loadIssues, this);
-      this.scope.sectionName = this.translate.instant("ISSUES.LIST_SECTION_NAME");
+      this.scope.sectionName = "Issues";
       this.scope.filters = {};
       if (_.isEmpty(this.location.search())) {
         filters = this.rs.issues.getFilters(this.params.pslug);
@@ -13131,11 +13173,18 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          return _this.appTitle.set("Issues - " + _this.scope.project.name);
+          var description, title;
+          title = _this.translate.instant("ISSUES.PAGE_TITLE", {
+            projectName: _this.scope.project.name
+          });
+          description = _this.translate.instant("ISSUES.PAGE_DESCRIPTION", {
+            projectName: _this.scope.project.name,
+            projectDescription: _this.scope.project.description
+          });
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
       this.scope.$on("issueform:new:success", (function(_this) {
         return function() {
           _this.analytics.trackEvent("issue", "create", "create issue on issues list", 1);
@@ -13601,7 +13650,7 @@
 
   module.directive("tgIssues", ["$log", "$tgLocation", "$tgTemplate", "$compile", IssuesDirective]);
 
-  IssuesFiltersDirective = function($log, $location, $rs, $confirm, $loading, $template, $translate, $compile) {
+  IssuesFiltersDirective = function($log, $location, $rs, $confirm, $loading, $template, $translate, $compile, $auth) {
     var link, template, templateSelected;
     template = $template.get("issue/issues-filters.html", true);
     templateSelected = $template.get("issue/issues-filters-selected.html", true);
@@ -13649,7 +13698,7 @@
         });
         html = $compile(html)($scope);
         $el.find(".filters-applied").html(html);
-        if (selectedFilters.length > 0) {
+        if ($auth.isAuthenticated() && selectedFilters.length > 0) {
           return $el.find(".save-filters").show();
         } else {
           return $el.find(".save-filters").hide();
@@ -13859,7 +13908,7 @@
     };
   };
 
-  module.directive("tgIssuesFilters", ["$log", "$tgLocation", "$tgResources", "$tgConfirm", "$tgLoading", "$tgTemplate", "$translate", "$compile", IssuesFiltersDirective]);
+  module.directive("tgIssuesFilters", ["$log", "$tgLocation", "$tgResources", "$tgConfirm", "$tgLoading", "$tgTemplate", "$translate", "$compile", "$tgAuth", IssuesFiltersDirective]);
 
   IssueStatusInlineEditionDirective = function($repo, $template, $rootscope) {
 
@@ -13914,7 +13963,8 @@
         return $scope.$apply(function() {
           var k, len1, ref1;
           $repo.save(issue).then(function() {
-            var el, filtering, i, k, l, len1, len2, len3, m, ref1, ref2, ref3, results;
+            var k, len1, ref1;
+            $ctrl.loadIssues();
             ref1 = $scope.filters.statuses;
             for (k = 0, len1 = ref1.length; k < len1; k++) {
               filter = ref1[k];
@@ -13922,32 +13972,7 @@
                 filter.count++;
               }
             }
-            $rootscope.$broadcast("filters:issueupdate", $scope.filters);
-            filtering = false;
-            ref2 = $scope.filters.statuses;
-            for (l = 0, len2 = ref2.length; l < len2; l++) {
-              filter = ref2[l];
-              if (filter.selected === true) {
-                filtering = true;
-                if (filter.id === issue.status) {
-                  return;
-                }
-              }
-            }
-            if (!filtering) {
-              return;
-            }
-            ref3 = $scope.issues;
-            results = [];
-            for (i = m = 0, len3 = ref3.length; m < len3; i = ++m) {
-              el = ref3[i];
-              if (el && el.id === issue.id) {
-                results.push($scope.issues.splice(i, 1));
-              } else {
-                results.push(void 0);
-              }
-            }
-            return results;
+            return $rootscope.$broadcast("filters:issueupdate", $scope.filters);
           });
           ref1 = $scope.filters.statuses;
           for (k = 0, len1 = ref1.length; k < len1; k++) {
@@ -14083,9 +14108,9 @@
   UserStoryDetailController = (function(superClass) {
     extend(UserStoryDetailController, superClass);
 
-    UserStoryDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "$appTitle", "$tgNavUrls", "$tgAnalytics", "$translate", "tgLoader"];
+    UserStoryDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "tgAppMetaService", "$tgNavUrls", "$tgAnalytics", "$translate"];
 
-    function UserStoryDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appTitle, navUrls, analytics, translate, tgLoader) {
+    function UserStoryDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appMetaService, navUrls, analytics, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -14096,7 +14121,7 @@
       this.q = q;
       this.location = location;
       this.log = log;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.navUrls = navUrls;
       this.analytics = analytics;
       this.translate = translate;
@@ -14106,13 +14131,37 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          _this.appTitle.set(_this.scope.us.subject + " - " + _this.scope.project.name);
+          _this._setMeta();
           return _this.initializeOnDeleteGoToUrl();
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
+
+    UserStoryDetailController.prototype._setMeta = function() {
+      var closedTasks, description, progressPercentage, ref, title, totalTasks;
+      totalTasks = this.scope.tasks.length;
+      closedTasks = _.filter(this.scope.tasks, (function(_this) {
+        return function(t) {
+          return _this.scope.taskStatusById[t.status].is_closed;
+        };
+      })(this)).length;
+      progressPercentage = totalTasks > 0 ? Math.round(100 * closedTasks / totalTasks) : 0;
+      title = this.translate.instant("US.PAGE_TITLE", {
+        userStoryRef: "#" + this.scope.us.ref,
+        userStorySubject: this.scope.us.subject,
+        projectName: this.scope.project.name
+      });
+      description = this.translate.instant("US.PAGE_DESCRIPTION", {
+        userStoryStatus: ((ref = this.scope.statusById[this.scope.us.status]) != null ? ref.name : void 0) || "--",
+        userStoryPoints: this.scope.us.total_points,
+        userStoryDescription: angular.element(this.scope.us.description_html || "").text(),
+        userStoryClosedTasks: closedTasks,
+        userStoryTotalTasks: totalTasks,
+        userStoryProgressPercentage: progressPercentage
+      });
+      return this.appMetaService.setAll(title, description);
+    };
 
     UserStoryDetailController.prototype.initializeEventHandlers = function() {
       this.scope.$on("related-tasks:update", (function(_this) {
@@ -14124,22 +14173,22 @@
       this.scope.$on("attachment:create", (function(_this) {
         return function() {
           _this.analytics.trackEvent("attachment", "create", "create attachment on userstory", 1);
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       this.scope.$on("attachment:edit", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       this.scope.$on("attachment:delete", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       return this.scope.$on("custom-attributes-values:edit", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
     };
@@ -14379,7 +14428,7 @@
           $model.$setViewValue(us);
           onSuccess = function() {
             $confirm.notify("success");
-            $rootScope.$broadcast("history:reload");
+            $rootScope.$broadcast("object:updated");
             return $loading.finish($el.find(".level-name"));
           };
           onError = function() {
@@ -14461,7 +14510,7 @@
           promise = $tgrepo.save($model.$modelValue);
           promise.then(function() {
             $loading.finish($el.find("label"));
-            return $rootscope.$broadcast("history:reload");
+            return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
             $loading.finish($el.find("label"));
@@ -14528,7 +14577,7 @@
           promise = $tgrepo.save($model.$modelValue);
           promise.then(function() {
             $loading.finish($el.find("label"));
-            return $rootscope.$broadcast("history:reload");
+            return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
             $loading.finish($el.find("label"));
@@ -14604,9 +14653,9 @@
   TaskDetailController = (function(superClass) {
     extend(TaskDetailController, superClass);
 
-    TaskDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "$appTitle", "$tgNavUrls", "$tgAnalytics", "$translate", "tgLoader"];
+    TaskDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$log", "tgAppMetaService", "$tgNavUrls", "$tgAnalytics", "$translate"];
 
-    function TaskDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appTitle, navUrls, analytics, translate, tgLoader) {
+    function TaskDetailController(scope, rootscope, repo, confirm, rs, params, q, location, log, appMetaService, navUrls, analytics, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -14617,7 +14666,7 @@
       this.q = q;
       this.location = location;
       this.log = log;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.navUrls = navUrls;
       this.analytics = analytics;
       this.translate = translate;
@@ -14627,34 +14676,47 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          _this.appTitle.set(_this.scope.task.subject + " - " + _this.scope.project.name);
+          _this._setMeta();
           return _this.initializeOnDeleteGoToUrl();
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
+
+    TaskDetailController.prototype._setMeta = function() {
+      var description, ref, title;
+      title = this.translate.instant("TASK.PAGE_TITLE", {
+        taskRef: "#" + this.scope.task.ref,
+        taskSubject: this.scope.task.subject,
+        projectName: this.scope.project.name
+      });
+      description = this.translate.instant("TASK.PAGE_DESCRIPTION", {
+        taskStatus: ((ref = this.scope.statusById[this.scope.task.status]) != null ? ref.name : void 0) || "--",
+        taskDescription: angular.element(this.scope.task.description_html || "").text()
+      });
+      return this.appMetaService.setAll(title, description);
+    };
 
     TaskDetailController.prototype.initializeEventHandlers = function() {
       this.scope.$on("attachment:create", (function(_this) {
         return function() {
           _this.analytics.trackEvent("attachment", "create", "create attachment on task", 1);
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       this.scope.$on("attachment:edit", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       this.scope.$on("attachment:delete", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       return this.scope.$on("custom-attributes-values:edit", (function(_this) {
         return function() {
-          return _this.rootscope.$broadcast("history:reload");
+          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
     };
@@ -14827,7 +14889,7 @@
           $model.$setViewValue(task);
           onSuccess = function() {
             $confirm.notify("success");
-            $rootScope.$broadcast("history:reload");
+            $rootScope.$broadcast("object:updated");
             return $loading.finish($el.find(".level-name"));
           };
           onError = function() {
@@ -14908,7 +14970,7 @@
           promise = $tgrepo.save(task);
           promise.then(function() {
             $confirm.notify("success");
-            return $rootscope.$broadcast("history:reload");
+            return $rootscope.$broadcast("object:updated");
           });
           promise.then(null, function() {
             task.revert();
@@ -14984,9 +15046,9 @@
   TeamController = (function(superClass) {
     extend(TeamController, superClass);
 
-    TeamController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgResources", "$routeParams", "$q", "$location", "$tgNavUrls", "$appTitle", "$tgAuth", "tgLoader", "$translate"];
+    TeamController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgResources", "$routeParams", "$q", "$location", "$tgNavUrls", "tgAppMetaService", "$tgAuth", "$translate", "tgProjectService"];
 
-    function TeamController(scope, rootscope, repo, rs, params, q, location, navUrls, appTitle, auth, tgLoader, translate) {
+    function TeamController(scope, rootscope, repo, rs, params, q, location, navUrls, appMetaService, auth, translate, projectService) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -14996,22 +15058,26 @@
       this.q = q;
       this.location = location;
       this.navUrls = navUrls;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.auth = auth;
       this.translate = translate;
+      this.projectService = projectService;
       this.scope.sectionName = "TEAM.SECTION_NAME";
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var text;
-          text = _this.translate.instant("TEAM.APP_TITLE", {
-            "projectName": _this.scope.project.name
+          var description, title;
+          title = _this.translate.instant("TEAM.PAGE_TITLE", {
+            projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(text);
+          description = _this.translate.instant("TEAM.PAGE_DESCRIPTION", {
+            projectName: _this.scope.project.name,
+            projectDescription: _this.scope.project.description
+          });
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
 
     TeamController.prototype.setRole = function(role) {
@@ -15023,35 +15089,46 @@
     };
 
     TeamController.prototype.loadMembers = function() {
-      return this.rs.memberships.list(this.scope.projectId, {}, false).then((function(_this) {
-        return function(data) {
-          var currentUser, i, len, membership, ref;
-          currentUser = _this.auth.getUser();
-          if ((currentUser != null) && (currentUser.photo == null)) {
-            currentUser.photo = "/images/unnamed.png";
-          }
-          _this.scope.currentUser = _.find(data, function(membership) {
-            return (currentUser != null) && membership.user === currentUser.id;
-          });
-          _this.scope.totals = {};
-          _.forEach(data, function(membership) {
-            return _this.scope.totals[membership.user] = 0;
-          });
-          _this.scope.memberships = _.filter(data, function(membership) {
-            if (membership.user && ((currentUser == null) || membership.user !== currentUser.id) && membership.is_user_active) {
-              return membership;
-            }
-          });
-          ref = _this.scope.memberships;
-          for (i = 0, len = ref.length; i < len; i++) {
-            membership = ref[i];
-            if (membership.photo == null) {
-              membership.photo = "/images/unnamed.png";
-            }
-          }
-          return data;
+      var currentUser, i, len, membership, memberships, ref, results;
+      currentUser = this.auth.getUser();
+      if ((currentUser != null) && (currentUser.photo == null)) {
+        currentUser.photo = "/images/unnamed.png";
+      }
+      memberships = this.projectService.project.toJS().memberships;
+      this.scope.currentUser = _.find(memberships, (function(_this) {
+        return function(membership) {
+          return (currentUser != null) && membership.user === currentUser.id;
         };
       })(this));
+      this.scope.totals = {};
+      _.forEach(memberships, (function(_this) {
+        return function(membership) {
+          return _this.scope.totals[membership.user] = 0;
+        };
+      })(this));
+      this.scope.memberships = _.filter(memberships, (function(_this) {
+        return function(membership) {
+          if (membership.user && ((currentUser == null) || membership.user !== currentUser.id)) {
+            return membership;
+          }
+        };
+      })(this));
+      this.scope.memberships = _.filter(memberships, (function(_this) {
+        return function(membership) {
+          return membership.is_active;
+        };
+      })(this));
+      ref = this.scope.memberships;
+      results = [];
+      for (i = 0, len = ref.length; i < len; i++) {
+        membership = ref[i];
+        if (membership.photo == null) {
+          results.push(membership.photo = "/images/unnamed.png");
+        } else {
+          results.push(void 0);
+        }
+      }
+      return results;
     };
 
     TeamController.prototype.loadProject = function() {
@@ -15121,9 +15198,8 @@
       return promise.then((function(_this) {
         return function(project) {
           _this.fillUsersAndRoles(project.users, project.roles);
-          return _this.loadMembers().then(function() {
-            return _this.loadMemberStats();
-          });
+          _this.loadMembers();
+          return _this.loadMemberStats();
         };
       })(this));
     };
@@ -15281,9 +15357,9 @@
   WikiDetailController = (function(superClass) {
     extend(WikiDetailController, superClass);
 
-    WikiDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgModel", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$filter", "$log", "$appTitle", "$tgNavUrls", "$tgAnalytics", "tgLoader", "$translate"];
+    WikiDetailController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgModel", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$filter", "$log", "tgAppMetaService", "$tgNavUrls", "$tgAnalytics", "$translate"];
 
-    function WikiDetailController(scope, rootscope, repo, model, confirm, rs, params, q, location, filter, log, appTitle, navUrls, analytics, tgLoader, translate) {
+    function WikiDetailController(scope, rootscope, repo, model, confirm, rs, params, q, location, filter, log, appMetaService, navUrls, analytics, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -15296,7 +15372,7 @@
       this.location = location;
       this.filter = filter;
       this.log = log;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.navUrls = navUrls;
       this.analytics = analytics;
       this.translate = translate;
@@ -15306,12 +15382,25 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          return _this.appTitle.set("Wiki - " + _this.scope.project.name);
+          return _this._setMeta();
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
     }
+
+    WikiDetailController.prototype._setMeta = function() {
+      var description, title;
+      title = this.translate.instant("WIKI.PAGE_TITLE", {
+        wikiPageName: this.scope.wiki.slug,
+        projectName: unslugify(this.scope.wiki.slug)
+      });
+      description = this.translate.instant("WIKI.PAGE_DESCRIPTION", {
+        wikiPageContent: angular.element(this.scope.wiki.html || "").text(),
+        totalEditions: this.scope.wiki.editions || 0,
+        lastModifiedDate: moment(this.scope.wiki.modified_date).format(this.translate.instant("WIKI.DATETIME"))
+      });
+      return this.appMetaService.setAll(title, description);
+    };
 
     WikiDetailController.prototype.loadProject = function() {
       return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
@@ -15372,7 +15461,7 @@
       return promise.then((function(_this) {
         return function(project) {
           _this.fillUsersAndRoles(project.users, project.roles);
-          return _this.q.all([_this.loadWikiLinks(), _this.loadWiki()]);
+          return _this.q.all([_this.loadWikiLinks(), _this.loadWiki()]).then(function() {});
         };
       })(this));
     };
@@ -15565,7 +15654,7 @@
         }
         if (isEditable()) {
           $el.addClass('editable');
-          if (wikiPage.id == null) {
+          if ((wikiPage.id == null) || $.trim(wikiPage.content).length === 0) {
             return switchToEditMode();
           }
         } else {
@@ -15944,9 +16033,9 @@
   MembershipsController = (function(superClass) {
     extend(MembershipsController, superClass);
 
-    MembershipsController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$tgAnalytics", "$appTitle"];
+    MembershipsController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$tgAnalytics", "tgAppMetaService", "$translate"];
 
-    function MembershipsController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, analytics, appTitle) {
+    function MembershipsController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, analytics, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -15958,14 +16047,20 @@
       this.location = location;
       this.navUrls = navUrls;
       this.analytics = analytics;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
+      this.translate = translate;
       bindMethods(this);
       this.scope.project = {};
       this.scope.filters = {};
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          return _this.appTitle.set("Membership - " + _this.scope.project.name);
+          var description, title;
+          title = _this.translate.instant("ADMIN.MEMBERSHIPS.PAGE_TITLE", {
+            projectName: _this.scope.project.name
+          });
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
@@ -15978,11 +16073,12 @@
     }
 
     MembershipsController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
           if (!project.i_am_owner) {
             _this.location.path(_this.navUrls.resolve("permission-denied"));
           }
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           return project;
@@ -16008,27 +16104,14 @@
 
     MembershipsController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
+      promise = this.loadProject();
+      promise.then((function(_this) {
         return function() {
-          return _this.loadProject();
-        };
-      })(this)).then((function(_this) {
-        return function() {
-          return _this.loadUsersAndRoles();
-        };
-      })(this)).then((function(_this) {
-        return function() {
+          _this.loadUsersAndRoles();
           return _this.loadMembers();
         };
       })(this));
+      return promise;
     };
 
     MembershipsController.prototype.getUrlFilters = function() {
@@ -16461,9 +16544,9 @@
   ProjectProfileController = (function(superClass) {
     extend(ProjectProfileController, superClass);
 
-    ProjectProfileController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$appTitle", "$translate"];
+    ProjectProfileController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "$translate"];
 
-    function ProjectProfileController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, appTitle1, translate) {
+    function ProjectProfileController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -16474,41 +16557,44 @@
       this.q = q;
       this.location = location;
       this.navUrls = navUrls;
-      this.appTitle = appTitle1;
+      this.appMetaService = appMetaService;
       this.translate = translate;
       this.scope.project = {};
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var appTitle, sectionName;
+          var description, sectionName, title;
           sectionName = _this.translate.instant(_this.scope.sectionName);
-          appTitle = _this.translate.instant("ADMIN.PROJECT_PROFILE.PAGE_TITLE", {
+          title = _this.translate.instant("ADMIN.PROJECT_PROFILE.PAGE_TITLE", {
             sectionName: sectionName,
             projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(appTitle);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
       this.scope.$on("project:loaded", (function(_this) {
         return function() {
-          var appTitle, sectionName;
+          var description, sectionName, title;
           sectionName = _this.translate.instant(_this.scope.sectionName);
-          appTitle = _this.translate.instant("ADMIN.PROJECT_PROFILE.PAGE_TITLE", {
+          title = _this.translate.instant("ADMIN.PROJECT_PROFILE.PAGE_TITLE", {
             sectionName: sectionName,
             projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(appTitle);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
     }
 
     ProjectProfileController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
           if (!project.i_am_owner) {
             _this.location.path(_this.navUrls.resolve("permission-denied"));
           }
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.pointsList = _.sortBy(project.points, "order");
           _this.scope.usStatusList = _.sortBy(project.us_statuses, "order");
@@ -16523,33 +16609,10 @@
       })(this));
     };
 
-    ProjectProfileController.prototype.loadTagsColors = function() {
-      return this.rs.projects.tagsColors(this.scope.projectId).then((function(_this) {
-        return function(tags_colors) {
-          return _this.scope.project.tags_colors = tags_colors;
-        };
-      })(this));
-    };
-
-    ProjectProfileController.prototype.loadProjectProfile = function() {
-      return this.q.all([this.loadProject(), this.loadTagsColors()]);
-    };
-
     ProjectProfileController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProjectProfile();
-        };
-      })(this));
+      promise = this.loadProject();
+      return promise;
     };
 
     ProjectProfileController.prototype.openDeleteLightbox = function() {
@@ -16562,10 +16625,11 @@
 
   module.controller("ProjectProfileController", ProjectProfileController);
 
-  ProjectProfileDirective = function($repo, $confirm, $loading, $navurls, $location) {
+  ProjectProfileDirective = function($repo, $confirm, $loading, $navurls, $location, projectService) {
     var link;
     link = function($scope, $el, $attrs) {
-      var form, submit, submitButton;
+      var $ctrl, form, submit, submitButton;
+      $ctrl = $el.controller();
       form = $el.find("form").checksley({
         "onlyOneErrorElement": true
       });
@@ -16586,7 +16650,8 @@
               project: $scope.project.slug
             });
             $location.path(newUrl);
-            return $scope.$emit("project:loaded", $scope.project);
+            $ctrl.loadInitialData();
+            return projectService.fetchProject();
           });
           return promise.then(null, function(data) {
             $loading.finish(submitButton);
@@ -16605,7 +16670,7 @@
     };
   };
 
-  module.directive("tgProjectProfile", ["$tgRepo", "$tgConfirm", "$tgLoading", "$tgNavUrls", "$tgLocation", ProjectProfileDirective]);
+  module.directive("tgProjectProfile", ["$tgRepo", "$tgConfirm", "$tgLoading", "$tgNavUrls", "$tgLocation", "tgProjectService", ProjectProfileDirective]);
 
   ProjectDefaultValuesDirective = function($repo, $confirm, $loading) {
     var link;
@@ -16649,7 +16714,7 @@
 
   module.directive("tgProjectDefaultValues", ["$tgRepo", "$tgConfirm", "$tgLoading", ProjectDefaultValuesDirective]);
 
-  ProjectModulesDirective = function($repo, $confirm, $loading) {
+  ProjectModulesDirective = function($repo, $confirm, $loading, projectService) {
     var link;
     link = function($scope, $el, $attrs) {
       var form, submit;
@@ -16666,7 +16731,8 @@
           promise.then(function() {
             $loading.finish(target);
             $confirm.notify("success");
-            return $scope.$emit("project:loaded", $scope.project);
+            $scope.$emit("project:loaded", $scope.project);
+            return projectService.fetchProject();
           });
           return promise.then(null, function(data) {
             $loading.finish(target);
@@ -16704,7 +16770,7 @@
     };
   };
 
-  module.directive("tgProjectModules", ["$tgRepo", "$tgConfirm", "$tgLoading", ProjectModulesDirective]);
+  module.directive("tgProjectModules", ["$tgRepo", "$tgConfirm", "$tgLoading", "tgProjectService", ProjectModulesDirective]);
 
   ProjectExportDirective = function($window, $rs, $confirm, $translate) {
     var link;
@@ -17034,9 +17100,9 @@
   ProjectValuesSectionController = (function(superClass) {
     extend(ProjectValuesSectionController, superClass);
 
-    ProjectValuesSectionController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$appTitle", "$translate"];
+    ProjectValuesSectionController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "$translate"];
 
-    function ProjectValuesSectionController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, appTitle, translate) {
+    function ProjectValuesSectionController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -17047,30 +17113,32 @@
       this.q = q;
       this.location = location;
       this.navUrls = navUrls;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.translate = translate;
       this.scope.project = {};
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var sectionName, title;
+          var description, sectionName, title;
           sectionName = _this.translate.instant(_this.scope.sectionName);
-          title = _this.translate.instant("ADMIN.PROJECT_VALUES.APP_TITLE", {
+          title = _this.translate.instant("ADMIN.PROJECT_VALUES.PAGE_TITLE", {
             "sectionName": sectionName,
             "projectName": _this.scope.project.name
           });
-          return _this.appTitle.set(title);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
     }
 
     ProjectValuesSectionController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
           if (!project.i_am_owner) {
             _this.location.path(_this.navUrls.resolve("permission-denied"));
           }
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           return project;
@@ -17080,19 +17148,8 @@
 
     ProjectValuesSectionController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this));
+      promise = this.loadProject();
+      return promise;
     };
 
     return ProjectValuesSectionController;
@@ -17146,9 +17203,8 @@
 
   module.controller("ProjectValuesController", ProjectValuesController);
 
-  ProjectValuesDirective = function($log, $repo, $confirm, $location, animationFrame, translate, $rootscope) {
+  ProjectValuesDirective = function($log, $repo, $confirm, $location, animationFrame, $translate, $rootscope) {
     var link, linkDragAndDrop, linkValue;
-    this.translate = translate;
     linkDragAndDrop = function($scope, $el, $attrs) {
       var itemEl, newParentScope, oldParentScope, tdom;
       oldParentScope = null;
@@ -17186,7 +17242,7 @@
         };
       };
       initializeTextTranslations = function() {
-        return $scope.addNewElementText = this.translate.instant("ADMIN.PROJECT_VALUES_" + (objName.toUpperCase()) + ".ACTION_ADD");
+        return $scope.addNewElementText = $translate.instant("ADMIN.PROJECT_VALUES_" + (objName.toUpperCase()) + ".ACTION_ADD");
       };
       initializeNewValue();
       initializeTextTranslations();
@@ -17319,7 +17375,7 @@
         return cancel(target);
       });
       return $el.on("click", ".delete-value", function(event) {
-        var choices, formEl, subtitle, target, value;
+        var choices, formEl, subtitle, target, text, title, value;
         event.preventDefault();
         target = angular.element(event.currentTarget);
         formEl = target.parents("form");
@@ -17334,7 +17390,9 @@
         if (_.keys(choices).length === 0) {
           return $confirm.error("ADMIN.PROJECT_VALUES.ERROR_DELETE_ALL");
         }
-        return $confirm.askChoice("PROJECT.TITLE_ACTION_DELETE_VALUE", subtitle, choices, "ADMIN.PROJECT_VALUES.REPLACEMENT").then(function(response) {
+        title = $translate.instant("ADMIN.COMMON.TITLE_ACTION_DELETE_VALUE");
+        text = $translate.instant("ADMIN.PROJECT_VALUES.REPLACEMENT");
+        return $confirm.askChoice(title, subtitle, choices, text).then(function(response) {
           var onError, onSucces;
           onSucces = function() {
             return $ctrl.loadValues()["finally"](function() {
@@ -17420,9 +17478,9 @@
   ProjectCustomAttributesController = (function(superClass) {
     extend(ProjectCustomAttributesController, superClass);
 
-    ProjectCustomAttributesController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$appTitle"];
+    ProjectCustomAttributesController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "$translate"];
 
-    function ProjectCustomAttributesController(scope, rootscope, repo, rs, params, q, location, navUrls, appTitle) {
+    function ProjectCustomAttributesController(scope, rootscope, repo, rs, params, q, location, navUrls, appMetaService, translate) {
       this.scope = scope;
       this.rootscope = rootscope;
       this.repo = repo;
@@ -17431,7 +17489,8 @@
       this.q = q;
       this.location = location;
       this.navUrls = navUrls;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
+      this.translate = translate;
       this.moveCustomAttributes = bind(this.moveCustomAttributes, this);
       this.deleteCustomAttribute = bind(this.deleteCustomAttribute, this);
       this.saveCustomAttribute = bind(this.saveCustomAttribute, this);
@@ -17440,8 +17499,15 @@
       this.scope.project = {};
       this.rootscope.$on("project:loaded", (function(_this) {
         return function() {
+          var description, sectionName, title;
           _this.loadCustomAttributes();
-          return _this.appTitle.set("Project Custom Attributes - " + _this.scope.sectionName + " - " + _this.scope.project.name);
+          sectionName = _this.translate.instant(_this.scope.sectionName);
+          title = _this.translate.instant("ADMIN.CUSTOM_ATTRIBUTES.PAGE_TITLE", {
+            "sectionName": sectionName,
+            "projectName": _this.scope.project.name
+          });
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
     }
@@ -17486,7 +17552,7 @@
 
   module.controller("ProjectCustomAttributesController", ProjectCustomAttributesController);
 
-  ProjectCustomAttributesDirective = function($log, $confirm, animationFrame) {
+  ProjectCustomAttributesDirective = function($log, $confirm, animationFrame, $translate) {
     var link;
     link = function($scope, $el, $attrs) {
       var $ctrl, cancelCreate, cancelUpdate, create, deleteCustomAttribute, hideAddButton, hideCancelButton, hideCreateForm, hideEditForm, resetNewAttr, revertChangesInCustomAttribute, showAddButton, showCancelButton, showCreateForm, showEditForm, sortableEl, update;
@@ -17670,10 +17736,12 @@
         }
       });
       deleteCustomAttribute = function(formEl) {
-        var attr, message;
+        var attr, message, text, title;
         attr = formEl.scope().attr;
         message = attr.name;
-        return $confirm.ask("COMMON.CUSTOM_ATTRIBUTES.DELETE", "COMMON.CUSTOM_ATTRIBUTES.CONFIRM_DELETE", message).then(function(finish) {
+        title = $translate.instant("COMMON.CUSTOM_ATTRIBUTES.DELETE");
+        text = $translate.instant("COMMON.CUSTOM_ATTRIBUTES.CONFIRM_DELETE");
+        return $confirm.ask(title, text, message).then(function(finish) {
           var onError, onSucces;
           onSucces = function() {
             return $ctrl.loadCustomAttributes()["finally"](function() {
@@ -17700,7 +17768,7 @@
     };
   };
 
-  module.directive("tgProjectCustomAttributes", ["$log", "$tgConfirm", "animationFrame", ProjectCustomAttributesDirective]);
+  module.directive("tgProjectCustomAttributes", ["$log", "$tgConfirm", "animationFrame", "$translate", ProjectCustomAttributesDirective]);
 
 }).call(this);
 
@@ -17747,9 +17815,9 @@
   RolesController = (function(superClass) {
     extend(RolesController, superClass);
 
-    RolesController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$appTitle", "$translate"];
+    RolesController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "$translate"];
 
-    function RolesController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, appTitle, translate) {
+    function RolesController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -17760,7 +17828,7 @@
       this.q = q;
       this.location = location;
       this.navUrls = navUrls;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.translate = translate;
       bindMethods(this);
       this.scope.sectionName = "ADMIN.MENU.PERMISSIONS";
@@ -17769,22 +17837,24 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var title;
-          title = _this.translate.instant("ADMIN.ROLES.SECTION_NAME", {
+          var description, title;
+          title = _this.translate.instant("ADMIN.ROLES.PAGE_TITLE", {
             projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(title);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
     }
 
     RolesController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
           if (!project.i_am_owner) {
             _this.location.path(_this.navUrls.resolve("permission-denied"));
           }
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           _this.scope.anyComputableRole = _.some(_.map(project.roles, function(point) {
@@ -17795,24 +17865,20 @@
       })(this));
     };
 
-    RolesController.prototype.loadExternalUserRole = function(roles) {
-      var public_permission;
-      roles = roles.map(function(role) {
-        role.external_user = false;
-        return role;
-      });
-      public_permission = {
-        "name": this.translate.instant("ADMIN.ROLES.EXTERNAL_USER"),
-        "permissions": this.scope.project.public_permissions,
-        "external_user": true
-      };
-      roles.push(public_permission);
-      return roles;
-    };
-
     RolesController.prototype.loadRoles = function() {
-      return this.rs.roles.list(this.scope.projectId).then(this.loadExternalUserRole).then((function(_this) {
+      return this.rs.roles.list(this.scope.projectId).then((function(_this) {
         return function(roles) {
+          var public_permission;
+          roles = roles.map(function(role) {
+            role.external_user = false;
+            return role;
+          });
+          public_permission = {
+            "name": _this.translate.instant("ADMIN.ROLES.EXTERNAL_USER"),
+            "permissions": _this.scope.project.public_permissions,
+            "external_user": true
+          };
+          roles.push(public_permission);
           _this.scope.roles = roles;
           _this.scope.role = _this.scope.roles[0];
           return roles;
@@ -17822,27 +17888,13 @@
 
     RolesController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this)).then((function(_this) {
-        return function() {
-          return _this.loadUsersAndRoles();
-        };
-      })(this)).then((function(_this) {
+      promise = this.loadProject();
+      promise.then((function(_this) {
         return function() {
           return _this.loadRoles();
         };
       })(this));
+      return promise;
     };
 
     RolesController.prototype.setRole = function(role) {
@@ -18006,7 +18058,9 @@
           $el.find(".new").addClass("hidden");
           $el.find(".new").val('');
           onSuccess = function(role) {
-            $scope.roles.push(role);
+            var insertPosition;
+            insertPosition = $scope.roles.length - 1;
+            $scope.roles.splice(insertPosition, 0, role);
             $ctrl.setRole(role);
             $el.find(".add-button").show();
             return $ctrl.loadProject();
@@ -18302,9 +18356,9 @@
   WebhooksController = (function(superClass) {
     extend(WebhooksController, superClass);
 
-    WebhooksController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "$tgLocation", "$tgNavUrls", "$appTitle", "$translate"];
+    WebhooksController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "$translate"];
 
-    function WebhooksController(scope, repo, rs, params, location, navUrls, appTitle, translate) {
+    function WebhooksController(scope, repo, rs, params, location, navUrls, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.repo = repo;
@@ -18312,7 +18366,7 @@
       this.params = params;
       this.location = location;
       this.navUrls = navUrls;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.translate = translate;
       bindMethods(this);
       this.scope.sectionName = "ADMIN.WEBHOOKS.SECTION_NAME";
@@ -18320,11 +18374,12 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var text;
-          text = _this.translate.instant("ADMIN.WEBHOOKS.APP_TITLE", {
-            "projectName": _this.scope.project.name
+          var description, title;
+          title = _this.translate.instant("ADMIN.WEBHOOKS.PAGE_TITLE", {
+            projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(text);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
@@ -18340,11 +18395,12 @@
     };
 
     WebhooksController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
           if (!project.i_am_owner) {
             _this.location.path(_this.navUrls.resolve("permission-denied"));
           }
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           return project;
@@ -18354,23 +18410,13 @@
 
     WebhooksController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this)).then((function(_this) {
+      promise = this.loadProject();
+      promise.then((function(_this) {
         return function() {
           return _this.loadWebhooks();
         };
       })(this));
+      return promise;
     };
 
     return WebhooksController;
@@ -18622,15 +18668,15 @@
   GithubController = (function(superClass) {
     extend(GithubController, superClass);
 
-    GithubController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "$appTitle", "$translate"];
+    GithubController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "tgAppMetaService", "$translate"];
 
-    function GithubController(scope, repo, rs, params, appTitle, translate) {
+    function GithubController(scope, repo, rs, params, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.repo = repo;
       this.rs = rs;
       this.params = params;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.translate = translate;
       bindMethods(this);
       this.scope.sectionName = this.translate.instant("ADMIN.GITHUB.SECTION_NAME");
@@ -18638,11 +18684,12 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var title;
-          title = _this.translate.instant("ADMIN.GITHUB.APP_TITLE", {
+          var description, title;
+          title = _this.translate.instant("ADMIN.GITHUB.PAGE_TITLE", {
             projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(title);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
@@ -18657,8 +18704,9 @@
     };
 
     GithubController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           return project;
@@ -18668,23 +18716,13 @@
 
     GithubController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this)).then((function(_this) {
+      promise = this.loadProject();
+      promise.then((function(_this) {
         return function() {
           return _this.loadModules();
         };
       })(this));
+      return promise;
     };
 
     return GithubController;
@@ -18696,15 +18734,15 @@
   GitlabController = (function(superClass) {
     extend(GitlabController, superClass);
 
-    GitlabController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "$appTitle", "$translate"];
+    GitlabController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "tgAppMetaService", "$translate"];
 
-    function GitlabController(scope, repo, rs, params, appTitle, translate) {
+    function GitlabController(scope, repo, rs, params, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.repo = repo;
       this.rs = rs;
       this.params = params;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.translate = translate;
       bindMethods(this);
       this.scope.sectionName = this.translate.instant("ADMIN.GITLAB.SECTION_NAME");
@@ -18712,11 +18750,12 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var title;
-          title = _this.translate.instant("ADMIN.GITLAB.APP_TITLE", {
+          var description, title;
+          title = _this.translate.instant("ADMIN.GITLAB.PAGE_TITLE", {
             projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(title);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
@@ -18736,8 +18775,9 @@
     };
 
     GitlabController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           return project;
@@ -18747,23 +18787,13 @@
 
     GitlabController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this)).then((function(_this) {
+      promise = this.loadProject();
+      promise.then((function(_this) {
         return function() {
           return _this.loadModules();
         };
       })(this));
+      return promise;
     };
 
     return GitlabController;
@@ -18775,15 +18805,15 @@
   BitbucketController = (function(superClass) {
     extend(BitbucketController, superClass);
 
-    BitbucketController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "$appTitle", "$translate"];
+    BitbucketController.$inject = ["$scope", "$tgRepo", "$tgResources", "$routeParams", "tgAppMetaService", "$translate"];
 
-    function BitbucketController(scope, repo, rs, params, appTitle, translate) {
+    function BitbucketController(scope, repo, rs, params, appMetaService, translate) {
       var promise;
       this.scope = scope;
       this.repo = repo;
       this.rs = rs;
       this.params = params;
-      this.appTitle = appTitle;
+      this.appMetaService = appMetaService;
       this.translate = translate;
       bindMethods(this);
       this.scope.sectionName = this.translate.instant("ADMIN.BITBUCKET.SECTION_NAME");
@@ -18791,11 +18821,12 @@
       promise = this.loadInitialData();
       promise.then((function(_this) {
         return function() {
-          var title;
-          title = _this.translate.instant("ADMIN.BITBUCKET.APP_TITLE", {
+          var description, title;
+          title = _this.translate.instant("ADMIN.BITBUCKET.PAGE_TITLE", {
             projectName: _this.scope.project.name
           });
-          return _this.appTitle.set(title);
+          description = _this.scope.project.description;
+          return _this.appMetaService.setAll(title, description);
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
@@ -18815,8 +18846,9 @@
     };
 
     BitbucketController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           return project;
@@ -18826,23 +18858,13 @@
 
     BitbucketController.prototype.loadInitialData = function() {
       var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this)).then((function(_this) {
+      promise = this.loadProject();
+      promise.then((function(_this) {
         return function() {
           return _this.loadModules();
         };
       })(this));
+      return promise;
     };
 
     return BitbucketController;
@@ -19042,10 +19064,10 @@
 
   module = angular.module("taigaProject");
 
-  CreateProject = function($rootscope, $repo, $confirm, $location, $navurls, $rs, $projectUrl, $loading, lightboxService, $cacheFactory, $translate) {
-    var link;
+  CreateProject = function($rootscope, $repo, $confirm, $location, $navurls, $rs, $projectUrl, $loading, lightboxService, $cacheFactory, $translate, currentUserService) {
+    var directive, link;
     link = function($scope, $el, attrs) {
-      var form, onErrorSubmit, onSuccessSubmit, submit, submitButton;
+      var form, onErrorSubmit, onSuccessSubmit, openLightbox, submit, submitButton;
       $scope.data = {};
       $scope.templates = [];
       form = $el.find("form").checksley({
@@ -19057,7 +19079,8 @@
         $rootscope.$broadcast("projects:reload");
         $confirm.notify("success", $translate.instant("COMMON.SAVE"));
         $location.url($projectUrl.get(response));
-        return lightboxService.close($el);
+        lightboxService.close($el);
+        return currentUserService._loadProjects();
       };
       onErrorSubmit = function(response) {
         var error_field, error_step, i, len, ref, selectors;
@@ -19086,7 +19109,7 @@
           return promise.then(onSuccessSubmit, onErrorSubmit);
         };
       })(this);
-      $scope.$on("projects:create", function() {
+      openLightbox = function() {
         $scope.data = {
           total_story_points: 100,
           total_milestones: 5
@@ -19111,7 +19134,7 @@
         return timeout(600, function() {
           return $el.find(".progress-bar").addClass('step1');
         });
-      });
+      };
       $el.on("click", ".button-next", function(event) {
         var current, field, i, len, next, ref, step, valid;
         event.preventDefault();
@@ -19145,19 +19168,26 @@
       });
       submitButton = $el.find(".submit-button");
       $el.on("submit", "form", submit);
-      return $el.on("click", ".close", function(event) {
+      $el.on("click", ".close", function(event) {
         event.preventDefault();
         return lightboxService.close($el);
       });
+      $scope.$on("$destroy", function() {
+        return $el.off();
+      });
+      return openLightbox();
     };
-    return {
-      link: link
+    directive = {
+      link: link,
+      templateUrl: "project/wizard-create-project.html",
+      scope: {}
     };
+    return directive;
   };
 
-  module.directive("tgLbCreateProject", ["$rootScope", "$tgRepo", "$tgConfirm", "$location", "$tgNavUrls", "$tgResources", "$projectUrl", "$tgLoading", "lightboxService", "$cacheFactory", "$translate", CreateProject]);
+  module.directive("tgLbCreateProject", ["$rootScope", "$tgRepo", "$tgConfirm", "$location", "$tgNavUrls", "$tgResources", "$projectUrl", "$tgLoading", "lightboxService", "$cacheFactory", "$translate", "tgCurrentUserService", CreateProject]);
 
-  DeleteProjectDirective = function($repo, $rootscope, $auth, $location, $navUrls, $confirm, lightboxService, tgLoader) {
+  DeleteProjectDirective = function($repo, $rootscope, $auth, $location, $navUrls, $confirm, lightboxService, tgLoader, currentUserService) {
     var link;
     link = function($scope, $el, $attrs) {
       var projectToDelete, submit;
@@ -19178,7 +19208,8 @@
           tgLoader.pageLoaded();
           $rootscope.$broadcast("projects:reload");
           $location.path($navUrls.resolve("home"));
-          return $confirm.notify("success");
+          $confirm.notify("success");
+          return currentUserService._loadProjects();
         });
         return promise.then(null, function() {
           $confirm.notify("error");
@@ -19199,331 +19230,7 @@
     };
   };
 
-  module.directive("tgLbDeleteProject", ["$tgRepo", "$rootScope", "$tgAuth", "$tgLocation", "$tgNavUrls", "$tgConfirm", "lightboxService", "tgLoader", DeleteProjectDirective]);
-
-}).call(this);
-
-
-/*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
-#
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
-#
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
- * File: modules/common/attachments.coffee
- */
-
-(function() {
-  var ProjectController, ProjectsController, ProjectsListDirective, ProjectsPaginationDirective, bindOnce, module, taiga,
-    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  taiga = this.taiga;
-
-  module = angular.module("taigaProject");
-
-  bindOnce = this.taiga.bindOnce;
-
-  ProjectsController = (function(superClass) {
-    extend(ProjectsController, superClass);
-
-    ProjectsController.$inject = ["$scope", "$q", "$tgResources", "$rootScope", "$tgNavUrls", "$tgAuth", "$tgLocation", "$appTitle", "$projectUrl", "tgLoader"];
-
-    function ProjectsController(scope, q, rs, rootscope, navUrls, auth, location, appTitle, projectUrl, tgLoader) {
-      var promise;
-      this.scope = scope;
-      this.q = q;
-      this.rs = rs;
-      this.rootscope = rootscope;
-      this.navUrls = navUrls;
-      this.auth = auth;
-      this.location = location;
-      this.appTitle = appTitle;
-      this.projectUrl = projectUrl;
-      this.appTitle.set("Projects");
-      if (!this.auth.isAuthenticated()) {
-        this.location.path(this.navUrls.resolve("login"));
-      }
-      this.user = this.auth.getUser();
-      this.projects = [];
-      promise = this.loadInitialData();
-      promise.then((function(_this) {
-        return function() {
-          return _this.scope.$emit("projects:loaded", _this.projects);
-        };
-      })(this));
-      promise.then(null, this.onInitialDataError.bind(this));
-      promise["finally"](tgLoader.pageLoaded);
-    }
-
-    ProjectsController.prototype.loadInitialData = function() {
-      var ref;
-      return this.rs.projects.listByMember((ref = this.rootscope.user) != null ? ref.id : void 0).then((function(_this) {
-        return function(projects) {
-          var i, len, project;
-          _this.projects = {
-            'recents': projects.slice(0, 8),
-            'all': projects
-          };
-          for (i = 0, len = projects.length; i < len; i++) {
-            project = projects[i];
-            project.url = _this.projectUrl.get(project);
-          }
-          return projects;
-        };
-      })(this));
-    };
-
-    ProjectsController.prototype.newProject = function() {
-      return this.rootscope.$broadcast("projects:create");
-    };
-
-    ProjectsController.prototype.logout = function() {
-      this.auth.logout();
-      return this.location.path(this.navUrls.resolve("login"));
-    };
-
-    return ProjectsController;
-
-  })(taiga.Controller);
-
-  module.controller("ProjectsController", ProjectsController);
-
-  ProjectController = (function(superClass) {
-    extend(ProjectController, superClass);
-
-    ProjectController.$inject = ["$scope", "$tgResources", "$tgRepo", "$routeParams", "$q", "$rootScope", "$appTitle", "$tgLocation", "$tgNavUrls"];
-
-    function ProjectController(scope, rs, repo, params, q, rootscope, appTitle, location, navUrls) {
-      var promise;
-      this.scope = scope;
-      this.rs = rs;
-      this.repo = repo;
-      this.params = params;
-      this.q = q;
-      this.rootscope = rootscope;
-      this.appTitle = appTitle;
-      this.location = location;
-      this.navUrls = navUrls;
-      promise = this.loadInitialData();
-      promise.then((function(_this) {
-        return function() {
-          _this.appTitle.set(_this.scope.project.name);
-          return _this.scope.$emit("regenerate:project-pagination");
-        };
-      })(this));
-      promise.then(null, this.onInitialDataError.bind(this));
-    }
-
-    ProjectController.prototype.loadInitialData = function() {
-      var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadPageData();
-        };
-      })(this)).then((function(_this) {
-        return function() {
-          return _this.scope.$emit("project:loaded", _this.scope.project);
-        };
-      })(this));
-    };
-
-    ProjectController.prototype.loadPageData = function() {
-      return this.q.all([this.loadProjectStats(), this.loadProject()]);
-    };
-
-    ProjectController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
-        return function(project) {
-          _this.scope.project = project;
-          return project;
-        };
-      })(this));
-    };
-
-    ProjectController.prototype.loadProjectStats = function() {
-      return this.rs.projects.stats(this.scope.projectId).then((function(_this) {
-        return function(stats) {
-          _this.scope.stats = stats;
-          return stats;
-        };
-      })(this));
-    };
-
-    return ProjectController;
-
-  })(taiga.Controller);
-
-  module.controller("ProjectController", ProjectController);
-
-  ProjectsPaginationDirective = function($timeout) {
-    var link;
-    link = function($scope, $el, $attrs) {
-      var checkButtonVisibility, container, containerSize, hasNextPage, hasPagination, hasPrevPage, hide, nextBtn, nextPage, pageSize, prevBtn, prevPage, remove, render, visible;
-      prevBtn = $el.find(".v-pagination-previous");
-      nextBtn = $el.find(".v-pagination-next");
-      container = $el.find("ul");
-      pageSize = 0;
-      containerSize = 0;
-      render = function() {
-        pageSize = $el.find(".v-pagination-list").height();
-        if (container.find("li").length) {
-          if (hasPagination()) {
-            if (hasNextPage()) {
-              visible(nextBtn);
-            } else {
-              hide(nextBtn);
-            }
-            if (hasPrevPage()) {
-              return visible(prevBtn);
-            } else {
-              return hide(prevBtn);
-            }
-          } else {
-            return remove();
-          }
-        } else {
-          return remove();
-        }
-      };
-      hasPagination = function() {
-        containerSize = container.height();
-        return containerSize > pageSize;
-      };
-      hasPrevPage = function(top) {
-        if (top == null) {
-          top = -parseInt(container.css('top'), 10) || 0;
-        }
-        return top !== 0;
-      };
-      hasNextPage = function(top) {
-        containerSize = container.height();
-        if (!top) {
-          top = -parseInt(container.css('top'), 10) || 0;
-        }
-        return containerSize > pageSize && top + pageSize < containerSize;
-      };
-      nextPage = function(callback) {
-        var lastLi, maxTop, newTop, top;
-        top = parseInt(container.css('top'), 10);
-        newTop = top - pageSize;
-        lastLi = $el.find(".v-pagination-list li:last-child");
-        maxTop = -((lastLi.position().top + lastLi.outerHeight()) - pageSize);
-        if (newTop < maxTop) {
-          newTop = maxTop;
-        }
-        container.animate({
-          "top": newTop
-        }, callback);
-        return newTop;
-      };
-      prevPage = function(callback) {
-        var newTop, top;
-        top = parseInt(container.css('top'), 10);
-        newTop = top + pageSize;
-        if (newTop > 0) {
-          newTop = 0;
-        }
-        container.animate({
-          "top": newTop
-        }, callback);
-        return newTop;
-      };
-      visible = function(element) {
-        return element.css('visibility', 'visible');
-      };
-      hide = function(element) {
-        return element.css('visibility', 'hidden');
-      };
-      checkButtonVisibility = function() {};
-      remove = function() {
-        container.css('top', 0);
-        hide(prevBtn);
-        return hide(nextBtn);
-      };
-      $el.on("click", ".v-pagination-previous", function(event) {
-        var newTop;
-        event.preventDefault();
-        if (container.is(':animated')) {
-          return;
-        }
-        visible(nextBtn);
-        newTop = prevPage();
-        if (!hasPrevPage(newTop)) {
-          return hide(prevBtn);
-        }
-      });
-      $el.on("click", ".v-pagination-next", function(event) {
-        var newTop;
-        event.preventDefault();
-        if (container.is(':animated')) {
-          return;
-        }
-        visible(prevBtn);
-        newTop = -nextPage();
-        if (!hasNextPage(newTop)) {
-          return hide(nextBtn);
-        }
-      });
-      $scope.$on("regenerate:project-pagination", function() {
-        remove();
-        return render();
-      });
-      $(window).on("resize.projects-pagination", render);
-      return $scope.$on("$destroy", function() {
-        return $(window).off("resize.projects-pagination");
-      });
-    };
-    return {
-      link: link
-    };
-  };
-
-  module.directive("tgProjectsPagination", ['$timeout', ProjectsPaginationDirective]);
-
-  ProjectsListDirective = function($compile, $template) {
-    var link, template;
-    template = $template.get('project/project-list.html', true);
-    link = function($scope, $el, $attrs, $ctrls) {
-      var render;
-      render = function(projects) {
-        $el.html($compile(template({
-          projects: projects
-        }))($scope));
-        return $scope.$emit("regenerate:project-pagination");
-      };
-      return $scope.$on("projects:loaded", function(ctx, projects) {
-        if (projects.all != null) {
-          return render(projects.all);
-        }
-      });
-    };
-    return {
-      link: link
-    };
-  };
-
-  module.directive("tgProjectsList", ["$compile", "$tgTemplate", ProjectsListDirective]);
+  module.directive("tgLbDeleteProject", ["$tgRepo", "$rootScope", "$tgAuth", "$tgLocation", "$tgNavUrls", "$tgConfirm", "lightboxService", "tgLoader", "tgCurrentUserService", DeleteProjectDirective]);
 
 }).call(this);
 
@@ -19770,9 +19477,9 @@
   ContribController = (function(superClass) {
     extend(ContribController, superClass);
 
-    ContribController.$inject = ["$rootScope", "$scope", "$routeParams", "$tgRepo", "$tgResources", "$tgConfirm", "$appTitle"];
+    ContribController.$inject = ["$rootScope", "$scope", "$routeParams", "$tgRepo", "$tgResources", "$tgConfirm"];
 
-    function ContribController(rootScope, scope, params, repo, rs, confirm, appTitle) {
+    function ContribController(rootScope, scope, params, repo, rs, confirm) {
       var promise;
       this.rootScope = rootScope;
       this.scope = scope;
@@ -19780,7 +19487,6 @@
       this.repo = repo;
       this.rs = rs;
       this.confirm = confirm;
-      this.appTitle = appTitle;
       this.scope.adminPlugins = _.where(this.rootScope.contribPlugins, {
         "type": "admin"
       });
@@ -19790,11 +19496,6 @@
       this.scope.pluginTemplate = "contrib/" + this.scope.currentPlugin.slug;
       this.scope.projectSlug = this.params.pslug;
       promise = this.loadInitialData();
-      promise.then((function(_this) {
-        return function() {
-          return _this.appTitle.set(_this.scope.project.name);
-        };
-      })(this));
       promise.then(null, (function(_this) {
         return function() {
           return _this.confirm.notify("error");
@@ -19803,8 +19504,9 @@
     }
 
     ContribController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
+      return this.rs.projects.getBySlug(this.params.pslug).then((function(_this) {
         return function(project) {
+          _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
           _this.scope.$broadcast('project:loaded', project);
@@ -19814,20 +19516,7 @@
     };
 
     ContribController.prototype.loadInitialData = function() {
-      var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this));
+      return this.loadProject();
     };
 
     return ContribController;
@@ -19927,24 +19616,27 @@
   HttpService = (function(superClass) {
     extend(HttpService, superClass);
 
-    HttpService.$inject = ["$http", "$q", "$tgStorage", "$rootScope"];
+    HttpService.$inject = ["$http", "$q", "$tgStorage", "$rootScope", "$cacheFactory", "$translate"];
 
-    function HttpService(http, q, storage, rootScope) {
+    function HttpService(http, q, storage, rootScope, cacheFactory, translate) {
       this.http = http;
       this.q = q;
       this.storage = storage;
       this.rootScope = rootScope;
+      this.cacheFactory = cacheFactory;
+      this.translate = translate;
       HttpService.__super__.constructor.call(this);
+      this.cache = this.cacheFactory("httpget");
     }
 
     HttpService.prototype.headers = function() {
-      var headers, lang, ref, token;
+      var headers, lang, token;
       headers = {};
       token = this.storage.get('token');
       if (token) {
         headers["Authorization"] = "Bearer " + token;
       }
-      lang = (ref = this.rootScope.user) != null ? ref.lang : void 0;
+      lang = this.translate.preferredLanguage();
       if (lang) {
         headers["Accept-Language"] = lang;
       }
@@ -19967,7 +19659,12 @@
       if (params) {
         options.params = params;
       }
-      return this.request(options);
+      options.cache = this.cache;
+      return this.request(options)["finally"]((function(_this) {
+        return function(data) {
+          return _this.cache.removeAll();
+        };
+      })(this));
     };
 
     HttpService.prototype.post = function(url, data, params, options) {
@@ -20073,7 +19770,7 @@
     };
     $location.isInCurrentRouteParams = function(name, value) {
       var params;
-      params = _.merge($route.current.params, $location.search());
+      params = $location.search() || {};
       return params[name] === value;
     };
     return $location;
@@ -20444,6 +20141,9 @@
               target.attr("href", fullUrl);
             }
             return $el.on("click", function(event) {
+              if (event.metaKey || event.ctrlKey) {
+                return;
+              }
               event.preventDefault();
               target = $(event.currentTarget);
               if (target.hasClass('noclick')) {
@@ -20768,6 +20468,32 @@
           result.models = _.map(data.data, function(x) {
             return _this.model.make_model(name, x);
           });
+          result.count = parseInt(headers["x-pagination-count"], 10);
+          result.current = parseInt(headers["x-pagination-current"] || 1, 10);
+          result.paginatedBy = parseInt(headers["x-paginated-by"], 10);
+          return result;
+        };
+      })(this));
+    };
+
+    RepositoryService.prototype.queryOnePaginatedRaw = function(name, id, params, options) {
+      var httpOptions, url;
+      if (options == null) {
+        options = {};
+      }
+      url = this.urls.resolve(name);
+      if (id) {
+        url = url + "/" + id;
+      }
+      httpOptions = _.merge({
+        headers: {}
+      }, options);
+      return this.http.get(url, params, httpOptions).then((function(_this) {
+        return function(data) {
+          var headers, result;
+          headers = data.headers();
+          result = {};
+          result.data = data.data;
           result.count = parseInt(headers["x-pagination-count"], 10);
           result.current = parseInt(headers["x-pagination-current"] || 1, 10);
           result.paginatedBy = parseInt(headers["x-paginated-by"], 10);
@@ -21382,6 +21108,9 @@
       params.ref = ref;
       return $repo.queryOne("issues", "by_ref", params);
     };
+    service.listInAllProjects = function(filters) {
+      return $repo.queryMany("issues", filters);
+    };
     service.list = function(projectId, filters, options) {
       var params;
       params = {
@@ -21874,7 +21603,8 @@
     service.listByMember = function(memberId) {
       var params;
       params = {
-        "member": memberId
+        "member": memberId,
+        "order_by": "memberships__user_order"
       };
       return $repo.queryMany("projects", params);
     };
@@ -21897,6 +21627,11 @@
     };
     service.stats = function(projectId) {
       return $repo.queryOneRaw("projects", projectId + "/stats");
+    };
+    service.bulkUpdateOrder = function(bulkData) {
+      var url;
+      url = $urls.resolve("bulk-update-projects-order");
+      return $http.post(url, bulkData);
     };
     service.regenerate_userstories_csv_uuid = function(projectId) {
       var url;
@@ -22244,6 +21979,9 @@
       params.ref = ref;
       return $repo.queryOne("tasks", "by_ref", params);
     };
+    service.listInAllProjects = function(filters) {
+      return $repo.queryMany("tasks", filters);
+    };
     service.list = function(projectId, sprintId, userStoryId) {
       var params;
       if (sprintId == null) {
@@ -22441,6 +22179,65 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
+ * File: modules/resources/user.coffee
+ */
+
+(function() {
+  var module, resourceProvider, sizeFormat, taiga;
+
+  taiga = this.taiga;
+
+  sizeFormat = this.taiga.sizeFormat;
+
+  resourceProvider = function($http, $urls) {
+    var service;
+    service = {};
+    service.contacts = function(userId, options) {
+      var httpOptions, url;
+      if (options == null) {
+        options = {};
+      }
+      url = $urls.resolve("contacts", userId);
+      httpOptions = {
+        headers: {}
+      };
+      if (!options.enablePagination) {
+        httpOptions.headers["x-disable-pagination"] = "1";
+      }
+      return $http.get(url, {}, httpOptions).then(function(result) {
+        return result.data;
+      });
+    };
+    return function(instance) {
+      return instance.users = service;
+    };
+  };
+
+  module = angular.module("taigaResources");
+
+  module.factory("$tgUsersResourcesProvider", ["$tgHttp", "$tgUrls", "$q", resourceProvider]);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
+#
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+#
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+#
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
  * File: modules/resources/userstories.coffee
  */
 
@@ -22467,6 +22264,9 @@
       params.project = projectId;
       params.ref = ref;
       return $repo.queryOne("userstories", "by_ref", params);
+    };
+    service.listInAllProjects = function(filters) {
+      return $repo.queryMany("userstories", filters);
     };
     service.listUnassigned = function(projectId, filters) {
       var params;
@@ -22716,7 +22516,6 @@
     UserChangePasswordController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$tgAuth", "$translate"];
 
     function UserChangePasswordController(scope, rootscope, repo, confirm, rs, params, q, location, navUrls, auth, translate) {
-      var promise;
       this.scope = scope;
       this.rootscope = rootscope;
       this.repo = repo;
@@ -22729,38 +22528,8 @@
       this.auth = auth;
       this.translate = translate;
       this.scope.sectionName = this.translate.instant("CHANGE_PASSWORD.SECTION_NAME");
-      this.scope.project = {};
       this.scope.user = this.auth.getUser();
-      promise = this.loadInitialData();
-      promise.then(null, this.onInitialDataError.bind(this));
     }
-
-    UserChangePasswordController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
-        return function(project) {
-          _this.scope.project = project;
-          _this.scope.$emit('project:loaded', project);
-          return project;
-        };
-      })(this));
-    };
-
-    UserChangePasswordController.prototype.loadInitialData = function() {
-      var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this));
-    };
 
     return UserChangePasswordController;
 
@@ -22924,7 +22693,7 @@
     UserSettingsController.$inject = ["$scope", "$rootScope", "$tgConfig", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "$tgNavUrls", "$tgAuth", "$translate"];
 
     function UserSettingsController(scope, rootscope, config, repo, confirm, rs, params, q, location, navUrls, auth, translate) {
-      var maxFileSize, promise;
+      var maxFileSize, promise, text;
       this.scope = scope;
       this.rootscope = rootscope;
       this.config = config;
@@ -22940,57 +22709,29 @@
       this.scope.sectionName = "USER_SETTINGS.MENU.SECTION_TITLE";
       this.scope.project = {};
       this.scope.user = this.auth.getUser();
+      if (!this.scope.user) {
+        this.location.path(this.navUrls.resolve("permission-denied"));
+        this.location.replace();
+      }
       this.scope.lang = this.getLan();
       maxFileSize = this.config.get("maxUploadFileSize", null);
       if (maxFileSize) {
-        this.translate("USER_SETTINGS.AVATAR_MAX_SIZE", {
+        text = this.translate.instant("USER_SETTINGS.AVATAR_MAX_SIZE", {
           "maxFileSize": sizeFormat(maxFileSize)
-        }).then((function(_this) {
-          return function(text) {
-            return _this.scope.maxFileSizeMsg = text;
-          };
-        })(this));
+        });
+        this.scope.maxFileSizeMsg = text;
       }
       promise = this.loadInitialData();
       promise.then(null, this.onInitialDataError.bind(this));
     }
 
-    UserSettingsController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
-        return function(project) {
-          _this.scope.project = project;
-          _this.scope.$emit('project:loaded', project);
-          return project;
-        };
-      })(this));
-    };
-
-    UserSettingsController.prototype.loadLocales = function() {
+    UserSettingsController.prototype.loadInitialData = function() {
       return this.rs.locales.list().then((function(_this) {
         return function(locales) {
           _this.scope.locales = locales;
           return locales;
         };
       })(this));
-    };
-
-    UserSettingsController.prototype.loadInitialData = function() {
-      var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return this.q.all([
-        promise.then((function(_this) {
-          return function() {
-            return _this.loadProject();
-          };
-        })(this)), this.loadLocales()
-      ]);
     };
 
     UserSettingsController.prototype.openDeleteLightbox = function() {
@@ -23217,48 +22958,16 @@
       this.navUrls = navUrls;
       this.auth = auth;
       this.scope.sectionName = "USER_SETTINGS.NOTIFICATIONS.SECTION_NAME";
-      this.scope.project = {};
       this.scope.user = this.auth.getUser();
       promise = this.loadInitialData();
       promise.then(null, this.onInitialDataError.bind(this));
     }
 
-    UserNotificationsController.prototype.loadProject = function() {
-      return this.rs.projects.get(this.scope.projectId).then((function(_this) {
-        return function(project) {
-          _this.scope.project = project;
-          _this.scope.$emit('project:loaded', project);
-          return project;
-        };
-      })(this));
-    };
-
-    UserNotificationsController.prototype.loadNotifyPolicies = function() {
+    UserNotificationsController.prototype.loadInitialData = function() {
       return this.rs.notifyPolicies.list().then((function(_this) {
         return function(notifyPolicies) {
           _this.scope.notifyPolicies = notifyPolicies;
           return notifyPolicies;
-        };
-      })(this));
-    };
-
-    UserNotificationsController.prototype.loadInitialData = function() {
-      var promise;
-      promise = this.repo.resolve({
-        pslug: this.params.pslug
-      }).then((function(_this) {
-        return function(data) {
-          _this.scope.projectId = data.project;
-          return data;
-        };
-      })(this));
-      return promise.then((function(_this) {
-        return function() {
-          return _this.loadProject();
-        };
-      })(this)).then((function(_this) {
-        return function() {
-          return _this.loadNotifyPolicies();
         };
       })(this));
     };
@@ -23349,6 +23058,2563 @@
 
 (function() {
   angular.module("taigaComponents", []);
+
+}).call(this);
+
+(function() {
+  var module;
+
+  module = angular.module("taigaHome", []);
+
+}).call(this);
+
+(function() {
+  angular.module("taigaNavigationBar", []);
+
+}).call(this);
+
+(function() {
+  var module;
+
+  module = angular.module("taigaProfile", []);
+
+}).call(this);
+
+(function() {
+  angular.module("taigaProjects", []);
+
+}).call(this);
+
+(function() {
+  angular.module("taigaResources2", []);
+
+}).call(this);
+
+(function() {
+  angular.module("taigaUserTimeline", []);
+
+}).call(this);
+
+(function() {
+  var ProjectMenuController;
+
+  ProjectMenuController = (function() {
+    ProjectMenuController.$inject = ["tgProjectService", "tgLightboxFactory"];
+
+    function ProjectMenuController(projectService, lightboxFactory) {
+      this.projectService = projectService;
+      this.lightboxFactory = lightboxFactory;
+      this.project = null;
+      this.menu = Immutable.Map();
+    }
+
+    ProjectMenuController.prototype.show = function() {
+      this.project = this.projectService.project;
+      this.active = this._getActiveSection();
+      this._setVideoConference();
+      return this._setMenuPermissions();
+    };
+
+    ProjectMenuController.prototype.hide = function() {
+      this.project = null;
+      return this.menu = {};
+    };
+
+    ProjectMenuController.prototype.search = function() {
+      return this.lightboxFactory.create("tg-search-box", {
+        "class": "lightbox lightbox-search"
+      });
+    };
+
+    ProjectMenuController.prototype._setVideoConference = function() {
+      var videoconferenceUrl;
+      videoconferenceUrl = this._videoConferenceUrl();
+      if (videoconferenceUrl) {
+        return this.project = this.project.set("videoconferenceUrl", videoconferenceUrl);
+      }
+    };
+
+    ProjectMenuController.prototype._setMenuPermissions = function() {
+      this.menu = Immutable.Map({
+        backlog: false,
+        kanban: false,
+        issues: false,
+        wiki: false
+      });
+      if (this.project.get("is_backlog_activated") && this.project.get("my_permissions").indexOf("view_us") !== -1) {
+        this.menu = this.menu.set("backlog", true);
+      }
+      if (this.project.get("is_kanban_activated") && this.project.get("my_permissions").indexOf("view_us") !== -1) {
+        this.menu = this.menu.set("kanban", true);
+      }
+      if (this.project.get("is_issues_activated") && this.project.get("my_permissions").indexOf("view_issues") !== -1) {
+        this.menu = this.menu.set("issues", true);
+      }
+      if (this.project.get("is_wiki_activated") && this.project.get("my_permissions").indexOf("view_wiki_pages") !== -1) {
+        return this.menu = this.menu.set("wiki", true);
+      }
+    };
+
+    ProjectMenuController.prototype._getActiveSection = function() {
+      var indexBacklog, indexKanban, oldSectionName, sectionName, sectionsBreadcrumb;
+      sectionName = this.projectService.section;
+      sectionsBreadcrumb = this.projectService.sectionsBreadcrumb;
+      indexBacklog = sectionsBreadcrumb.lastIndexOf("backlog");
+      indexKanban = sectionsBreadcrumb.lastIndexOf("kanban");
+      if (indexBacklog !== -1 || indexKanban !== -1) {
+        if (indexKanban === -1 || indexBacklog < indexKanban) {
+          oldSectionName = "backlog";
+        } else {
+          oldSectionName = "kanban";
+        }
+      }
+      if (sectionName === "backlog-kanban") {
+        if (oldSectionName === "backlog" || oldSectionName === "kanban") {
+          sectionName = oldSectionName;
+        } else if (this.project.get("is_backlog_activated") && !this.project.get("is_kanban_activated")) {
+          sectionName = "backlog";
+        } else if (!this.project.get("is_backlog_activated") && this.project.get("is_kanban_activated")) {
+          sectionName = "kanban";
+        }
+      }
+      return sectionName;
+    };
+
+    ProjectMenuController.prototype._videoConferenceUrl = function() {
+      var baseUrl, url;
+      if (this.project.get("videoconferences") === "appear-in") {
+        baseUrl = "https://appear.in/";
+      } else if (this.project.get("videoconferences") === "talky") {
+        baseUrl = "https://talky.io/";
+      } else if (this.project.get("videoconferences") === "jitsi") {
+        baseUrl = "https://meet.jit.si/";
+      } else {
+        return "";
+      }
+      if (this.project.get("videoconferences_salt")) {
+        url = this.project.get("slug") + "-" + this.project.get("videoconferences_salt");
+      } else {
+        url = this.project.get("slug");
+      }
+      return baseUrl + url;
+    };
+
+    return ProjectMenuController;
+
+  })();
+
+  angular.module("taigaComponents").controller("ProjectMenu", ProjectMenuController);
+
+}).call(this);
+
+(function() {
+  var ProjectMenuDirective, taiga;
+
+  taiga = this.taiga;
+
+  ProjectMenuDirective = function(projectService, lightboxFactory) {
+    var link;
+    link = function(scope, el, attrs, ctrl) {
+      var projectChange;
+      projectChange = function() {
+        if (projectService.project) {
+          return ctrl.show();
+        } else {
+          return ctrl.hide();
+        }
+      };
+      return scope.$watch((function() {
+        return projectService.project;
+      }), projectChange);
+    };
+    return {
+      scope: {},
+      controller: "ProjectMenu",
+      controllerAs: "vm",
+      templateUrl: "components/project-menu/project-menu.html",
+      link: link
+    };
+  };
+
+  ProjectMenuDirective.$inject = ["tgProjectService", "tgLightboxFactory"];
+
+  angular.module("taigaComponents").directive("tgProjectMenu", ProjectMenuDirective);
+
+}).call(this);
+
+(function() {
+  var FeedbackService,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  FeedbackService = (function(superClass) {
+    extend(FeedbackService, superClass);
+
+    FeedbackService.$inject = ["tgLightboxFactory"];
+
+    function FeedbackService(lightboxFactory) {
+      this.lightboxFactory = lightboxFactory;
+    }
+
+    FeedbackService.prototype.sendFeedback = function() {
+      return this.lightboxFactory.create("tg-lb-feedback", {
+        "class": "lightbox lightbox-feedback lightbox-generic-form"
+      });
+    };
+
+    return FeedbackService;
+
+  })(taiga.Service);
+
+  angular.module("taigaFeedback").service("tgFeedbackService", FeedbackService);
+
+}).call(this);
+
+(function() {
+  var DutyDirective;
+
+  DutyDirective = function(navurls, $translate) {
+    var link;
+    link = function(scope, el, attrs, ctrl) {
+      scope.vm = {};
+      scope.vm.duty = scope.duty;
+      return scope.vm.getDutyType = function() {
+        if (scope.vm.duty) {
+          if (scope.vm.duty.get('_name') === "userstories") {
+            return $translate.instant("COMMON.USER_STORY");
+          }
+          if (scope.vm.duty.get('_name') === "tasks") {
+            return $translate.instant("COMMON.TASK");
+          }
+          if (scope.vm.duty.get('_name') === "issues") {
+            return $translate.instant("COMMON.ISSUE");
+          }
+        }
+      };
+    };
+    return {
+      templateUrl: "home/duties/duty.html",
+      scope: {
+        "duty": "=tgDuty"
+      },
+      link: link
+    };
+  };
+
+  DutyDirective.$inject = ["$tgNavUrls", "$translate"];
+
+  angular.module("taigaHome").directive("tgDuty", DutyDirective);
+
+}).call(this);
+
+(function() {
+  var HomeService, groupBy,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  groupBy = this.taiga.groupBy;
+
+  HomeService = (function(superClass) {
+    extend(HomeService, superClass);
+
+    HomeService.$inject = ["$tgNavUrls", "tgResources", "tgProjectsService"];
+
+    function HomeService(navurls, rs, projectsService) {
+      this.navurls = navurls;
+      this.rs = rs;
+      this.projectsService = projectsService;
+    }
+
+    HomeService.prototype._attachProjectInfoToWorkInProgress = function(workInProgress, projectsById) {
+      var _attachProjectInfoToDuty, _duties, assignedTo, watching;
+      _attachProjectInfoToDuty = (function(_this) {
+        return function(duty, objType) {
+          var ctx, project, url;
+          project = projectsById.get(String(duty.get('project')));
+          ctx = {
+            project: project.get('slug'),
+            ref: duty.get('ref')
+          };
+          url = _this.navurls.resolve("project-" + objType + "-detail", ctx);
+          duty = duty.set('url', url);
+          duty = duty.set('projectName', project.get('name'));
+          duty = duty.set("_name", objType);
+          return duty;
+        };
+      })(this);
+      assignedTo = workInProgress.get("assignedTo");
+      if (assignedTo.get("userStories")) {
+        _duties = assignedTo.get("userStories").map(function(duty) {
+          return _attachProjectInfoToDuty(duty, "userstories");
+        });
+        assignedTo = assignedTo.set("userStories", _duties);
+      }
+      if (assignedTo.get("tasks")) {
+        _duties = assignedTo.get("tasks").map(function(duty) {
+          return _attachProjectInfoToDuty(duty, "tasks");
+        });
+        assignedTo = assignedTo.set("tasks", _duties);
+      }
+      if (assignedTo.get("issues")) {
+        _duties = assignedTo.get("issues").map(function(duty) {
+          return _attachProjectInfoToDuty(duty, "issues");
+        });
+        assignedTo = assignedTo.set("issues", _duties);
+      }
+      watching = workInProgress.get("watching");
+      if (watching.get("userStories")) {
+        _duties = watching.get("userStories").map(function(duty) {
+          return _attachProjectInfoToDuty(duty, "userstories");
+        });
+        watching = watching.set("userStories", _duties);
+      }
+      if (watching.get("tasks")) {
+        _duties = watching.get("tasks").map(function(duty) {
+          return _attachProjectInfoToDuty(duty, "tasks");
+        });
+        watching = watching.set("tasks", _duties);
+      }
+      if (watching.get("issues")) {
+        _duties = watching.get("issues").map(function(duty) {
+          return _attachProjectInfoToDuty(duty, "issues");
+        });
+        watching = watching.set("issues", _duties);
+      }
+      workInProgress = workInProgress.set("assignedTo", assignedTo);
+      return workInProgress = workInProgress.set("watching", watching);
+    };
+
+    HomeService.prototype.getWorkInProgress = function(userId) {
+      var assignedIssuesPromise, assignedTasksPromise, assignedTo, assignedUserStoriesPromise, params, params_us, projectsById, projectsPromise, watching, watchingIssuesPromise, watchingTasksPromise, watchingUserStoriesPromise, workInProgress;
+      projectsById = Immutable.Map();
+      projectsPromise = this.projectsService.getProjectsByUserId(userId).then(function(projects) {
+        return projectsById = Immutable.fromJS(groupBy(projects.toJS(), function(p) {
+          return p.id;
+        }));
+      });
+      assignedTo = Immutable.Map();
+      params = {
+        status__is_closed: false,
+        assigned_to: userId
+      };
+      params_us = {
+        is_closed: false,
+        assigned_to: userId
+      };
+      assignedUserStoriesPromise = this.rs.userstories.listInAllProjects(params_us).then(function(userstories) {
+        return assignedTo = assignedTo.set("userStories", userstories);
+      });
+      assignedTasksPromise = this.rs.tasks.listInAllProjects(params).then(function(tasks) {
+        return assignedTo = assignedTo.set("tasks", tasks);
+      });
+      assignedIssuesPromise = this.rs.issues.listInAllProjects(params).then(function(issues) {
+        return assignedTo = assignedTo.set("issues", issues);
+      });
+      params = {
+        status__is_closed: false,
+        watchers: userId
+      };
+      params_us = {
+        is_closed: false,
+        watchers: userId
+      };
+      watching = Immutable.Map();
+      watchingUserStoriesPromise = this.rs.userstories.listInAllProjects(params_us).then(function(userstories) {
+        return watching = watching.set("userStories", userstories);
+      });
+      watchingTasksPromise = this.rs.tasks.listInAllProjects(params).then(function(tasks) {
+        return watching = watching.set("tasks", tasks);
+      });
+      watchingIssuesPromise = this.rs.issues.listInAllProjects(params).then(function(issues) {
+        return watching = watching.set("issues", issues);
+      });
+      workInProgress = Immutable.Map();
+      return Promise.all([projectsPromise, assignedUserStoriesPromise, assignedTasksPromise, assignedIssuesPromise, watchingUserStoriesPromise, watchingTasksPromise, watchingIssuesPromise]).then((function(_this) {
+        return function() {
+          workInProgress = workInProgress.set("assignedTo", assignedTo);
+          workInProgress = workInProgress.set("watching", watching);
+          workInProgress = _this._attachProjectInfoToWorkInProgress(workInProgress, projectsById);
+          return workInProgress;
+        };
+      })(this));
+    };
+
+    return HomeService;
+
+  })(taiga.Service);
+
+  angular.module("taigaHome").service("tgHomeService", HomeService);
+
+}).call(this);
+
+(function() {
+  var HomeProjectListDirective;
+
+  HomeProjectListDirective = function(currentUserService, projectsService) {
+    var directive, link;
+    link = function(scope, el, attrs, ctrl) {
+      scope.vm = {};
+      taiga.defineImmutableProperty(scope.vm, "projects", function() {
+        return currentUserService.projects.get("recents");
+      });
+      return scope.vm.newProject = function() {
+        return projectsService.newProject();
+      };
+    };
+    directive = {
+      templateUrl: "home/projects/home-project-list.html",
+      scope: {},
+      link: link
+    };
+    return directive;
+  };
+
+  HomeProjectListDirective.$inject = ["tgCurrentUserService", "tgProjectsService"];
+
+  angular.module("taigaHome").directive("tgHomeProjectList", HomeProjectListDirective);
+
+}).call(this);
+
+(function() {
+  var WorkingOnController;
+
+  WorkingOnController = (function() {
+    WorkingOnController.$inject = ["tgHomeService"];
+
+    function WorkingOnController(homeService) {
+      this.homeService = homeService;
+      this.assignedTo = Immutable.Map();
+      this.watching = Immutable.Map();
+    }
+
+    WorkingOnController.prototype._setAssignedTo = function(workInProgress) {
+      var issues, tasks, userStories;
+      userStories = workInProgress.get("assignedTo").get("userStories");
+      tasks = workInProgress.get("assignedTo").get("tasks");
+      issues = workInProgress.get("assignedTo").get("issues");
+      this.assignedTo = userStories.concat(tasks).concat(issues);
+      if (this.assignedTo.size > 0) {
+        return this.assignedTo = this.assignedTo.sortBy(function(elem) {
+          return elem.get("modified_date");
+        }).reverse();
+      }
+    };
+
+    WorkingOnController.prototype._setWatching = function(workInProgress) {
+      var issues, tasks, userStories;
+      userStories = workInProgress.get("watching").get("userStories");
+      tasks = workInProgress.get("watching").get("tasks");
+      issues = workInProgress.get("watching").get("issues");
+      this.watching = userStories.concat(tasks).concat(issues);
+      if (this.watching.size > 0) {
+        return this.watching = this.watching.sortBy(function(elem) {
+          return elem.get("modified_date");
+        }).reverse();
+      }
+    };
+
+    WorkingOnController.prototype.getWorkInProgress = function(userId) {
+      return this.homeService.getWorkInProgress(userId).then((function(_this) {
+        return function(workInProgress) {
+          _this._setAssignedTo(workInProgress);
+          return _this._setWatching(workInProgress);
+        };
+      })(this));
+    };
+
+    return WorkingOnController;
+
+  })();
+
+  angular.module("taigaHome").controller("WorkingOn", WorkingOnController);
+
+}).call(this);
+
+(function() {
+  var WorkingOnDirective;
+
+  WorkingOnDirective = function(homeService, currentUserService) {
+    var link;
+    link = function(scope, el, attrs, ctrl) {
+      var userId;
+      userId = currentUserService.getUser().get("id");
+      return ctrl.getWorkInProgress(userId);
+    };
+    return {
+      controller: "WorkingOn",
+      controllerAs: "vm",
+      templateUrl: "home/working-on/working-on.html",
+      scope: {},
+      link: link
+    };
+  };
+
+  WorkingOnDirective.$inject = ["tgHomeService", "tgCurrentUserService"];
+
+  angular.module("taigaHome").directive("tgWorkingOn", WorkingOnDirective);
+
+}).call(this);
+
+(function() {
+  var DropdownProjectListDirective;
+
+  DropdownProjectListDirective = function(currentUserService, projectsService) {
+    var directive, link;
+    link = function(scope, el, attrs, ctrl) {
+      scope.vm = {};
+      taiga.defineImmutableProperty(scope.vm, "projects", function() {
+        return currentUserService.projects.get("recents");
+      });
+      return scope.vm.newProject = function() {
+        return projectsService.newProject();
+      };
+    };
+    directive = {
+      templateUrl: "navigation-bar/dropdown-project-list/dropdown-project-list.html",
+      scope: {},
+      link: link
+    };
+    return directive;
+  };
+
+  DropdownProjectListDirective.$inject = ["tgCurrentUserService", "tgProjectsService"];
+
+  angular.module("taigaNavigationBar").directive("tgDropdownProjectList", DropdownProjectListDirective);
+
+}).call(this);
+
+(function() {
+  var DropdownUserDirective;
+
+  DropdownUserDirective = function(authService, configService, locationService, navUrlsService, feedbackService) {
+    var directive, link;
+    link = function(scope, el, attrs, ctrl) {
+      scope.vm = {};
+      scope.vm.isFeedbackEnabled = configService.get("feedbackEnabled");
+      taiga.defineImmutableProperty(scope.vm, "user", function() {
+        return authService.userData;
+      });
+      scope.vm.logout = function() {
+        authService.logout();
+        return locationService.path(navUrlsService.resolve("login"));
+      };
+      return scope.vm.sendFeedback = function() {
+        return feedbackService.sendFeedback();
+      };
+    };
+    directive = {
+      templateUrl: "navigation-bar/dropdown-user/dropdown-user.html",
+      scope: {},
+      link: link
+    };
+    return directive;
+  };
+
+  DropdownUserDirective.$inject = ["$tgAuth", "$tgConfig", "$tgLocation", "$tgNavUrls", "tgFeedbackService"];
+
+  angular.module("taigaNavigationBar").directive("tgDropdownUser", DropdownUserDirective);
+
+}).call(this);
+
+(function() {
+  var NavigationBarDirective;
+
+  NavigationBarDirective = function(currentUserService, $location) {
+    var directive, link;
+    link = function(scope, el, attrs, ctrl) {
+      scope.vm = {};
+      scope.$on("$routeChangeSuccess", function() {
+        if ($location.path() === "/") {
+          return scope.vm.active = true;
+        } else {
+          return scope.vm.active = false;
+        }
+      });
+      taiga.defineImmutableProperty(scope.vm, "projects", function() {
+        return currentUserService.projects.get("recents");
+      });
+      return taiga.defineImmutableProperty(scope.vm, "isAuthenticated", function() {
+        return currentUserService.isAuthenticated();
+      });
+    };
+    directive = {
+      templateUrl: "navigation-bar/navigation-bar.html",
+      scope: {},
+      link: link
+    };
+    return directive;
+  };
+
+  NavigationBarDirective.$inject = ["tgCurrentUserService", "$location"];
+
+  angular.module("taigaNavigationBar").directive("tgNavigationBar", NavigationBarDirective);
+
+}).call(this);
+
+(function() {
+  var ProfileBarController;
+
+  ProfileBarController = (function() {
+    ProfileBarController.$inject = ["tgUserService"];
+
+    function ProfileBarController(userService) {
+      this.userService = userService;
+      this.loadStats();
+    }
+
+    ProfileBarController.prototype.loadStats = function() {
+      return this.userService.getStats(this.user.get("id")).then((function(_this) {
+        return function(stats) {
+          return _this.stats = stats;
+        };
+      })(this));
+    };
+
+    return ProfileBarController;
+
+  })();
+
+  angular.module("taigaProfile").controller("ProfileBar", ProfileBarController);
+
+}).call(this);
+
+(function() {
+  var ProfileBarDirective;
+
+  ProfileBarDirective = function() {
+    return {
+      templateUrl: "profile/profile-bar/profile-bar.html",
+      controller: "ProfileBar",
+      controllerAs: "vm",
+      scope: {
+        user: "=user",
+        isCurrentUser: "=iscurrentuser"
+      },
+      bindToController: true
+    };
+  };
+
+  angular.module("taigaProfile").directive("tgProfileBar", ProfileBarDirective);
+
+}).call(this);
+
+(function() {
+  var ProfileContactsController;
+
+  ProfileContactsController = (function() {
+    ProfileContactsController.$inject = ["tgUserService", "tgCurrentUserService"];
+
+    function ProfileContactsController(userService, currentUserService) {
+      this.userService = userService;
+      this.currentUserService = currentUserService;
+    }
+
+    ProfileContactsController.prototype.loadContacts = function() {
+      this.currentUser = this.currentUserService.getUser();
+      this.isCurrentUser = false;
+      if (this.currentUser.get("id") === this.user.get("id")) {
+        this.isCurrentUser = true;
+      }
+      return this.userService.getContacts(this.user.get("id")).then((function(_this) {
+        return function(contacts) {
+          return _this.contacts = contacts;
+        };
+      })(this));
+    };
+
+    return ProfileContactsController;
+
+  })();
+
+  angular.module("taigaProfile").controller("ProfileContacts", ProfileContactsController);
+
+}).call(this);
+
+(function() {
+  var ProfileContactsDirective;
+
+  ProfileContactsDirective = function() {
+    var link;
+    link = function(scope, elm, attrs, ctrl) {
+      return ctrl.loadContacts();
+    };
+    return {
+      templateUrl: "profile/profile-contacts/profile-contacts.html",
+      scope: {
+        user: "="
+      },
+      controllerAs: "vm",
+      controller: "ProfileContacts",
+      link: link,
+      bindToController: true
+    };
+  };
+
+  angular.module("taigaProfile").directive("tgProfileContacts", ProfileContactsDirective);
+
+}).call(this);
+
+(function() {
+  var ProfileHints;
+
+  ProfileHints = (function() {
+    ProfileHints.prototype.HINTS = [
+      {
+        url: "https://taiga.io/support/import-export-projects/"
+      }, {
+        url: "https://taiga.io/support/custom-fields/"
+      }, {}, {}
+    ];
+
+    function ProfileHints(translate) {
+      var hintKey;
+      this.translate = translate;
+      hintKey = Math.floor(Math.random() * this.HINTS.length) + 1;
+      this.hint = this.HINTS[hintKey - 1];
+      this.hint.linkText = this.hint.linkText || 'HINTS.LINK';
+      this.hint.title = this.translate.instant("HINTS.HINT" + hintKey + "_TITLE");
+      this.hint.text = this.translate.instant("HINTS.HINT" + hintKey + "_TEXT");
+    }
+
+    return ProfileHints;
+
+  })();
+
+  ProfileHints.$inject = ["$translate"];
+
+  angular.module("taigaProfile").controller("ProfileHints", ProfileHints);
+
+}).call(this);
+
+(function() {
+  var ProfileHints;
+
+  ProfileHints = function($translate) {
+    return {
+      scope: {},
+      controller: "ProfileHints",
+      controllerAs: "vm",
+      templateUrl: "profile/profile-hints/profile-hints.html"
+    };
+  };
+
+  ProfileHints.$inject = ["$translate"];
+
+  angular.module("taigaProfile").directive("tgProfileHints", ProfileHints);
+
+}).call(this);
+
+(function() {
+  var ProfileProjectsController;
+
+  ProfileProjectsController = (function() {
+    ProfileProjectsController.$inject = ["tgProjectsService", "tgUserService"];
+
+    function ProfileProjectsController(projectsService, userService) {
+      this.projectsService = projectsService;
+      this.userService = userService;
+    }
+
+    ProfileProjectsController.prototype.loadProjects = function() {
+      return this.projectsService.getProjectsByUserId(this.user.get("id")).then((function(_this) {
+        return function(projects) {
+          return _this.userService.attachUserContactsToProjects(_this.user.get("id"), projects);
+        };
+      })(this)).then((function(_this) {
+        return function(projects) {
+          return _this.projects = projects;
+        };
+      })(this));
+    };
+
+    return ProfileProjectsController;
+
+  })();
+
+  angular.module("taigaProfile").controller("ProfileProjects", ProfileProjectsController);
+
+}).call(this);
+
+(function() {
+  var ProfileProjectsDirective;
+
+  ProfileProjectsDirective = function() {
+    var link;
+    link = function(scope, elm, attr, ctrl) {
+      return ctrl.loadProjects();
+    };
+    return {
+      templateUrl: "profile/profile-projects/profile-projects.html",
+      scope: {
+        user: "="
+      },
+      link: link,
+      bindToController: true,
+      controllerAs: "vm",
+      controller: "ProfileProjects"
+    };
+  };
+
+  angular.module("taigaProfile").directive("tgProfileProjects", ProfileProjectsDirective);
+
+}).call(this);
+
+(function() {
+  var ProfileTabDirective;
+
+  ProfileTabDirective = function() {
+    var link;
+    link = function(scope, element, attrs, ctrl, transclude) {
+      scope.tab = {};
+      attrs.$observe("tabTitle", function(title) {
+        return scope.tab.title = title;
+      });
+      scope.tab.name = attrs.tgProfileTab;
+      scope.tab.icon = attrs.tabIcon;
+      scope.tab.active = !!attrs.tabActive;
+      if (scope.$eval(attrs.tabDisabled) !== true) {
+        return ctrl.addTab(scope.tab);
+      }
+    };
+    return {
+      templateUrl: "profile/profile-tab/profile-tab.html",
+      scope: {},
+      require: "^tgProfileTabs",
+      link: link,
+      transclude: true
+    };
+  };
+
+  angular.module("taigaProfile").directive("tgProfileTab", ProfileTabDirective);
+
+}).call(this);
+
+(function() {
+  var ProfileTabsController;
+
+  ProfileTabsController = (function() {
+    function ProfileTabsController() {
+      this.tabs = [];
+    }
+
+    ProfileTabsController.prototype.addTab = function(tab) {
+      return this.tabs.push(tab);
+    };
+
+    ProfileTabsController.prototype.toggleTab = function(tab) {
+      _.map(this.tabs, function(tab) {
+        return tab.active = false;
+      });
+      return tab.active = true;
+    };
+
+    return ProfileTabsController;
+
+  })();
+
+  angular.module("taigaProfile").controller("ProfileTabs", ProfileTabsController);
+
+}).call(this);
+
+(function() {
+  var ProfileTabsDirective;
+
+  ProfileTabsDirective = function() {
+    return {
+      scope: {},
+      controller: "ProfileTabs",
+      controllerAs: "vm",
+      templateUrl: "profile/profile-tabs/profile-tabs.html",
+      transclude: true
+    };
+  };
+
+  angular.module("taigaProfile").directive("tgProfileTabs", ProfileTabsDirective);
+
+}).call(this);
+
+(function() {
+  var ProfileController;
+
+  ProfileController = (function() {
+    ProfileController.$inject = ["tgAppMetaService", "tgCurrentUserService", "$routeParams", "tgUserService", "tgXhrErrorService", "$translate"];
+
+    function ProfileController(appMetaService, currentUserService, routeParams, userService, xhrError, translate) {
+      this.appMetaService = appMetaService;
+      this.currentUserService = currentUserService;
+      this.routeParams = routeParams;
+      this.userService = userService;
+      this.xhrError = xhrError;
+      this.translate = translate;
+      this.isCurrentUser = false;
+      if (this.routeParams.slug) {
+        this.userService.getUserByUserName(this.routeParams.slug).then((function(_this) {
+          return function(user) {
+            if (!user.get('is_active')) {
+              return _this.xhrError.notFound();
+            } else {
+              _this.user = user;
+              _this.isCurrentUser = false;
+              _this._setMeta(_this.user);
+              return user;
+            }
+          };
+        })(this))["catch"]((function(_this) {
+          return function(xhr) {
+            return _this.xhrError.response(xhr);
+          };
+        })(this));
+      } else {
+        this.user = this.currentUserService.getUser();
+        this.isCurrentUser = true;
+        this._setMeta(this.user);
+      }
+    }
+
+    ProfileController.prototype._setMeta = function(user) {
+      var ctx, description, title;
+      ctx = {
+        userFullName: user.get("full_name_display"),
+        userUsername: user.get("username")
+      };
+      title = this.translate.instant("USER.PROFILE.PAGE_TITLE", ctx);
+      description = user.get("bio");
+      return this.appMetaService.setAll(title, description);
+    };
+
+    return ProfileController;
+
+  })();
+
+  angular.module("taigaProfile").controller("Profile", ProfileController);
+
+}).call(this);
+
+(function() {
+  var SortProjectsDirective;
+
+  SortProjectsDirective = function(currentUserService) {
+    var directive, link;
+    link = function(scope, el, attrs, ctrl) {
+      var itemEl;
+      itemEl = null;
+      el.sortable({
+        dropOnEmpty: true,
+        revert: 200,
+        axis: "y",
+        opacity: .95,
+        placeholder: 'placeholder',
+        cancel: '.project-name'
+      });
+      return el.on("sortstop", function(event, ui) {
+        var i, index, len, project, sortData, sorted_project_ids, value;
+        itemEl = ui.item;
+        project = itemEl.scope().project;
+        index = itemEl.index();
+        sorted_project_ids = _.map(scope.projects.toJS(), function(p) {
+          return p.id;
+        });
+        sorted_project_ids = _.without(sorted_project_ids, project.get("id"));
+        sorted_project_ids.splice(index, 0, project.get('id'));
+        sortData = [];
+        for (index = i = 0, len = sorted_project_ids.length; i < len; index = ++i) {
+          value = sorted_project_ids[index];
+          sortData.push({
+            "project_id": value,
+            "order": index
+          });
+        }
+        return currentUserService.bulkUpdateProjectsOrder(sortData);
+      });
+    };
+    directive = {
+      scope: {
+        projects: "=tgSortProjects"
+      },
+      link: link
+    };
+    return directive;
+  };
+
+  angular.module("taigaProjects").directive("tgSortProjects", ["tgCurrentUserService", SortProjectsDirective]);
+
+}).call(this);
+
+(function() {
+  var ProjectsListingController;
+
+  ProjectsListingController = (function() {
+    ProjectsListingController.$inject = ["tgCurrentUserService", "tgProjectsService"];
+
+    function ProjectsListingController(currentUserService, projectsService) {
+      this.currentUserService = currentUserService;
+      this.projectsService = projectsService;
+      taiga.defineImmutableProperty(this, "projects", (function(_this) {
+        return function() {
+          return _this.currentUserService.projects.get("all");
+        };
+      })(this));
+    }
+
+    ProjectsListingController.prototype.newProject = function() {
+      return this.projectsService.newProject();
+    };
+
+    return ProjectsListingController;
+
+  })();
+
+  angular.module("taigaProjects").controller("ProjectsListing", ProjectsListingController);
+
+}).call(this);
+
+(function() {
+  var ProjectController;
+
+  ProjectController = (function() {
+    ProjectController.$inject = ["tgProjectsService", "$routeParams", "tgAppMetaService", "$tgAuth", "tgXhrErrorService", "$translate"];
+
+    function ProjectController(projectsService, routeParams, appMetaService, auth, xhrError, translate) {
+      var projectSlug;
+      this.projectsService = projectsService;
+      this.routeParams = routeParams;
+      this.appMetaService = appMetaService;
+      this.auth = auth;
+      this.xhrError = xhrError;
+      this.translate = translate;
+      projectSlug = this.routeParams.pslug;
+      this.user = this.auth.userData;
+      this.projectsService.getProjectBySlug(projectSlug).then((function(_this) {
+        return function(project) {
+          _this.project = project;
+          return _this._setMeta(_this.project);
+        };
+      })(this))["catch"]((function(_this) {
+        return function(xhr) {
+          return _this.xhrError.response(xhr);
+        };
+      })(this));
+    }
+
+    ProjectController.prototype._setMeta = function(project) {
+      var ctx, description, title;
+      ctx = {
+        projectName: project.get("name")
+      };
+      title = this.translate.instant("PROJECT.PAGE_TITLE", ctx);
+      description = project.get("description");
+      return this.appMetaService.setAll(title, description);
+    };
+
+    return ProjectController;
+
+  })();
+
+  angular.module("taigaProjects").controller("Project", ProjectController);
+
+}).call(this);
+
+(function() {
+  var ProjectsService, groupBy, taiga,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  groupBy = this.taiga.groupBy;
+
+  ProjectsService = (function(superClass) {
+    extend(ProjectsService, superClass);
+
+    ProjectsService.$inject = ["tgResources", "$projectUrl", "tgLightboxFactory"];
+
+    function ProjectsService(rs, projectUrl, lightboxFactory) {
+      this.rs = rs;
+      this.projectUrl = projectUrl;
+      this.lightboxFactory = lightboxFactory;
+    }
+
+    ProjectsService.prototype.getProjectBySlug = function(projectSlug) {
+      return this.rs.projects.getProjectBySlug(projectSlug).then((function(_this) {
+        return function(project) {
+          return _this._decorate(project);
+        };
+      })(this));
+    };
+
+    ProjectsService.prototype.getProjectStats = function(projectId) {
+      return this.rs.projects.getProjectStats(projectId);
+    };
+
+    ProjectsService.prototype.getProjectsByUserId = function(userId) {
+      return this.rs.projects.getProjectsByUserId(userId).then((function(_this) {
+        return function(projects) {
+          return projects.map(_this._decorate.bind(_this));
+        };
+      })(this));
+    };
+
+    ProjectsService.prototype._decorate = function(project) {
+      var colorized_tags, tags, url;
+      url = this.projectUrl.get(project.toJS());
+      project = project.set("url", url);
+      colorized_tags = [];
+      if (project.get("tags")) {
+        tags = project.get("tags").sort();
+        colorized_tags = tags.map(function(tag) {
+          var color;
+          color = project.get("tags_colors").get(tag);
+          return Immutable.fromJS({
+            name: tag,
+            color: color
+          });
+        });
+        project = project.set("colorized_tags", colorized_tags);
+      }
+      return project;
+    };
+
+    ProjectsService.prototype.newProject = function() {
+      return this.lightboxFactory.create("tg-lb-create-project", {
+        "class": "wizard-create-project"
+      });
+    };
+
+    ProjectsService.prototype.bulkUpdateProjectsOrder = function(sortData) {
+      return this.rs.projects.bulkUpdateOrder(sortData);
+    };
+
+    return ProjectsService;
+
+  })(taiga.Service);
+
+  angular.module("taigaProjects").service("tgProjectsService", ProjectsService);
+
+}).call(this);
+
+(function() {
+  var Resource, module;
+
+  Resource = function(urlsService, http) {
+    var service;
+    service = {};
+    service.listInAllProjects = function(params) {
+      var httpOptions, url;
+      url = urlsService.resolve("issues");
+      httpOptions = {
+        headers: {
+          "x-disable-pagination": "1"
+        }
+      };
+      return http.get(url, params, httpOptions).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    return function() {
+      return {
+        "issues": service
+      };
+    };
+  };
+
+  Resource.$inject = ["$tgUrls", "$tgHttp"];
+
+  module = angular.module("taigaResources2");
+
+  module.factory("tgIssuesResource", Resource);
+
+}).call(this);
+
+(function() {
+  var Resource, module, pagination;
+
+  pagination = function() {};
+
+  Resource = function(urlsService, http, paginateResponseService) {
+    var service;
+    service = {};
+    service.getProjectBySlug = function(projectSlug) {
+      var url;
+      url = urlsService.resolve("projects");
+      url = url + "/by_slug?slug=" + projectSlug;
+      return http.get(url).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    service.getProjectsByUserId = function(userId) {
+      var params, url;
+      url = urlsService.resolve("projects");
+      params = {
+        "member": userId,
+        "order_by": "memberships__user_order"
+      };
+      return http.get(url, params).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    service.getProjectStats = function(projectId) {
+      var url;
+      url = urlsService.resolve("projects");
+      url = url + "/" + projectId;
+      return http.get(url).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    service.bulkUpdateOrder = function(bulkData) {
+      var url;
+      url = urlsService.resolve("bulk-update-projects-order");
+      return http.post(url, bulkData);
+    };
+    service.getTimeline = function(projectId, page) {
+      var params, url;
+      params = {
+        page: page
+      };
+      url = urlsService.resolve("timeline-project");
+      url = url + "/" + projectId;
+      return http.get(url, params).then(function(result) {
+        result = Immutable.fromJS(result);
+        return paginateResponseService(result);
+      });
+    };
+    return function() {
+      return {
+        "projects": service
+      };
+    };
+  };
+
+  Resource.$inject = ["$tgUrls", "$tgHttp", "tgPaginateResponseService"];
+
+  module = angular.module("taigaResources2");
+
+  module.factory("tgProjectsResources", Resource);
+
+}).call(this);
+
+(function() {
+  var Resources, services;
+
+  services = ["tgProjectsResources", "tgUsersResources", "tgUserstoriesResource", "tgTasksResource", "tgIssuesResource"];
+
+  Resources = function($injector) {
+    var i, j, len, len1, ref, service, serviceFn, serviceName, serviceProperty;
+    for (i = 0, len = services.length; i < len; i++) {
+      serviceName = services[i];
+      serviceFn = $injector.get(serviceName);
+      service = $injector.invoke(serviceFn);
+      ref = Object.keys(service);
+      for (j = 0, len1 = ref.length; j < len1; j++) {
+        serviceProperty = ref[j];
+        if (this[serviceProperty]) {
+          console.warm("repeated resource " + serviceProperty);
+        }
+        this[serviceProperty] = service[serviceProperty];
+      }
+    }
+    return this;
+  };
+
+  Resources.$inject = ["$injector"];
+
+  angular.module("taigaResources2").service("tgResources", Resources);
+
+}).call(this);
+
+(function() {
+  var Resource, module;
+
+  Resource = function(urlsService, http) {
+    var service;
+    service = {};
+    service.listInAllProjects = function(params) {
+      var httpOptions, url;
+      url = urlsService.resolve("tasks");
+      httpOptions = {
+        headers: {
+          "x-disable-pagination": "1"
+        }
+      };
+      return http.get(url, params, httpOptions).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    return function() {
+      return {
+        "tasks": service
+      };
+    };
+  };
+
+  Resource.$inject = ["$tgUrls", "$tgHttp"];
+
+  module = angular.module("taigaResources2");
+
+  module.factory("tgTasksResource", Resource);
+
+}).call(this);
+
+(function() {
+  var Resource, module;
+
+  Resource = function(urlsService, http, paginateResponseService) {
+    var service;
+    service = {};
+    service.getUserByUsername = function(username) {
+      var httpOptions, params, url;
+      url = urlsService.resolve("by_username");
+      httpOptions = {
+        headers: {
+          "x-disable-pagination": "1"
+        }
+      };
+      params = {
+        username: username
+      };
+      return http.get(url, params, httpOptions).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    service.getStats = function(userId) {
+      var httpOptions, url;
+      url = urlsService.resolve("stats", userId);
+      httpOptions = {
+        headers: {
+          "x-disable-pagination": "1"
+        }
+      };
+      return http.get(url, {}, httpOptions).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    service.getContacts = function(userId) {
+      var httpOptions, url;
+      url = urlsService.resolve("contacts", userId);
+      httpOptions = {
+        headers: {
+          "x-disable-pagination": "1"
+        }
+      };
+      return http.get(url, {}, httpOptions).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    service.getProfileTimeline = function(userId, page) {
+      var params, url;
+      params = {
+        page: page
+      };
+      url = urlsService.resolve("timeline-profile");
+      url = url + "/" + userId;
+      return http.get(url, params).then(function(result) {
+        result = Immutable.fromJS(result);
+        return paginateResponseService(result);
+      });
+    };
+    service.getUserTimeline = function(userId, page) {
+      var params, url;
+      params = {
+        page: page
+      };
+      url = urlsService.resolve("timeline-user");
+      url = url + "/" + userId;
+      return http.get(url, params).then(function(result) {
+        result = Immutable.fromJS(result);
+        return paginateResponseService(result);
+      });
+    };
+    return function() {
+      return {
+        "users": service
+      };
+    };
+  };
+
+  Resource.$inject = ["$tgUrls", "$tgHttp", "tgPaginateResponseService"];
+
+  module = angular.module("taigaResources2");
+
+  module.factory("tgUsersResources", Resource);
+
+}).call(this);
+
+(function() {
+  var Resource, module;
+
+  Resource = function(urlsService, http) {
+    var service;
+    service = {};
+    service.listInAllProjects = function(params) {
+      var httpOptions, url;
+      url = urlsService.resolve("userstories");
+      httpOptions = {
+        headers: {
+          "x-disable-pagination": "1"
+        }
+      };
+      return http.get(url, params, httpOptions).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    return function() {
+      return {
+        "userstories": service
+      };
+    };
+  };
+
+  Resource.$inject = ["$tgUrls", "$tgHttp"];
+
+  module = angular.module("taigaResources2");
+
+  module.factory("tgUserstoriesResource", Resource);
+
+}).call(this);
+
+(function() {
+  var AppMetaService, taiga, truncate,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  truncate = taiga.truncate;
+
+  AppMetaService = (function(superClass) {
+    extend(AppMetaService, superClass);
+
+    function AppMetaService() {
+      return AppMetaService.__super__.constructor.apply(this, arguments);
+    }
+
+    return AppMetaService;
+
+  })(taiga.Service = function() {
+    return {
+      _set: function(key, value) {
+        var meta;
+        if (!key) {
+          return;
+        }
+        if (key === "title") {
+          meta = $("title");
+          if (meta.length === 0) {
+            meta = $("<title></title>");
+            $("head").append(meta);
+          }
+          return meta.text(value || "");
+        } else if (key.indexOf("og:") === 0) {
+          meta = $("meta[property='" + key + "']");
+          if (meta.length === 0) {
+            meta = $("<meta property='" + key + "'/>");
+            $("head").append(meta);
+          }
+          return meta.attr("content", value || "");
+        } else {
+          meta = $("meta[name='" + key + "']");
+          if (meta.length === 0) {
+            meta = $("<meta name='" + key + "'/>");
+            $("head").append(meta);
+          }
+          return meta.attr("content", value || "");
+        }
+      },
+      setTitle: function(title) {
+        return this._set('title', title);
+      },
+      setDescription: function(description) {
+        return this._set("description", truncate(description, 250));
+      },
+      setTwitterMetas: function(title, description) {
+        this._set("twitter:card", "summary");
+        this._set("twitter:site", "@taigaio");
+        this._set("twitter:title", title);
+        this._set("twitter:description", truncate(description, 300));
+        return this._set("twitter:image", window.location.origin + "/images/logo-color.png");
+      },
+      setOpenGraphMetas: function(title, description) {
+        this._set("og:type", "object");
+        this._set("og:site_name", "Taiga - Love your projects");
+        this._set("og:title", title);
+        this._set("og:description", truncate(description, 300));
+        this._set("og:image", window.location.origin + "/images/logo-color.png");
+        return this._set("og:url", window.location.href);
+      },
+      setAll: function(title, description) {
+        this.setTitle(title);
+        this.setDescription(description);
+        this.setTwitterMetas(title, description);
+        return this.setOpenGraphMetas(title, description);
+      }
+    };
+  });
+
+  angular.module("taigaCommon").service("tgAppMetaService", AppMetaService);
+
+}).call(this);
+
+(function() {
+  var CurrentUserService, groupBy, taiga;
+
+  taiga = this.taiga;
+
+  groupBy = this.taiga.groupBy;
+
+  CurrentUserService = (function() {
+    CurrentUserService.$inject = ["tgProjectsService", "$tgStorage"];
+
+    function CurrentUserService(projectsService, storageService) {
+      this.projectsService = projectsService;
+      this.storageService = storageService;
+      this._user = null;
+      this._projects = Immutable.Map();
+      this._projectsById = Immutable.Map();
+      taiga.defineImmutableProperty(this, "projects", (function(_this) {
+        return function() {
+          return _this._projects;
+        };
+      })(this));
+      taiga.defineImmutableProperty(this, "projectsById", (function(_this) {
+        return function() {
+          return _this._projectsById;
+        };
+      })(this));
+    }
+
+    CurrentUserService.prototype.isAuthenticated = function() {
+      if (this.getUser() !== null) {
+        return true;
+      }
+      return false;
+    };
+
+    CurrentUserService.prototype.getUser = function() {
+      var userData;
+      if (!this._user) {
+        userData = this.storageService.get("userInfo");
+        if (userData) {
+          userData = Immutable.fromJS(userData);
+          this.setUser(userData);
+        }
+      }
+      return this._user;
+    };
+
+    CurrentUserService.prototype.removeUser = function() {
+      this._user = null;
+      this._projects = Immutable.Map();
+      return this._projectsById = Immutable.Map();
+    };
+
+    CurrentUserService.prototype.setUser = function(user) {
+      this._user = user;
+      return this._loadUserInfo();
+    };
+
+    CurrentUserService.prototype.bulkUpdateProjectsOrder = function(sortData) {
+      return this.projectsService.bulkUpdateProjectsOrder(sortData).then((function(_this) {
+        return function() {
+          return _this._loadProjects();
+        };
+      })(this));
+    };
+
+    CurrentUserService.prototype._loadProjects = function() {
+      return this.projectsService.getProjectsByUserId(this._user.get("id")).then((function(_this) {
+        return function(projects) {
+          _this._projects = _this._projects.set("all", projects);
+          _this._projects = _this._projects.set("recents", projects.slice(0, 10));
+          _this._projectsById = Immutable.fromJS(groupBy(projects.toJS(), function(p) {
+            return p.id;
+          }));
+          return _this.projects;
+        };
+      })(this));
+    };
+
+    CurrentUserService.prototype._loadUserInfo = function() {
+      return this._loadProjects();
+    };
+
+    return CurrentUserService;
+
+  })();
+
+  angular.module("taigaCommon").service("tgCurrentUserService", CurrentUserService);
+
+}).call(this);
+
+(function() {
+  var LightboxFactory;
+
+  LightboxFactory = (function() {
+    LightboxFactory.$inject = ["$rootScope", "$compile"];
+
+    function LightboxFactory(rootScope, compile) {
+      this.rootScope = rootScope;
+      this.compile = compile;
+    }
+
+    LightboxFactory.prototype.create = function(name, attrs) {
+      var elm, html, scope;
+      scope = this.rootScope.$new();
+      elm = $("<div>").attr(name, true).attr("tg-bind-scope", true);
+      if (attrs) {
+        elm.attr(attrs);
+      }
+      elm.addClass("remove-on-close");
+      html = this.compile(elm)(scope);
+      $(document.body).append(html);
+    };
+
+    return LightboxFactory;
+
+  })();
+
+  angular.module("taigaCommon").service("tgLightboxFactory", LightboxFactory);
+
+}).call(this);
+
+(function() {
+  var PaginateResponse;
+
+  PaginateResponse = function() {
+    return function(result) {
+      var paginateResponse;
+      paginateResponse = Immutable.Map({
+        "data": result.get("data"),
+        "next": !!result.get("headers")("x-pagination-next"),
+        "prev": !!result.get("headers")("x-pagination-prev"),
+        "current": result.get("headers")("x-pagination-current"),
+        "count": result.get("headers")("x-pagination-count")
+      });
+      return paginateResponse;
+    };
+  };
+
+  angular.module("taigaCommon").factory("tgPaginateResponseService", PaginateResponse);
+
+}).call(this);
+
+(function() {
+  var ProjectService, taiga;
+
+  taiga = this.taiga;
+
+  ProjectService = (function() {
+    ProjectService.$inject = ["tgProjectsService"];
+
+    function ProjectService(projectsService) {
+      this.projectsService = projectsService;
+      this._project = null;
+      this._section = null;
+      this._sectionsBreadcrumb = Immutable.List();
+      taiga.defineImmutableProperty(this, "project", (function(_this) {
+        return function() {
+          return _this._project;
+        };
+      })(this));
+      taiga.defineImmutableProperty(this, "section", (function(_this) {
+        return function() {
+          return _this._section;
+        };
+      })(this));
+      taiga.defineImmutableProperty(this, "sectionsBreadcrumb", (function(_this) {
+        return function() {
+          return _this._sectionsBreadcrumb;
+        };
+      })(this));
+    }
+
+    ProjectService.prototype.setSection = function(section) {
+      this._section = section;
+      if (section) {
+        return this._sectionsBreadcrumb = this._sectionsBreadcrumb.push(this._section);
+      } else {
+        return this._sectionsBreadcrumb = Immutable.List();
+      }
+    };
+
+    ProjectService.prototype.setProject = function(pslug) {
+      if (this._pslug !== pslug) {
+        this._pslug = pslug;
+        return this.fetchProject();
+      }
+    };
+
+    ProjectService.prototype.cleanProject = function() {
+      this._pslug = null;
+      this._project = null;
+      this._section = null;
+      return this._sectionsBreadcrumb = Immutable.List();
+    };
+
+    ProjectService.prototype.fetchProject = function() {
+      return this.projectsService.getProjectBySlug(this._pslug).then((function(_this) {
+        return function(project) {
+          return _this._project = project;
+        };
+      })(this));
+    };
+
+    return ProjectService;
+
+  })();
+
+  angular.module("taigaCommon").service("tgProjectService", ProjectService);
+
+}).call(this);
+
+(function() {
+  var ScopeEvent;
+
+  ScopeEvent = (function() {
+    function ScopeEvent() {}
+
+    ScopeEvent.prototype.scopes = {};
+
+    ScopeEvent.prototype._searchDuplicatedScopes = function(id) {
+      return _.find(Object.keys(this.scopes), (function(_this) {
+        return function(key) {
+          return _this.scopes[key].$id === id;
+        };
+      })(this));
+    };
+
+    ScopeEvent.prototype._create = function(name, scope) {
+      var duplicatedScopeName;
+      duplicatedScopeName = this._searchDuplicatedScopes(scope.$id);
+      if (duplicatedScopeName) {
+        throw new Error("scopeEvent: this scope is already register with the name \"" + duplicatedScopeName + "\"");
+      }
+      if (this.scopes[name]) {
+        throw new Error("scopeEvent: \"" + name + "\" already in use");
+      } else {
+        scope._tgEmitter = new EventEmitter2();
+        scope.$on("$destroy", (function(_this) {
+          return function() {
+            scope._tgEmitter.removeAllListeners();
+            return delete _this.scopes[name];
+          };
+        })(this));
+        return this.scopes[name] = scope;
+      }
+    };
+
+    ScopeEvent.prototype.emitter = function(name, scope) {
+      if (scope) {
+        scope = this._create(name, scope);
+      } else if (this.scopes[name]) {
+        scope = this.scopes[name];
+      } else {
+        throw new Error("scopeEvent: \"" + name + "\" scope doesn't exist'");
+      }
+      return scope._tgEmitter;
+    };
+
+    return ScopeEvent;
+
+  })();
+
+  angular.module("taigaCommon").service("tgScopeEvent", ScopeEvent);
+
+}).call(this);
+
+(function() {
+  var UserService, taiga,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  UserService = (function(superClass) {
+    extend(UserService, superClass);
+
+    UserService.$inject = ["tgResources"];
+
+    function UserService(rs) {
+      this.rs = rs;
+    }
+
+    UserService.prototype.getUserByUserName = function(username) {
+      return this.rs.users.getUserByUsername(username);
+    };
+
+    UserService.prototype.getContacts = function(userId) {
+      return this.rs.users.getContacts(userId);
+    };
+
+    UserService.prototype.getStats = function(userId) {
+      return this.rs.users.getStats(userId);
+    };
+
+    UserService.prototype.attachUserContactsToProjects = function(userId, projects) {
+      return this.getContacts(userId).then(function(contacts) {
+        projects = projects.map(function(project) {
+          var contactsFiltered;
+          contactsFiltered = contacts.filter(function(contact) {
+            var contactId;
+            contactId = contact.get("id");
+            return project.get('members').indexOf(contactId) !== -1;
+          });
+          project = project.set("contacts", contactsFiltered);
+          return project;
+        });
+        return projects;
+      });
+    };
+
+    return UserService;
+
+  })(taiga.Service);
+
+  angular.module("taigaCommon").service("tgUserService", UserService);
+
+}).call(this);
+
+(function() {
+  var xhrError,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  xhrError = (function(superClass) {
+    extend(xhrError, superClass);
+
+    xhrError.$inject = ["$q", "$location", "$tgNavUrls"];
+
+    function xhrError(q, location, navUrls) {
+      this.q = q;
+      this.location = location;
+      this.navUrls = navUrls;
+    }
+
+    xhrError.prototype.notFound = function() {
+      this.location.path(this.navUrls.resolve("not-found"));
+      return this.location.replace();
+    };
+
+    xhrError.prototype.permissionDenied = function() {
+      this.location.path(this.navUrls.resolve("permission-denied"));
+      return this.location.replace();
+    };
+
+    xhrError.prototype.response = function(xhr) {
+      if (xhr) {
+        if (xhr.status === 404) {
+          this.notFound();
+        } else if (xhr.status === 403) {
+          this.permissionDenied();
+        }
+      }
+      return this.q.reject(xhr);
+    };
+
+    return xhrError;
+
+  })(taiga.Service);
+
+  angular.module("taigaCommon").service("tgXhrErrorService", xhrError);
+
+}).call(this);
+
+(function() {
+  var UserTimelineAttachmentDirective;
+
+  UserTimelineAttachmentDirective = function(template, $compile) {
+    var isImage, link, validFileExtensions;
+    validFileExtensions = [".jpg", ".jpeg", ".bmp", ".gif", ".png"];
+    isImage = function(url) {
+      url = url.toLowerCase();
+      return _.some(validFileExtensions, function(extension) {
+        return url.indexOf(extension, url - extension.length) !== -1;
+      });
+    };
+    link = function(scope, el) {
+      var is_image, templateHtml;
+      is_image = isImage(scope.attachment.url);
+      if (is_image) {
+        templateHtml = template.get("user-timeline/user-timeline-attachment/user-timeline-attachment-image.html");
+      } else {
+        templateHtml = template.get("user-timeline/user-timeline-attachment/user-timeline-attachment.html");
+      }
+      el.html(templateHtml);
+      $compile(el.contents())(scope);
+      return el.find("img").error(function() {
+        return this.remove();
+      });
+    };
+    return {
+      link: link,
+      scope: {
+        attachment: "=tgUserTimelineAttachment"
+      }
+    };
+  };
+
+  UserTimelineAttachmentDirective.$inject = ["$tgTemplate", "$compile"];
+
+  angular.module("taigaUserTimeline").directive("tgUserTimelineAttachment", UserTimelineAttachmentDirective);
+
+}).call(this);
+
+(function() {
+  var UserTimelineItemTitle, unslugify;
+
+  unslugify = this.taiga.unslugify;
+
+  UserTimelineItemTitle = (function() {
+    UserTimelineItemTitle.$inject = ["$translate"];
+
+    UserTimelineItemTitle.prototype._fieldTranslationKey = {
+      'status': 'COMMON.FIELDS.STATUS',
+      'subject': 'COMMON.FIELDS.SUBJECT',
+      'description_diff': 'COMMON.FIELDS.DESCRIPTION',
+      'points': 'COMMON.FIELDS.POINTS',
+      'assigned_to': 'COMMON.FIELDS.ASSIGNED_TO',
+      'severity': 'ISSUES.FIELDS.SEVERITY',
+      'priority': 'ISSUES.FIELDS.PRIORITY',
+      'type': 'ISSUES.FIELDS.TYPE',
+      'is_iocaine': 'TASK.FIELDS.IS_IOCAINE'
+    };
+
+    function UserTimelineItemTitle(translate) {
+      this.translate = translate;
+    }
+
+    UserTimelineItemTitle.prototype._translateTitleParams = function(param, timeline, event) {
+      var event_us, field_name, obj, text, title_attr, url, user;
+      if (param === "username") {
+        user = timeline.data.user;
+        title_attr = this.translate.instant('COMMON.SEE_USER_PROFILE', {
+          username: user.username
+        });
+        url = 'user-profile:username=vm.activity.user.username';
+        return this._getLink(url, user.name, title_attr);
+      } else if (param === 'field_name') {
+        field_name = Object.keys(timeline.data.values_diff)[0];
+        return this.translate.instant(this._fieldTranslationKey[field_name]);
+      } else if (param === 'project_name') {
+        url = 'project:project=vm.activity.project.slug';
+        return this._getLink(url, timeline.data.project.name);
+      } else if (param === 'sprint_name') {
+        url = 'project-taskboard:project=vm.activity.project.slug,sprint=vm.activity.sprint.slug';
+        return this._getLink(url, timeline.data.milestone.name);
+      } else if (param === 'us_name') {
+        obj = this._getTimelineObj(timeline, event).userstory;
+        event_us = {
+          obj: 'parent_userstory'
+        };
+        url = this._getDetailObjUrl(event_us);
+        text = '#' + obj.ref + ' ' + obj.subject;
+        return this._getLink(url, text);
+      } else if (param === 'obj_name') {
+        obj = this._getTimelineObj(timeline, event);
+        url = this._getDetailObjUrl(event);
+        if (event.obj === 'wikipage') {
+          text = unslugify(obj.slug);
+        } else if (event.obj === 'milestone') {
+          text = obj.name;
+        } else {
+          text = '#' + obj.ref + ' ' + obj.subject;
+        }
+        return this._getLink(url, text);
+      }
+    };
+
+    UserTimelineItemTitle.prototype._getTimelineObj = function(timeline, event) {
+      return timeline.data[event.obj];
+    };
+
+    UserTimelineItemTitle.prototype._getDetailObjUrl = function(event) {
+      var url;
+      url = {
+        "issue": ["project-issues-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.ref"],
+        "wikipage": ["project-wiki-page", ":project=vm.activity.project.slug,slug=vm.activity.obj.slug"],
+        "task": ["project-tasks-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.ref"],
+        "userstory": ["project-userstories-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.ref"],
+        "parent_userstory": ["project-userstories-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.userstory.ref"],
+        "milestone": ["project-taskboard", ":project=vm.activity.project.slug,sprint=vm.activity.obj.slug"]
+      };
+      return url[event.obj][0] + url[event.obj][1];
+    };
+
+    UserTimelineItemTitle.prototype._getLink = function(url, text, title) {
+      title = title || text;
+      return $('<a>').attr('tg-nav', url).text(text).attr('title', title).prop('outerHTML');
+    };
+
+    UserTimelineItemTitle.prototype._getParams = function(timeline, event, timeline_type) {
+      var params;
+      params = {};
+      timeline_type.translate_params.forEach((function(_this) {
+        return function(param) {
+          return params[param] = _this._translateTitleParams(param, timeline, event);
+        };
+      })(this));
+      return params;
+    };
+
+    UserTimelineItemTitle.prototype.getTitle = function(timeline, event, type) {
+      return this.translate.instant(type.key, this._getParams(timeline, event, type));
+    };
+
+    return UserTimelineItemTitle;
+
+  })();
+
+  angular.module("taigaUserTimeline").service("tgUserTimelineItemTitle", UserTimelineItemTitle);
+
+}).call(this);
+
+(function() {
+  var UserTimelineType, timelineType;
+
+  timelineType = function(timeline, event) {
+    var field_name, types;
+    types = [
+      {
+        check: function(timeline, event) {
+          return event.obj === 'membership';
+        },
+        key: 'TIMELINE.NEW_MEMBER',
+        translate_params: ['project_name'],
+        member: function(timeline) {
+          return {
+            user: timeline.data.user,
+            role: timeline.data.role
+          };
+        }
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'project' && event.type === 'create';
+        },
+        key: 'TIMELINE.NEW_PROJECT',
+        translate_params: ['username', 'project_name'],
+        description: function(timeline) {
+          return timeline.data.project.description;
+        }
+      }, {
+        check: function(timeline, event) {
+          return event.type === 'change' && timeline.data.values_diff.attachments;
+        },
+        key: 'TIMELINE.UPLOAD_ATTACHMENT',
+        translate_params: ['username', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'userstory' && event.type === 'create';
+        },
+        key: 'TIMELINE.US_CREATED',
+        translate_params: ['username', 'project_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'issue' && event.type === 'create';
+        },
+        key: 'TIMELINE.ISSUE_CREATED',
+        translate_params: ['username', 'project_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'wikipage' && event.type === 'create';
+        },
+        key: 'TIMELINE.WIKI_CREATED',
+        translate_params: ['username', 'project_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'create' && !timeline.data.task.userstory;
+        },
+        key: 'TIMELINE.TASK_CREATED',
+        translate_params: ['username', 'project_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'create' && timeline.data.task.userstory;
+        },
+        key: 'TIMELINE.TASK_CREATED_WITH_US',
+        translate_params: ['username', 'project_name', 'obj_name', 'us_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'milestone' && event.type === 'create';
+        },
+        key: 'TIMELINE.MILESTONE_CREATED',
+        translate_params: ['username', 'project_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return timeline.data.comment && event.obj === 'userstory';
+        },
+        key: 'TIMELINE.NEW_COMMENT_US',
+        translate_params: ['username', 'obj_name'],
+        description: function(timeline) {
+          return $(timeline.data.comment_html).text();
+        }
+      }, {
+        check: function(timeline, event) {
+          return timeline.data.comment && event.obj === 'issue';
+        },
+        key: 'TIMELINE.NEW_COMMENT_ISSUE',
+        translate_params: ['username', 'obj_name'],
+        description: function(timeline) {
+          return $(timeline.data.comment_html).text();
+        }
+      }, {
+        check: function(timeline, event) {
+          return timeline.data.comment && event.obj === 'task';
+        },
+        key: 'TIMELINE.NEW_COMMENT_TASK',
+        translate_params: ['username', 'obj_name'],
+        description: function(timeline) {
+          return $(timeline.data.comment_html).text();
+        }
+      }, {
+        check: function(timeline, event, field_name) {
+          if (field_name === 'milestone' && event.type === 'change') {
+            return timeline.data.values_diff.milestone[0] === null;
+          }
+          return false;
+        },
+        key: 'TIMELINE.US_ADDED_MILESTONE',
+        translate_params: ['username', 'obj_name', 'sprint_name']
+      }, {
+        check: function(timeline, event, field_name) {
+          if (field_name === 'milestone' && event.type === 'change') {
+            return timeline.data.values_diff.milestone[1] === null;
+          }
+          return false;
+        },
+        key: 'TIMELINE.US_REMOVED_FROM_MILESTONE',
+        translate_params: ['username', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          if (event.type === 'change' && timeline.data.values_diff.is_blocked) {
+            return timeline.data.values_diff.is_blocked[1] === true;
+          }
+          return false;
+        },
+        key: 'TIMELINE.BLOCKED',
+        translate_params: ['username', 'obj_name'],
+        description: function(timeline) {
+          if (timeline.data.values_diff.blocked_note_html) {
+            return $(timeline.data.values_diff.blocked_note_html[1]).text();
+          } else {
+            return false;
+          }
+        }
+      }, {
+        check: function(timeline, event) {
+          if (event.type === 'change' && timeline.data.values_diff.is_blocked) {
+            return timeline.data.values_diff.is_blocked[1] === false;
+          }
+          return false;
+        },
+        key: 'TIMELINE.UNBLOCKED',
+        translate_params: ['username', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'milestone' && event.type === 'change';
+        },
+        key: 'TIMELINE.MILESTONE_UPDATED',
+        translate_params: ['username', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'wikipage' && event.type === 'change';
+        },
+        key: 'TIMELINE.WIKI_UPDATED',
+        translate_params: ['username', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'userstory' && event.type === 'change';
+        },
+        key: 'TIMELINE.US_UPDATED',
+        translate_params: ['username', 'field_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'issue' && event.type === 'change';
+        },
+        key: 'TIMELINE.ISSUE_UPDATED',
+        translate_params: ['username', 'field_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'change' && !timeline.data.task.userstory;
+        },
+        key: 'TIMELINE.TASK_UPDATED',
+        translate_params: ['username', 'field_name', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'change' && timeline.data.task.userstory;
+        },
+        key: 'TIMELINE.TASK_UPDATED_WITH_US',
+        translate_params: ['username', 'field_name', 'obj_name', 'us_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'user' && event.type === 'create';
+        },
+        key: 'TIMELINE.NEW_USER',
+        translate_params: ['username']
+      }
+    ];
+    if (timeline.data.values_diff) {
+      field_name = Object.keys(timeline.data.values_diff)[0];
+    }
+    return _.find(types, function(obj) {
+      return obj.check(timeline, event, field_name);
+    });
+  };
+
+  UserTimelineType = (function() {
+    function UserTimelineType() {}
+
+    UserTimelineType.prototype.getType = function(timeline, event) {
+      return timelineType(timeline, event);
+    };
+
+    return UserTimelineType;
+
+  })();
+
+  angular.module("taigaUserTimeline").service("tgUserTimelineItemType", UserTimelineType);
+
+}).call(this);
+
+(function() {
+  var UserTimelineItemController;
+
+  UserTimelineItemController = (function() {
+    UserTimelineItemController.$inject = ["tgUserTimelineItemType", "tgUserTimelineItemTitle"];
+
+    function UserTimelineItemController(userTimelineItemType, userTimelineItemTitle) {
+      var event, ref, timeline, type;
+      this.userTimelineItemType = userTimelineItemType;
+      this.userTimelineItemTitle = userTimelineItemTitle;
+      timeline = this.timeline.toJS();
+      event = this.parseEventType(timeline.event_type);
+      type = this.userTimelineItemType.getType(timeline, event);
+      this.activity = {};
+      this.activity.user = timeline.data.user;
+      this.activity.project = timeline.data.project;
+      this.activity.sprint = timeline.data.milestone;
+      this.activity.title = this.userTimelineItemTitle.getTitle(timeline, event, type);
+      this.activity.created_formated = moment(timeline.created).fromNow();
+      this.activity.obj = this.getObject(timeline, event);
+      if (type.description) {
+        this.activity.description = type.description(timeline);
+      }
+      if (type.member) {
+        this.activity.member = type.member(timeline);
+      }
+      if ((ref = timeline.data.values_diff) != null ? ref.attachments : void 0) {
+        this.activity.attachments = timeline.data.values_diff.attachments["new"];
+      }
+    }
+
+    UserTimelineItemController.prototype.parseEventType = function(event_type) {
+      event_type = event_type.split(".");
+      return {
+        section: event_type[0],
+        obj: event_type[1],
+        type: event_type[2]
+      };
+    };
+
+    UserTimelineItemController.prototype.getObject = function(timeline, event) {
+      if (timeline.data[event.obj]) {
+        return timeline.data[event.obj];
+      }
+    };
+
+    return UserTimelineItemController;
+
+  })();
+
+  angular.module("taigaUserTimeline").controller("UserTimelineItem", UserTimelineItemController);
+
+}).call(this);
+
+(function() {
+  var UserTimelineItemDirective;
+
+  UserTimelineItemDirective = function() {
+    return {
+      controllerAs: "vm",
+      controller: "UserTimelineItem",
+      bindToController: true,
+      templateUrl: "user-timeline/user-timeline-item/user-timeline-item.html",
+      scope: {
+        timeline: "=tgUserTimelineItem"
+      }
+    };
+  };
+
+  angular.module("taigaUserTimeline").directive("tgUserTimelineItem", UserTimelineItemDirective);
+
+}).call(this);
+
+(function() {
+  var UserTimelinePaginationSequence;
+
+  UserTimelinePaginationSequence = function() {
+    return function(config) {
+      var getContent, items, next, page;
+      page = 1;
+      items = Immutable.List();
+      config.minItems = config.minItems || 20;
+      next = function() {
+        items = Immutable.List();
+        return getContent();
+      };
+      getContent = function() {
+        return config.fetch(page).then(function(response) {
+          var data;
+          page++;
+          data = response.get("data");
+          if (config.filter) {
+            data = config.filter(response.get("data"));
+          }
+          items = items.concat(data);
+          if (items.size < config.minItems && response.get("next")) {
+            return getContent();
+          }
+          return Immutable.Map({
+            items: items,
+            next: response.get("next")
+          });
+        });
+      };
+      return {
+        next: function() {
+          return next();
+        }
+      };
+    };
+  };
+
+  angular.module("taigaUserTimeline").factory("tgUserTimelinePaginationSequenceService", UserTimelinePaginationSequence);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
+#
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+#
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+#
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+ * File: modules/profile/profile-timeline/profile-timeline.controller.coffee
+ */
+
+(function() {
+  var UserTimelineController, mixOf, taiga,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  mixOf = this.taiga.mixOf;
+
+  UserTimelineController = (function(superClass) {
+    extend(UserTimelineController, superClass);
+
+    UserTimelineController.$inject = ["tgUserTimelineService"];
+
+    function UserTimelineController(userTimelineService) {
+      this.userTimelineService = userTimelineService;
+      this.timelineList = Immutable.List();
+      this.scrollDisabled = false;
+      this.timeline = null;
+      if (this.projectId) {
+        this.timeline = this.userTimelineService.getProjectTimeline(this.projectId);
+      } else if (this.currentUser) {
+        this.timeline = this.userTimelineService.getProfileTimeline(this.user.get("id"));
+      } else {
+        this.timeline = this.userTimelineService.getUserTimeline(this.user.get("id"));
+      }
+    }
+
+    UserTimelineController.prototype.loadTimeline = function() {
+      this.scrollDisabled = true;
+      return this.timeline.next().then((function(_this) {
+        return function(response) {
+          _this.timelineList = _this.timelineList.concat(response.get("items"));
+          if (response.get("next")) {
+            _this.scrollDisabled = false;
+          }
+          return _this.timelineList;
+        };
+      })(this));
+    };
+
+    return UserTimelineController;
+
+  })(mixOf(taiga.Controller, taiga.PageMixin, taiga.FiltersMixin));
+
+  angular.module("taigaUserTimeline").controller("UserTimeline", UserTimelineController);
+
+}).call(this);
+
+(function() {
+  var UserTimelineDirective;
+
+  UserTimelineDirective = function() {
+    return {
+      templateUrl: "user-timeline/user-timeline/user-timeline.html",
+      controller: "UserTimeline",
+      controllerAs: "vm",
+      scope: {
+        projectId: "=projectid",
+        user: "=",
+        currentUser: "="
+      },
+      bindToController: true
+    };
+  };
+
+  angular.module("taigaProfile").directive("tgUserTimeline", UserTimelineDirective);
+
+}).call(this);
+
+(function() {
+  var UserTimelineService, taiga,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  UserTimelineService = (function(superClass) {
+    extend(UserTimelineService, superClass);
+
+    UserTimelineService.$inject = ["tgResources", "tgUserTimelinePaginationSequenceService"];
+
+    function UserTimelineService(rs, userTimelinePaginationSequenceService) {
+      this.rs = rs;
+      this.userTimelinePaginationSequenceService = userTimelinePaginationSequenceService;
+    }
+
+    UserTimelineService.prototype._invalid = [
+      {
+        check: function(timeline) {
+          var values, values_diff;
+          values_diff = timeline.get("data").get("values_diff");
+          if (values_diff) {
+            values = Object.keys(values_diff.toJS());
+          }
+          if (values && values.length) {
+            if (_.every(values, (function(_this) {
+              return function(value) {
+                return _this._valid_fields.indexOf(value) === -1;
+              };
+            })(this))) {
+              return true;
+            } else if (values[0] === 'attachments' && values_diff.get('attachments').get('new').size === 0) {
+              return true;
+            }
+          }
+          return false;
+        }
+      }, {
+        check: function(timeline) {
+          var event;
+          event = timeline.get('event_type').split(".");
+          return event[2] === 'delete';
+        }
+      }, {
+        check: function(timeline) {
+          var event;
+          event = timeline.get('event_type').split(".");
+          return event[1] === 'project' && event[2] === 'change';
+        }
+      }, {
+        check: function(timeline) {
+          return !!timeline.get("data").get("comment_deleted");
+        }
+      }, {
+        check: function(timeline) {
+          var event;
+          event = timeline.get('event_type').split(".");
+          if (event[1] === "task" && event[2] === "change") {
+            return timeline.get("data").get("values_diff").get("milestone");
+          }
+          return false;
+        }
+      }
+    ];
+
+    UserTimelineService.prototype._valid_fields = ['status', 'subject', 'description_diff', 'assigned_to', 'points', 'severity', 'priority', 'type', 'attachments', 'milestone', 'is_blocked', 'is_iocaine', 'content_diff', 'name', 'estimated_finish', 'estimated_start'];
+
+    UserTimelineService.prototype._isInValidTimeline = function(timeline) {
+      return _.some(this._invalid, (function(_this) {
+        return function(invalid) {
+          return invalid.check.call(_this, timeline);
+        };
+      })(this));
+    };
+
+    UserTimelineService.prototype.getProfileTimeline = function(userId, page) {
+      var config;
+      config = {};
+      config.fetch = (function(_this) {
+        return function(page) {
+          return _this.rs.users.getProfileTimeline(userId, page);
+        };
+      })(this);
+      config.filter = (function(_this) {
+        return function(items) {
+          return items.filterNot(function(item) {
+            return _this._isInValidTimeline(item);
+          });
+        };
+      })(this);
+      return this.userTimelinePaginationSequenceService(config);
+    };
+
+    UserTimelineService.prototype.getUserTimeline = function(userId) {
+      var config;
+      config = {};
+      config.fetch = (function(_this) {
+        return function(page) {
+          return _this.rs.users.getUserTimeline(userId, page);
+        };
+      })(this);
+      config.filter = (function(_this) {
+        return function(items) {
+          return items.filterNot(function(item) {
+            return _this._isInValidTimeline(item);
+          });
+        };
+      })(this);
+      return this.userTimelinePaginationSequenceService(config);
+    };
+
+    UserTimelineService.prototype.getProjectTimeline = function(projectId) {
+      var config;
+      config = {};
+      config.fetch = (function(_this) {
+        return function(page) {
+          return _this.rs.projects.getTimeline(projectId, page);
+        };
+      })(this);
+      config.filter = (function(_this) {
+        return function(items) {
+          return items.filterNot(function(item) {
+            return _this._isInValidTimeline(item);
+          });
+        };
+      })(this);
+      return this.userTimelinePaginationSequenceService(config);
+    };
+
+    return UserTimelineService;
+
+  })(taiga.Service);
+
+  angular.module("taigaUserTimeline").service("tgUserTimelineService", UserTimelineService);
 
 }).call(this);
 
