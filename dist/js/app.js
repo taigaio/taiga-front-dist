@@ -15894,7 +15894,7 @@
           required = true;
         }
         ctx = {
-          roleList: $scope.roles,
+          roleList: $scope.project.roles,
           required: required
         };
         return $compile(template(ctx))($scope);
@@ -16107,7 +16107,6 @@
       promise = this.loadProject();
       promise.then((function(_this) {
         return function() {
-          _this.loadUsersAndRoles();
           return _this.loadMembers();
         };
       })(this));
@@ -16331,7 +16330,7 @@
       render = function(member) {
         var ctx, html;
         ctx = {
-          roleList: $scope.roles,
+          roleList: $scope.project.roles,
           selectedRole: member.role
         };
         html = template(ctx);
