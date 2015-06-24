@@ -5419,18 +5419,20 @@
     link = function($scope, $el, $attrs, $ctrl) {
       var attributeValue, isEditable, render, saveAttributeValue, submit;
       render = function(attributeValue, edit) {
-        var ctx, editable, html, value;
+        var ctx, editable, html, innerText, value;
         if (edit == null) {
           edit = false;
         }
         value = attributeValue.value;
+        innerText = attributeValue.value;
         editable = isEditable();
         ctx = {
           id: attributeValue.id,
           name: attributeValue.name,
           description: attributeValue.description,
           value: value,
-          isEditable: editable
+          isEditable: editable,
+          field_type: attributeValue.field_type
         };
         if (editable && (edit || !value)) {
           html = templateEdit(ctx);
@@ -5448,15 +5450,15 @@
         return permissions.indexOf(requiredEditionPerm) > -1;
       };
       saveAttributeValue = function() {
-        attributeValue.value = $el.find("input").val();
+        attributeValue.value = $el.find("input, textarea").val();
         return $scope.$apply(function() {
           return $ctrl.updateAttributeValue(attributeValue).then(function() {
             return render(attributeValue, false);
           });
         });
       };
-      $el.on("keyup", "input[name=description]", function(event) {
-        if (event.keyCode === 13) {
+      $el.on("keyup", "input[name=description], textarea[name='description']", function(event) {
+        if (event.keyCode === 13 && event.currentTarget.type !== "textarea") {
           return submit(event);
         } else if (event.keyCode === 27) {
           return render(attributeValue, false);
@@ -5470,14 +5472,12 @@
           return;
         }
         render(attributeValue, true);
-        $el.find("input[name='description']").focus().select();
-        return $scope.$apply();
+        return $el.find("input[name='description'], textarea[name='description']").focus().select();
       });
       $el.on("click", "a.icon-edit", function(event) {
         event.preventDefault();
         render(attributeValue, true);
-        $el.find("input[name='description']").focus().select();
-        return $scope.$apply();
+        return $el.find("input[name='description'], textarea[name='description']").focus().select();
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
@@ -5729,7 +5729,7 @@
       };
 
       EstimationProcess.prototype.renderPointsSelector = function(roleId, target) {
-        var horizontalList, html, maxPointLength, points;
+        var horizontalList, html, maxPointLength, points, pop;
         points = _.map(this.points, (function(_this) {
           return function(point) {
             point = _.clone(point, true);
@@ -5758,7 +5758,11 @@
         this.$el.find(".pop-points-open").popover().open(function() {
           return $(this).removeClass("active").closest("li").removeClass("active");
         });
-        return this.$el.find(".pop-points-open").show();
+        this.$el.find(".pop-points-open").show();
+        pop = this.$el.find(".pop-points-open");
+        if (pop.offset().top + pop.height() > document.body.clientHeight) {
+          return pop.addClass('pop-bottom');
+        }
       };
 
       return EstimationProcess;
@@ -15391,8 +15395,8 @@
     WikiDetailController.prototype._setMeta = function() {
       var description, title;
       title = this.translate.instant("WIKI.PAGE_TITLE", {
-        wikiPageName: this.scope.wiki.slug,
-        projectName: unslugify(this.scope.wiki.slug)
+        wikiPageName: unslugify(this.scope.wiki.slug),
+        projectName: this.scope.project.name
       });
       description = this.translate.instant("WIKI.PAGE_DESCRIPTION", {
         wikiPageContent: angular.element(this.scope.wiki.html || "").text(),
@@ -16624,7 +16628,7 @@
 
   module.controller("ProjectProfileController", ProjectProfileController);
 
-  ProjectProfileDirective = function($repo, $confirm, $loading, $navurls, $location, projectService) {
+  ProjectProfileDirective = function($repo, $confirm, $loading, $navurls, $location, projectService, currentUserService) {
     var link;
     link = function($scope, $el, $attrs) {
       var $ctrl, form, submit, submitButton;
@@ -16650,7 +16654,8 @@
             });
             $location.path(newUrl);
             $ctrl.loadInitialData();
-            return projectService.fetchProject();
+            projectService.fetchProject();
+            return currentUserService.loadProjects();
           });
           return promise.then(null, function(data) {
             $loading.finish(submitButton);
@@ -16669,7 +16674,7 @@
     };
   };
 
-  module.directive("tgProjectProfile", ["$tgRepo", "$tgConfirm", "$tgLoading", "$tgNavUrls", "$tgLocation", "tgProjectService", ProjectProfileDirective]);
+  module.directive("tgProjectProfile", ["$tgRepo", "$tgConfirm", "$tgLoading", "$tgNavUrls", "$tgLocation", "tgProjectService", "tgCurrentUserService", ProjectProfileDirective]);
 
   ProjectDefaultValuesDirective = function($repo, $confirm, $loading) {
     var link;
@@ -18266,7 +18271,9 @@
               var permission;
               return permission = angular.element(t).parents(".category-item").data("id");
             }));
-            activePermissions.push("view_project");
+            if (activePermissions.length) {
+              activePermissions.push("view_project");
+            }
             return activePermissions;
           };
           target = angular.element(event.currentTarget);
@@ -19079,7 +19086,7 @@
         $confirm.notify("success", $translate.instant("COMMON.SAVE"));
         $location.url($projectUrl.get(response));
         lightboxService.close($el);
-        return currentUserService._loadProjects();
+        return currentUserService.loadProjects();
       };
       onErrorSubmit = function(response) {
         var error_field, error_step, i, len, ref, selectors;
@@ -19208,7 +19215,7 @@
           $rootscope.$broadcast("projects:reload");
           $location.path($navUrls.resolve("home"));
           $confirm.notify("success");
-          return currentUserService._loadProjects();
+          return currentUserService.loadProjects();
         });
         return promise.then(null, function() {
           $confirm.notify("error");
@@ -24613,12 +24620,12 @@
     CurrentUserService.prototype.bulkUpdateProjectsOrder = function(sortData) {
       return this.projectsService.bulkUpdateProjectsOrder(sortData).then((function(_this) {
         return function() {
-          return _this._loadProjects();
+          return _this.loadProjects();
         };
       })(this));
     };
 
-    CurrentUserService.prototype._loadProjects = function() {
+    CurrentUserService.prototype.loadProjects = function() {
       return this.projectsService.getProjectsByUserId(this._user.get("id")).then((function(_this) {
         return function(projects) {
           _this._projects = _this._projects.set("all", projects);
@@ -24632,7 +24639,7 @@
     };
 
     CurrentUserService.prototype._loadUserInfo = function() {
-      return this._loadProjects();
+      return this.loadProjects();
     };
 
     return CurrentUserService;
