@@ -15391,8 +15391,8 @@
     WikiDetailController.prototype._setMeta = function() {
       var description, title;
       title = this.translate.instant("WIKI.PAGE_TITLE", {
-        wikiPageName: this.scope.wiki.slug,
-        projectName: unslugify(this.scope.wiki.slug)
+        wikiPageName: unslugify(this.scope.wiki.slug),
+        projectName: this.scope.project.name
       });
       description = this.translate.instant("WIKI.PAGE_DESCRIPTION", {
         wikiPageContent: angular.element(this.scope.wiki.html || "").text(),
@@ -18266,7 +18266,9 @@
               var permission;
               return permission = angular.element(t).parents(".category-item").data("id");
             }));
-            activePermissions.push("view_project");
+            if (activePermissions.length) {
+              activePermissions.push("view_project");
+            }
             return activePermissions;
           };
           target = angular.element(event.currentTarget);
