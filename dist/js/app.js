@@ -20778,15 +20778,26 @@
       uploadComplete = (function(_this) {
         return function(evt) {
           return $rootScope.$apply(function() {
-            var data, model;
+            var data, model, ref, status;
             file.status = "done";
+            status = evt.target.status;
             try {
               data = JSON.parse(evt.target.responseText);
             } catch (_error) {
               data = {};
             }
-            model = $model.make_model(urlName, data);
-            return defered.resolve(model);
+            if (status >= 200 && status < 400) {
+              model = $model.make_model(urlName, data);
+              return defered.resolve(model);
+            } else {
+              response = {
+                status: status,
+                data: {
+                  _error_message: (ref = data['attached_file']) != null ? ref[0] : void 0
+                }
+              };
+              return defered.reject(response);
+            }
           });
         };
       })(this);
@@ -23189,6 +23200,9 @@
         baseUrl = "https://talky.io/";
       } else if (this.project.get("videoconferences") === "jitsi") {
         baseUrl = "https://meet.jit.si/";
+        url = this.project.get("slug") + "-" + taiga.slugify(this.project.get("videoconferences_salt"));
+        url = url.replace(/-/g, "");
+        return baseUrl + url;
       } else {
         return "";
       }
@@ -23708,14 +23722,14 @@
     function ProfileContactsController(userService, currentUserService) {
       this.userService = userService;
       this.currentUserService = currentUserService;
+      this.currentUser = this.currentUserService.getUser();
+      this.isCurrentUser = false;
+      if (this.currentUser && this.currentUser.get("id") === this.user.get("id")) {
+        this.isCurrentUser = true;
+      }
     }
 
     ProfileContactsController.prototype.loadContacts = function() {
-      this.currentUser = this.currentUserService.getUser();
-      this.isCurrentUser = false;
-      if (this.currentUser.get("id") === this.user.get("id")) {
-        this.isCurrentUser = true;
-      }
       return this.userService.getContacts(this.user.get("id")).then((function(_this) {
         return function(contacts) {
           return _this.contacts = contacts;
@@ -24147,8 +24161,8 @@
       return this.rs.projects.getProjectStats(projectId);
     };
 
-    ProjectsService.prototype.getProjectsByUserId = function(userId) {
-      return this.rs.projects.getProjectsByUserId(userId).then((function(_this) {
+    ProjectsService.prototype.getProjectsByUserId = function(userId, paginate) {
+      return this.rs.projects.getProjectsByUserId(userId, paginate).then((function(_this) {
         return function(projects) {
           return projects.map(_this._decorate.bind(_this));
         };
@@ -24242,14 +24256,23 @@
         return Immutable.fromJS(result.data);
       });
     };
-    service.getProjectsByUserId = function(userId) {
-      var params, url;
+    service.getProjectsByUserId = function(userId, paginate) {
+      var httpOptions, params, url;
+      if (paginate == null) {
+        paginate = false;
+      }
       url = urlsService.resolve("projects");
+      httpOptions = {};
+      if (!paginate) {
+        httpOptions.headers = {
+          "x-disable-pagination": "1"
+        };
+      }
       params = {
         "member": userId,
         "order_by": "memberships__user_order"
       };
-      return http.get(url, params).then(function(result) {
+      return http.get(url, params, httpOptions).then(function(result) {
         return Immutable.fromJS(result.data);
       });
     };
