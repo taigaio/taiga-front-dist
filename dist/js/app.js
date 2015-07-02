@@ -95,7 +95,8 @@
     $routeProvider.when("/project/:pslug/search", {
       templateUrl: "search/search.html",
       reloadOnSearch: false,
-      section: "search"
+      section: "search",
+      loader: true
     });
     $routeProvider.when("/project/:pslug/backlog", {
       templateUrl: "backlog/backlog.html",
@@ -917,7 +918,7 @@
     function PageMixin() {}
 
     PageMixin.prototype.fillUsersAndRoles = function(users, roles) {
-      var activeUsers, availableRoles;
+      var activeUsers, computableRoles;
       activeUsers = _.filter(users, (function(_this) {
         return function(user) {
           return user.is_active;
@@ -932,9 +933,9 @@
         return e.id;
       });
       this.scope.roles = _.sortBy(roles, "order");
-      availableRoles = _(this.scope.project.memberships).map("role").uniq().value();
+      computableRoles = _(this.scope.project.members).map("role").uniq().value();
       return this.scope.computableRoles = _(roles).filter("computable").filter(function(x) {
-        return _.contains(availableRoles, x.id);
+        return _.contains(computableRoles, x.id);
       }).value();
     };
 
@@ -2758,7 +2759,7 @@
       loadTasks = function() {
         return $rs.tasks.list($scope.projectId, null, $scope.usId).then((function(_this) {
           return function(tasks) {
-            $scope.tasks = tasks;
+            $scope.tasks = _.sortBy(tasks, 'ref');
             return tasks;
           };
         })(this));
@@ -3077,7 +3078,10 @@
       this.scope.$watch("searchTerm", (function(_this) {
         return function(term) {
           if (term) {
-            return loadSearchData(term);
+            _this.scope.loading = true;
+            return _this.loadSearchData(term).then(function() {
+              return _this.scope.loading = false;
+            });
           }
         };
       })(this));
@@ -3107,9 +3111,6 @@
           _this.scope.priorityById = groupBy(project.priorities, function(x) {
             return x.id;
           });
-          _this.scope.membersById = groupBy(project.memberships, function(x) {
-            return x.user;
-          });
           _this.scope.usStatusById = groupBy(project.us_statuses, function(x) {
             return x.id;
           });
@@ -3133,7 +3134,7 @@
       return this.loadProject().then((function(_this) {
         return function(project) {
           _this.scope.projectId = project.id;
-          return _this.fillUsersAndRoles(project.users, project.roles);
+          return _this.fillUsersAndRoles(project.members, project.roles);
         };
       })(this));
     };
@@ -4215,19 +4216,22 @@
 
   module.directive("tgSprintProgressbar", SprintProgressBarDirective);
 
-  CreatedByDisplayDirective = function($template, $compile, $translate) {
+  CreatedByDisplayDirective = function($template, $compile, $translate, $navUrls) {
     var link, template;
     template = $template.get("common/components/created-by.html", true);
     link = function($scope, $el, $attrs) {
       var render;
       render = function(model) {
-        var html, owner, ref;
-        owner = ((ref = $scope.usersById) != null ? ref[model.owner] : void 0) || {
+        var html, owner;
+        owner = model.owner_extra_info || {
           full_name_display: $translate.instant("COMMON.EXTERNAL_USER"),
-          photo: "/images/unnamed.png"
+          photo: "/images/user-noimage.png"
         };
         html = template({
           owner: owner,
+          url: (owner != null ? owner.is_active : void 0) ? $navUrls.resolve("user-profile", {
+            username: owner.username
+          }) : "",
           date: moment(model.created_date).format($translate.instant("COMMON.DATETIME"))
         });
         html = $compile(html)($scope);
@@ -4249,7 +4253,7 @@
     };
   };
 
-  module.directive("tgCreatedByDisplay", ["$tgTemplate", "$compile", "$translate", CreatedByDisplayDirective]);
+  module.directive("tgCreatedByDisplay", ["$tgTemplate", "$compile", "$translate", "$tgNavUrls", CreatedByDisplayDirective]);
 
   WatchersDirective = function($rootscope, $confirm, $repo, $qqueue, $template, $compile, $translate) {
     var link, template;
@@ -4692,6 +4696,15 @@
         $el.find('.view-description').hide();
         return $el.find('textarea').focus();
       });
+      $el.on("click", "a", function(event) {
+        var href, target;
+        target = angular.element(event.target);
+        href = target.attr('href');
+        if (href.indexOf("#") === 0) {
+          event.preventDefault();
+          return $('body').scrollTop($(href).offset().top);
+        }
+      });
       $el.on("click", ".save", function(e) {
         var description;
         e.preventDefault();
@@ -4772,17 +4785,17 @@
     var link, template;
     template = $template.get("common/components/list-item-assigned-to-avatar.html", true);
     link = function($scope, $el, $attrs) {
-      return bindOnce($scope, "membersById", function(membersById) {
+      return bindOnce($scope, "usersById", function(usersById) {
         var ctx, item, member;
         item = $scope.$eval($attrs.tgListitemAssignedto);
         ctx = {
           name: "Unassigned",
           imgurl: "/images/unnamed.png"
         };
-        member = membersById[item.assigned_to];
+        member = usersById[item.assigned_to];
         if (member) {
           ctx.imgurl = member.photo;
-          ctx.name = member.full_name;
+          ctx.name = member.full_name_display;
         }
         return $el.html(template(ctx));
       });
@@ -5965,7 +5978,7 @@
 
   })(taiga.Controller);
 
-  HistoryDirective = function($log, $loading, $qqueue, $template, $confirm, $translate, $compile) {
+  HistoryDirective = function($log, $loading, $qqueue, $template, $confirm, $translate, $compile, $navUrls) {
     var link, templateActivity, templateBase, templateBaseEntries, templateChangeAttachment, templateChangeDiff, templateChangeGeneric, templateChangeList, templateChangePoints, templateDeletedComment, templateFn;
     templateChangeDiff = $template.get("common/history/history-change-diff.html", true);
     templateChangePoints = $template.get("common/history/history-change-points.html", true);
@@ -5977,7 +5990,7 @@
     templateBaseEntries = $template.get("common/history/history-base-entries.html", true);
     templateBase = $template.get("common/history/history-base.html", true);
     link = function($scope, $el, $attrs, $ctrl) {
-      var countChanges, formatChange, getHumanizedFieldName, getPrettyDateFormat, getUserAvatar, getUserFullName, objectId, renderActivity, renderAttachmentEntry, renderChange, renderChangeEntries, renderChangeEntry, renderChangesHelperText, renderComment, renderComments, renderCustomAttributesEntry, renderHistory, save, showAllActivity, showAllComments, type;
+      var countChanges, formatChange, getHumanizedFieldName, getPrettyDateFormat, objectId, renderActivity, renderAttachmentEntry, renderChange, renderChangeEntries, renderChangeEntry, renderChangesHelperText, renderComment, renderComments, renderCustomAttributesEntry, renderHistory, save, showAllActivity, showAllComments, type;
       type = $attrs.type;
       objectId = null;
       showAllComments = false;
@@ -6028,17 +6041,6 @@
           us_order: $translate.instant("ACTIVITY.FIELDS.US_ORDER")
         };
         return humanizedFieldNames[field] || field;
-      };
-      getUserFullName = function(userId) {
-        var ref;
-        return (ref = $scope.usersById[userId]) != null ? ref.full_name_display : void 0;
-      };
-      getUserAvatar = function(userId) {
-        if ($scope.usersById[userId] != null) {
-          return $scope.usersById[userId].photo;
-        } else {
-          return "/images/unnamed.png";
-        }
       };
       countChanges = function(comment) {
         return _.keys(comment.values_diff).length;
@@ -6216,8 +6218,11 @@
           return html[0].outerHTML;
         }
         html = templateActivity({
-          avatar: getUserAvatar(comment.user.pk),
+          avatar: comment.user.photo,
           userFullName: comment.user.name,
+          userProfileUrl: comment.user.is_active ? $navUrls.resolve("user-profile", {
+            username: comment.user.username
+          }) : "",
           creationDate: moment(comment.created_at).format(getPrettyDateFormat()),
           comment: comment.comment_html,
           changesText: renderChangesHelperText(comment),
@@ -6234,8 +6239,11 @@
       renderChange = function(change) {
         var ref;
         return templateActivity({
-          avatar: getUserAvatar(change.user.pk),
+          avatar: change.user.photo,
           userFullName: change.user.name,
+          userProfileUrl: change.user.is_active ? $navUrls.resolve("user-profile", {
+            username: change.user.username
+          }) : "",
           creationDate: moment(change.created_at).format(getPrettyDateFormat()),
           comment: change.comment_html,
           changes: renderChangeEntries(change),
@@ -6316,6 +6324,15 @@
         target = angular.element(event.currentTarget);
         return save(target);
       }));
+      $el.on("click", "a", function(event) {
+        var href, target;
+        target = angular.element(event.target);
+        href = target.attr('href');
+        if (href && href.indexOf("#") === 0) {
+          event.preventDefault();
+          return $('body').scrollTop($(href).offset().top);
+        }
+      });
       $el.on("click", ".show-more", function(event) {
         var target;
         event.preventDefault();
@@ -6354,8 +6371,12 @@
         return $(this).addClass('active');
       });
       $el.on("click", ".history-tabs li a", function(event) {
-        $el.find(".history-tabs li a").toggleClass("active");
-        return $el.find(".history section").toggleClass("hidden");
+        var target;
+        target = angular.element(event.currentTarget);
+        $el.find(".history-tabs li a").removeClass("active");
+        target.addClass("active");
+        $el.find(".history section").addClass("hidden");
+        return $el.find(".history section." + (target.data('section-class'))).removeClass("hidden");
       });
       $el.on("click", ".comment-delete", debounce(2000, function(event) {
         var activityId, target;
@@ -6392,7 +6413,7 @@
     };
   };
 
-  module.directive("tgHistory", ["$log", "$tgLoading", "$tgQqueue", "$tgTemplate", "$tgConfirm", "$translate", "$compile", HistoryDirective]);
+  module.directive("tgHistory", ["$log", "$tgLoading", "$tgQqueue", "$tgTemplate", "$tgConfirm", "$translate", "$compile", "$tgNavUrls", HistoryDirective]);
 
 }).call(this);
 
@@ -7053,7 +7074,7 @@
 
   module.directive("tgLbAssignedto", ["lightboxService", "lightboxKeyboardNavigationService", "$tgTemplate", "$compile", AssignedToLightboxDirective]);
 
-  WatchersLightboxDirective = function($repo, lightboxService, lightboxKeyboardNavigationService, $template) {
+  WatchersLightboxDirective = function($repo, lightboxService, lightboxKeyboardNavigationService, $template, $compile) {
     var link;
     link = function($scope, $el, $attrs) {
       var closeLightbox, getFilteredUsers, render, selectedItem, usersTemplate;
@@ -7087,6 +7108,7 @@
           showMore: users.length > 5
         };
         html = usersTemplate(ctx);
+        html = $compile(html)($scope);
         return $el.find("div.watchers").html(html);
       };
       closeLightbox = function() {
@@ -7139,7 +7161,7 @@
     };
   };
 
-  module.directive("tgLbWatchers", ["$tgRepo", "lightboxService", "lightboxKeyboardNavigationService", "$tgTemplate", WatchersLightboxDirective]);
+  module.directive("tgLbWatchers", ["$tgRepo", "lightboxService", "lightboxKeyboardNavigationService", "$tgTemplate", "$compile", WatchersLightboxDirective]);
 
 }).call(this);
 
@@ -7308,7 +7330,7 @@
  */
 
 (function() {
-  var TgLoadingService, module,
+  var LoadingDirective, TgLoadingService, module,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -7344,6 +7366,26 @@
   })(taiga.Service);
 
   module.service("$tgLoading", TgLoadingService);
+
+  LoadingDirective = function($loading) {
+    var link;
+    link = function($scope, $el, attr) {
+      return $scope.$watch(attr.tgLoading, (function(_this) {
+        return function(showLoading) {
+          if (showLoading) {
+            return $loading.start($el);
+          } else {
+            return $loading.finish($el);
+          }
+        };
+      })(this));
+    };
+    return {
+      link: link
+    };
+  };
+
+  module.directive("tgLoading", ["$tgLoading", LoadingDirective]);
 
 }).call(this);
 
@@ -9201,7 +9243,7 @@
       promise = this.loadProject();
       promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           return _this.initializeSubscription();
         };
       })(this));
@@ -10067,26 +10109,26 @@
             var ctx;
             if (flotItem.seriesIndex === 1) {
               ctx = {
-                xval: xval,
-                yval: yval
+                sprintName: dataToDraw.milestones[xval].name,
+                value: Math.abs(yval)
               };
               return $translate.instant("BACKLOG.CHART.OPTIMAL", ctx);
             } else if (flotItem.seriesIndex === 2) {
               ctx = {
-                xval: xval,
-                yval: yval
+                sprintName: dataToDraw.milestones[xval].name,
+                value: Math.abs(yval)
               };
               return $translate.instant("BACKLOG.CHART.REAL", ctx);
             } else if (flotItem.seriesIndex === 3) {
               ctx = {
-                xval: xval,
-                yval: Math.abs(yval)
+                sprintName: dataToDraw.milestones[xval].name,
+                value: Math.abs(yval)
               };
               return $translate.instant("BACKLOG.CHART.INCREMENT_TEAM", ctx);
             } else {
               ctx = {
-                xval: xval,
-                yval: Math.abs(yval)
+                sprintName: dataToDraw.milestones[xval].name,
+                value: Math.abs(yval)
               };
               return $translate.instant("BACKLOG.CHART.INCREMENT_CLIENT", ctx);
             }
@@ -11076,7 +11118,7 @@
             return e.id;
           });
           _this.scope.$emit('project:loaded', project);
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           return project;
         };
       })(this));
@@ -11850,7 +11892,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           _this.initializeSubscription();
           return _this.loadKanban().then(function() {
             return _this.scope.$broadcast("redraw:wip");
@@ -12500,9 +12542,6 @@
           _this.scope.priorityById = groupBy(project.priorities, function(x) {
             return x.id;
           });
-          _this.scope.membersById = groupBy(project.memberships, function(x) {
-            return x.user;
-          });
           return project;
         };
       })(this));
@@ -12538,7 +12577,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           return _this.loadIssue();
         };
       })(this));
@@ -13237,9 +13276,6 @@
           _this.scope.issueTypeById = groupBy(project.issue_types, function(x) {
             return x.id;
           });
-          _this.scope.membersById = groupBy(project.memberships, function(x) {
-            return x.user;
-          });
           return project;
         };
       })(this));
@@ -13466,7 +13502,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           _this.initializeSubscription();
           return _this.q.all([_this.loadFilters(), _this.loadIssues()]);
         };
@@ -14228,9 +14264,6 @@
           _this.scope.taskStatusById = groupBy(project.task_statuses, function(x) {
             return x.id;
           });
-          _this.scope.membersById = groupBy(project.memberships, function(x) {
-            return x.user;
-          });
           _this.scope.pointsList = _.sortBy(project.points, "order");
           _this.scope.pointsById = groupBy(_this.scope.pointsList, function(e) {
             return e.id;
@@ -14314,7 +14347,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           return _this.loadUs().then(function() {
             return _this.q.all([_this.loadSprint(), _this.loadTasks()]);
           });
@@ -14757,9 +14790,6 @@
           _this.scope.statusById = groupBy(project.task_statuses, function(x) {
             return x.id;
           });
-          _this.scope.membersById = groupBy(project.memberships, function(x) {
-            return x.user;
-          });
           return project;
         };
       })(this));
@@ -14818,7 +14848,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           return _this.loadTask().then(function() {
             return _this.q.all([_this.loadSprint(), _this.loadUserStory()]);
           });
@@ -15093,46 +15123,20 @@
     };
 
     TeamController.prototype.loadMembers = function() {
-      var currentUser, i, len, membership, memberships, ref, results;
-      currentUser = this.auth.getUser();
-      if ((currentUser != null) && (currentUser.photo == null)) {
-        currentUser.photo = "/images/unnamed.png";
-      }
-      memberships = this.projectService.project.toJS().memberships;
-      this.scope.currentUser = _.find(memberships, (function(_this) {
-        return function(membership) {
-          return (currentUser != null) && membership.user === currentUser.id;
-        };
-      })(this));
+      var i, len, member, ref, user;
+      user = this.auth.getUser();
       this.scope.totals = {};
-      _.forEach(memberships, (function(_this) {
-        return function(membership) {
-          return _this.scope.totals[membership.user] = 0;
-        };
-      })(this));
-      this.scope.memberships = _.filter(memberships, (function(_this) {
-        return function(membership) {
-          if (membership.user && ((currentUser == null) || membership.user !== currentUser.id)) {
-            return membership;
-          }
-        };
-      })(this));
-      this.scope.memberships = _.filter(memberships, (function(_this) {
-        return function(membership) {
-          return membership.is_active;
-        };
-      })(this));
-      ref = this.scope.memberships;
-      results = [];
+      ref = this.scope.activeUsers;
       for (i = 0, len = ref.length; i < len; i++) {
-        membership = ref[i];
-        if (membership.photo == null) {
-          results.push(membership.photo = "/images/unnamed.png");
-        } else {
-          results.push(void 0);
-        }
+        member = ref[i];
+        this.scope.totals[member.id] = 0;
       }
-      return results;
+      this.scope.currentUser = _.find(this.scope.activeUsers, {
+        id: user != null ? user.id : void 0
+      });
+      return this.scope.memberships = _.reject(this.scope.activeUsers, {
+        id: user != null ? user.id : void 0
+      });
     };
 
     TeamController.prototype.loadProject = function() {
@@ -15164,13 +15168,13 @@
             });
             return _this.scope.totals[userId] = total;
           });
-          _this.scope.stats = _this.processStats(stats);
+          _this.scope.stats = _this._processStats(stats);
           return _this.scope.stats.totals = _this.scope.totals;
         };
       })(this));
     };
 
-    TeamController.prototype.processStat = function(stat) {
+    TeamController.prototype._processStat = function(stat) {
       var max, min, singleStat;
       max = _.max(stat);
       min = _.min(stat);
@@ -15187,11 +15191,11 @@
       return singleStat;
     };
 
-    TeamController.prototype.processStats = function(stats) {
+    TeamController.prototype._processStats = function(stats) {
       var key, value;
       for (key in stats) {
         value = stats[key];
-        stats[key] = this.processStat(value);
+        stats[key] = this._processStat(value);
       }
       return stats;
     };
@@ -15201,7 +15205,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           _this.loadMembers();
           return _this.loadMemberStats();
         };
@@ -15415,9 +15419,6 @@
           _this.scope.projectId = project.id;
           _this.scope.project = project;
           _this.scope.$emit('project:loaded', project);
-          _this.scope.membersById = groupBy(project.memberships, function(x) {
-            return x.user;
-          });
           return project;
         };
       })(this));
@@ -15464,7 +15465,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           return _this.q.all([_this.loadWikiLinks(), _this.loadWiki()]).then(function() {});
         };
       })(this));
@@ -15516,7 +15517,7 @@
         if (user === void 0) {
           user = {
             name: "unknown",
-            imgUrl: "/images/unnamed.png"
+            imgUrl: "/images/user-noimage.png"
           };
         } else {
           user = {
@@ -15613,6 +15614,15 @@
         return promise["finally"](function() {
           return $loading.finish($el.find('.save-container'));
         });
+      });
+      $el.on("click", "a", function(event) {
+        var href, target;
+        target = angular.element(event.target);
+        href = target.attr('href');
+        if (href.indexOf("#") === 0) {
+          event.preventDefault();
+          return $('body').scrollTop($(href).offset().top);
+        }
       });
       $el.on("mousedown", ".view-wiki-content", function(event) {
         var target;
@@ -20783,15 +20793,26 @@
       uploadComplete = (function(_this) {
         return function(evt) {
           return $rootScope.$apply(function() {
-            var data, model;
+            var data, model, ref, status;
             file.status = "done";
+            status = evt.target.status;
             try {
               data = JSON.parse(evt.target.responseText);
             } catch (_error) {
               data = {};
             }
-            model = $model.make_model(urlName, data);
-            return defered.resolve(model);
+            if (status >= 200 && status < 400) {
+              model = $model.make_model(urlName, data);
+              return defered.resolve(model);
+            } else {
+              response = {
+                status: status,
+                data: {
+                  _error_message: (ref = data['attached_file']) != null ? ref[0] : void 0
+                }
+              };
+              return defered.reject(response);
+            }
           });
         };
       })(this);
@@ -23194,6 +23215,9 @@
         baseUrl = "https://talky.io/";
       } else if (this.project.get("videoconferences") === "jitsi") {
         baseUrl = "https://meet.jit.si/";
+        url = this.project.get("slug") + "-" + taiga.slugify(this.project.get("videoconferences_salt"));
+        url = url.replace(/-/g, "");
+        return baseUrl + url;
       } else {
         return "";
       }
@@ -23713,14 +23737,14 @@
     function ProfileContactsController(userService, currentUserService) {
       this.userService = userService;
       this.currentUserService = currentUserService;
+      this.currentUser = this.currentUserService.getUser();
+      this.isCurrentUser = false;
+      if (this.currentUser && this.currentUser.get("id") === this.user.get("id")) {
+        this.isCurrentUser = true;
+      }
     }
 
     ProfileContactsController.prototype.loadContacts = function() {
-      this.currentUser = this.currentUserService.getUser();
-      this.isCurrentUser = false;
-      if (this.currentUser.get("id") === this.user.get("id")) {
-        this.isCurrentUser = true;
-      }
       return this.userService.getContacts(this.user.get("id")).then((function(_this) {
         return function(contacts) {
           return _this.contacts = contacts;
@@ -24152,8 +24176,8 @@
       return this.rs.projects.getProjectStats(projectId);
     };
 
-    ProjectsService.prototype.getProjectsByUserId = function(userId) {
-      return this.rs.projects.getProjectsByUserId(userId).then((function(_this) {
+    ProjectsService.prototype.getProjectsByUserId = function(userId, paginate) {
+      return this.rs.projects.getProjectsByUserId(userId, paginate).then((function(_this) {
         return function(projects) {
           return projects.map(_this._decorate.bind(_this));
         };
@@ -24247,14 +24271,23 @@
         return Immutable.fromJS(result.data);
       });
     };
-    service.getProjectsByUserId = function(userId) {
-      var params, url;
+    service.getProjectsByUserId = function(userId, paginate) {
+      var httpOptions, params, url;
+      if (paginate == null) {
+        paginate = false;
+      }
       url = urlsService.resolve("projects");
+      httpOptions = {};
+      if (!paginate) {
+        httpOptions.headers = {
+          "x-disable-pagination": "1"
+        };
+      }
       params = {
         "member": userId,
         "order_by": "memberships__user_order"
       };
-      return http.get(url, params).then(function(result) {
+      return http.get(url, params, httpOptions).then(function(result) {
         return Immutable.fromJS(result.data);
       });
     };
@@ -25002,6 +25035,9 @@
       } else if (param === 'project_name') {
         url = 'project:project=vm.activity.project.slug';
         return this._getLink(url, timeline.data.project.name);
+      } else if (param === 'new_value') {
+        field_name = Object.keys(timeline.data.values_diff)[0];
+        return timeline.data.values_diff[field_name][1];
       } else if (param === 'sprint_name') {
         url = 'project-taskboard:project=vm.activity.project.slug,sprint=vm.activity.sprint.slug';
         return this._getLink(url, timeline.data.milestone.name);
@@ -25225,25 +25261,49 @@
         translate_params: ['username', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'userstory' && event.type === 'change';
+          return event.obj === 'userstory' && event.type === 'change' && !timeline.data.values_diff.description_diff;
+        },
+        key: 'TIMELINE.US_UPDATED_WITH_NEW_VALUE',
+        translate_params: ['username', 'field_name', 'obj_name', 'new_value']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'userstory' && event.type === 'change' && timeline.data.values_diff.description_diff;
         },
         key: 'TIMELINE.US_UPDATED',
         translate_params: ['username', 'field_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'issue' && event.type === 'change';
+          return event.obj === 'issue' && event.type === 'change' && !timeline.data.values_diff.description_diff;
+        },
+        key: 'TIMELINE.ISSUE_UPDATED_WITH_NEW_VALUE',
+        translate_params: ['username', 'field_name', 'obj_name', 'new_value']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'issue' && event.type === 'change' && timeline.data.values_diff.description_diff;
         },
         key: 'TIMELINE.ISSUE_UPDATED',
         translate_params: ['username', 'field_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && !timeline.data.task.userstory;
+          return event.obj === 'task' && event.type === 'change' && !timeline.data.task.userstory && !timeline.data.values_diff.description_diff;
+        },
+        key: 'TIMELINE.TASK_UPDATED_WITH_NEW_VALUE',
+        translate_params: ['username', 'field_name', 'obj_name', 'new_value']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'change' && !timeline.data.task.userstory && timeline.data.values_diff.description_diff;
         },
         key: 'TIMELINE.TASK_UPDATED',
         translate_params: ['username', 'field_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && timeline.data.task.userstory;
+          return event.obj === 'task' && event.type === 'change' && timeline.data.task.userstory && !timeline.data.values_diff.description_diff;
+        },
+        key: 'TIMELINE.TASK_UPDATED_WITH_US_NEW_VALUE',
+        translate_params: ['username', 'field_name', 'obj_name', 'us_name', 'new_value']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'change' && timeline.data.task.userstory && timeline.data.values_diff.description_diff;
         },
         key: 'TIMELINE.TASK_UPDATED_WITH_US',
         translate_params: ['username', 'field_name', 'obj_name', 'us_name']
