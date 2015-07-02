@@ -294,7 +294,7 @@
     },
     "CHANGE_PASSWORD": {
         "PAGE_TITLE": "Change you password - Taiga",
-        "PAGE_DESCRIPTION": "Set a new passoword for your Taiga account and hey!, you may want to eat some more iron-rich food, it's good for your brain :P",
+        "PAGE_DESCRIPTION": "Set a new password for your Taiga account and hey!, you may want to eat some more iron-rich food, it's good for your brain :P",
         "SECTION_NAME": "Change password",
         "FIELD_CURRENT_PASSWORD": "Current password",
         "PLACEHOLDER_CURRENT_PASSWORD": "Your current password (or empty if you have no password yet)",
@@ -407,7 +407,12 @@
             "MEETUP": "Meet Up",
             "MEETUP_DESCRIPTION": "Choose your videoconference system. Even developers need face to face contact.",
             "SELECT_VIDEOCONFERENCE": "Select a videoconference system",
-            "SALT_CHAT_ROOM": "If you want you can append a salt code to the name of the chat room"
+            "SALT_CHAT_ROOM": "If you want you can append a salt code to the name of the chat room",
+            "JITSI_CHAT_ROOM": "Jitsi",
+            "APPEARIN_CHAT_ROOM": "AppearIn",
+            "TALKY_CHAT_ROOM": "Talky",
+            "CUSTOM_CHAT_ROOM": "Custom",
+            "URL_CHAT_ROOM": "URL of your chat room"
         },
         "PROJECT_PROFILE": {
             "PAGE_TITLE": "{{sectionName}} - Project profile  - {{projectName}}",

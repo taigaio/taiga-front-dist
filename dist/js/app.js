@@ -5978,7 +5978,7 @@
 
   })(taiga.Controller);
 
-  HistoryDirective = function($log, $loading, $qqueue, $template, $confirm, $translate, $compile, $navUrls) {
+  HistoryDirective = function($log, $loading, $qqueue, $template, $confirm, $translate, $compile, $navUrls, $rootScope) {
     var link, templateActivity, templateBase, templateBaseEntries, templateChangeAttachment, templateChangeDiff, templateChangeGeneric, templateChangeList, templateChangePoints, templateDeletedComment, templateFn;
     templateChangeDiff = $template.get("common/history/history-change-diff.html", true);
     templateChangePoints = $template.get("common/history/history-change-points.html", true);
@@ -6300,6 +6300,7 @@
           $scope.$broadcast("markdown-editor:submit");
           $el.find(".comment-list").addClass("activeanimation");
           onSuccess = function() {
+            $rootScope.$broadcast("comment:new");
             return $ctrl.loadHistory(type, objectId)["finally"](function() {
               return $loading.finish(target);
             });
@@ -6413,7 +6414,7 @@
     };
   };
 
-  module.directive("tgHistory", ["$log", "$tgLoading", "$tgQqueue", "$tgTemplate", "$tgConfirm", "$translate", "$compile", "$tgNavUrls", HistoryDirective]);
+  module.directive("tgHistory", ["$log", "$tgLoading", "$tgQqueue", "$tgTemplate", "$tgConfirm", "$translate", "$compile", "$tgNavUrls", "$rootScope", HistoryDirective]);
 
 }).call(this);
 
@@ -12501,6 +12502,11 @@
           return _this.loadIssue();
         };
       })(this));
+      this.scope.$on("comment:new", (function(_this) {
+        return function() {
+          return _this.loadIssue();
+        };
+      })(this));
       return this.scope.$on("custom-attributes-values:edit", (function(_this) {
         return function() {
           return _this.rootscope.$broadcast("object:updated");
@@ -14226,9 +14232,14 @@
           return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
-      return this.scope.$on("custom-attributes-values:edit", (function(_this) {
+      this.scope.$on("custom-attributes-values:edit", (function(_this) {
         return function() {
           return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this));
+      return this.scope.$on("comment:new", (function(_this) {
+        return function() {
+          return _this.loadUs();
         };
       })(this));
     };
@@ -14751,9 +14762,14 @@
           return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
-      return this.scope.$on("custom-attributes-values:edit", (function(_this) {
+      this.scope.$on("custom-attributes-values:edit", (function(_this) {
         return function() {
           return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this));
+      return this.scope.$on("comment:new", (function(_this) {
+        return function() {
+          return _this.loadTask();
         };
       })(this));
     };
@@ -16731,11 +16747,11 @@
   ProjectModulesDirective = function($repo, $confirm, $loading, projectService) {
     var link;
     link = function($scope, $el, $attrs) {
-      var form, submit;
-      form = $el.find("form").checksley();
+      var submit;
       submit = (function(_this) {
         return function() {
-          var promise, target;
+          var form, promise, target;
+          form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
@@ -16768,7 +16784,7 @@
         } else {
           $el.find(".videoconference-attributes").addClass("hidden");
           $scope.project.videoconferences = null;
-          return $scope.project.videoconferences_salt = "";
+          return $scope.project.videoconferences_extra_data = "";
         }
       });
       return $scope.$watch("project", function(project) {
@@ -23215,14 +23231,16 @@
         baseUrl = "https://talky.io/";
       } else if (this.project.get("videoconferences") === "jitsi") {
         baseUrl = "https://meet.jit.si/";
-        url = this.project.get("slug") + "-" + taiga.slugify(this.project.get("videoconferences_salt"));
+        url = this.project.get("slug") + "-" + taiga.slugify(this.project.get("videoconferences_extra_data"));
         url = url.replace(/-/g, "");
         return baseUrl + url;
+      } else if (this.project.get("videoconferences") === "custom") {
+        return this.project.get("videoconferences_extra_data");
       } else {
         return "";
       }
-      if (this.project.get("videoconferences_salt")) {
-        url = this.project.get("slug") + "-" + this.project.get("videoconferences_salt");
+      if (this.project.get("videoconferences_extra_data")) {
+        url = this.project.get("slug") + "-" + this.project.get("videoconferences_extra_data");
       } else {
         url = this.project.get("slug");
       }
