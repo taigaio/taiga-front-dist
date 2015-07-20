@@ -919,7 +919,8 @@
             "OPEN_TASKS": "open<br />tasks",
             "CLOSED_TASKS": "closed<br />tasks",
             "IOCAINE_DOSES": "iocaine<br />doses",
-            "SHOW_STATISTICS_TITLE": "Show statistics"
+            "SHOW_STATISTICS_TITLE": "Show statistics",
+            "TOGGLE_BAKLOG_GRAPH": "Show/Hide burndown graph"
         },
         "SUMMARY": {
             "PROJECT_POINTS": "project<br />points",
@@ -1192,7 +1193,9 @@
             "BIO": "Bio (max. 210 chars)",
             "PLACEHOLDER_BIO": "Tell us something about you",
             "LANGUAGE": "Language",
-            "LANGUAGE_DEFAULT": "-- use default language --"
+            "LANGUAGE_DEFAULT": "-- use default language --",
+            "THEME": "Theme",
+            "THEME_DEFAULT": "-- use default theme --"
         }
     },
     "WIZARD": {
@@ -1245,6 +1248,7 @@
         "MILESTONE_UPDATED": "{{username}} has updated the sprint {{obj_name}}",
         "US_UPDATED": "{{username}} has updated the attribute \"{{field_name}}\" of the US {{obj_name}}",
         "US_UPDATED_WITH_NEW_VALUE": "{{username}} has updated the attribute \"{{field_name}}\" of the US {{obj_name}} to {{new_value}}",
+        "US_UPDATED_POINTS": "{{username}} has updated the '{{role_name}}' role of the US {{obj_name}} to {{new_value}}",
         "ISSUE_UPDATED": "{{username}} has updated the attribute \"{{field_name}}\" of the issue {{obj_name}}",
         "ISSUE_UPDATED_WITH_NEW_VALUE": "{{username}} has updated the attribute \"{{field_name}}\" of the issue {{obj_name}} to {{new_value}}",
         "TASK_UPDATED": "{{username}} has updated the attribute \"{{field_name}}\" of the task {{obj_name}} to {{new_value}}",

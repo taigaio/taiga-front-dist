@@ -407,7 +407,12 @@
             "MEETUP": "Meet Up",
             "MEETUP_DESCRIPTION": "Elige tu sistema de videoconferencia. Incluso los desarrolladores necesitan el contacto cara a cara.",
             "SELECT_VIDEOCONFERENCE": "Elige un sistema de videoconferencia",
-            "SALT_CHAT_ROOM": "Puedes añadirle un código salt al nombre del chat room"
+            "SALT_CHAT_ROOM": "Puedes añadirle un código salt al nombre del chat room",
+            "JITSI_CHAT_ROOM": "Jitsi",
+            "APPEARIN_CHAT_ROOM": "AppearIn",
+            "TALKY_CHAT_ROOM": "Talky",
+            "CUSTOM_CHAT_ROOM": "Personalizado",
+            "URL_CHAT_ROOM": "URL de tu chat room"
         },
         "PROJECT_PROFILE": {
             "PAGE_TITLE": "{{sectionName}} - Perfil de Proyecto - {{projectName}}\n",
@@ -448,7 +453,9 @@
             "TASK_DESCRIPTION": "Atributos personalizados de tareas",
             "TASK_ADD": "Añadir un atributo personalizado en las tareas",
             "ISSUE_DESCRIPTION": "Atributos personalizados de peticiones",
-            "ISSUE_ADD": "Añadir un atributo personalizado en las peticiones"
+            "ISSUE_ADD": "Añadir un atributo personalizado en las peticiones",
+            "FIELD_TYPE_TEXT": "Texto",
+            "FIELD_TYPE_MULTI": "Multilínea"
         },
         "PROJECT_VALUES": {
             "PAGE_TITLE": "{{sectionName}} - Valores del Proyectos - {{projectName}}",
@@ -889,10 +896,10 @@
         "CHART": {
             "XAXIS_LABEL": "Sprints",
             "YAXIS_LABEL": "Puntos",
-            "OPTIMAL": "El número de puntos óptimos pendientes para el sprint {{xval}} debería ser de {{yval}}",
-            "REAL": "El número real de puntos pendientes para el sprint {{xval}} es de {{yval}}",
-            "INCREMENT_TEAM": "El número de puntos incrementados por requerimientos del equipo para el sprint {{xval}} es de {{yval}}",
-            "INCREMENT_CLIENT": "El número de puntos incrementados por requerimientos del cliente para el sprint {{xval}} es de {{yval}}"
+            "OPTIMAL": "El número de puntos óptimos pendientes para el sprint \"{{sprintName}}\" debería ser de {{value}}",
+            "REAL": "El número real de puntos pendientes para el sprint \"{{sprintName}}\" es de {{value}}",
+            "INCREMENT_TEAM": "El número de puntos incrementados por requerimientos del equipo para el sprint \"{{sprintName}}\" es de {{value}}",
+            "INCREMENT_CLIENT": "El número de puntos incrementados por requerimientos del cliente para el sprint \"{{sprintName}}\" es de {{value}}"
         },
         "TAGS": {
             "TOGGLE": "Cambia la visibilidad de los tags",
@@ -909,7 +916,8 @@
             "OPEN_TASKS": "tareas<br />abiertas",
             "CLOSED_TASKS": "tareas<br />cerradas",
             "IOCAINE_DOSES": "dosis de<br >iocaína",
-            "SHOW_STATISTICS_TITLE": "Ver estadísticas"
+            "SHOW_STATISTICS_TITLE": "Ver estadísticas",
+            "TOGGLE_BAKLOG_GRAPH": "Ver/Ocultar gráfica de burndown"
         },
         "SUMMARY": {
             "PROJECT_POINTS": "puntos<br /> proyecto",
@@ -1182,7 +1190,9 @@
             "BIO": "Bio (max. 210 caracteres)",
             "PLACEHOLDER_BIO": "Dinos algo acerca de ti",
             "LANGUAGE": "Idioma",
-            "LANGUAGE_DEFAULT": "- usar idioma por defecto -"
+            "LANGUAGE_DEFAULT": "- usar idioma por defecto -",
+            "THEME": "Tema",
+            "THEME_DEFAULT": "-- usar tema por defecto --"
         }
     },
     "WIZARD": {
@@ -1234,9 +1244,13 @@
         "NEW_PROJECT": "{{username}} creó el proyecto {{project_name}}",
         "MILESTONE_UPDATED": "{{username}} ha actualizado el sprint {{obj_name}}",
         "US_UPDATED": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la historia {{obj_name}}",
+        "US_UPDATED_WITH_NEW_VALUE": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la historia {{obj_name}} a {{new_value}}",
         "ISSUE_UPDATED": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la petición {{obj_name}}",
-        "TASK_UPDATED": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la tarea {{obj_name}}",
+        "ISSUE_UPDATED_WITH_NEW_VALUE": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la petición {{obj_name}} a {{new_value}}",
+        "TASK_UPDATED": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la tarea {{obj_name}} a {{new_value}}",
+        "TASK_UPDATED_WITH_NEW_VALUE": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la tarea {{obj_name}} a {{new_value}}",
         "TASK_UPDATED_WITH_US": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la tarea {{obj_name}} que proviene de la historia {{us_name}}",
+        "TASK_UPDATED_WITH_US_NEW_VALUE": "{{username}} ha actualizado el atributo \"{{field_name}}\" de la tarea {{obj_name}} que pertenece a la historia {{us_name}} a {{new_value}}",
         "WIKI_UPDATED": "{{username}} ha actualizado la página del wiki {{obj_name}}",
         "NEW_COMMENT_US": "{{username}} ha añadido un comentado en la historia {{obj_name}}",
         "NEW_COMMENT_ISSUE": "{{username}} ha añadido un comentado en la petición {{obj_name}}",

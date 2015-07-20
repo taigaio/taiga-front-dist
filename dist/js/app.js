@@ -1102,9 +1102,9 @@
   AuthService = (function(superClass) {
     extend(AuthService, superClass);
 
-    AuthService.$inject = ["$rootScope", "$tgStorage", "$tgModel", "$tgResources", "$tgHttp", "$tgUrls", "$tgConfig", "$translate", "tgCurrentUserService"];
+    AuthService.$inject = ["$rootScope", "$tgStorage", "$tgModel", "$tgResources", "$tgHttp", "$tgUrls", "$tgConfig", "$translate", "tgCurrentUserService", "tgThemeService"];
 
-    function AuthService(rootscope, storage, model, rs, http, urls, config, translate, currentUserService) {
+    function AuthService(rootscope, storage, model, rs, http, urls, config, translate, currentUserService, themeService) {
       var userModel;
       this.rootscope = rootscope;
       this.storage = storage;
@@ -1115,6 +1115,7 @@
       this.config = config;
       this.translate = translate;
       this.currentUserService = currentUserService;
+      this.themeService = themeService;
       AuthService.__super__.constructor.call(this);
       userModel = this.getUser();
       this.setUserdata(userModel);
@@ -1129,9 +1130,15 @@
       }
     };
 
+    AuthService.prototype._setTheme = function() {
+      var ref, theme;
+      theme = ((ref = this.rootscope.user) != null ? ref.theme : void 0) || this.config.get("defaultTheme") || "taiga";
+      return this.themeService.use(theme);
+    };
+
     AuthService.prototype._setLocales = function() {
-      var lang;
-      lang = this.rootscope.user.lang || this.config.get("defaultLanguage") || "en";
+      var lang, ref;
+      lang = ((ref = this.rootscope.user) != null ? ref.lang : void 0) || this.config.get("defaultLanguage") || "en";
       this.translate.preferredLanguage(lang);
       return this.translate.use(lang);
     };
@@ -1146,6 +1153,7 @@
         user = this.model.make_model("users", userData);
         this.rootscope.user = user;
         this._setLocales();
+        this._setTheme();
         return user;
       }
       return null;
@@ -1156,7 +1164,8 @@
       this.storage.set("userInfo", user.getAttrs());
       this.rootscope.user = user;
       this.setUserdata(user);
-      return this._setLocales();
+      this._setLocales();
+      return this._setTheme();
     };
 
     AuthService.prototype.clear = function() {
@@ -1204,7 +1213,9 @@
     AuthService.prototype.logout = function() {
       this.removeToken();
       this.clear();
-      return this.currentUserService.removeUser();
+      this.currentUserService.removeUser();
+      this._setTheme();
+      return this._setLocales();
     };
 
     AuthService.prototype.register = function(data, type, existing) {
@@ -8946,7 +8957,7 @@
  */
 
 (function() {
-  var BacklogController, BacklogDirective, BurndownBacklogGraphDirective, TgBacklogProgressBarDirective, UsPointsDirective, UsRolePointsSelectorDirective, bindMethods, bindOnce, groupBy, mixOf, module, scopeDefer, taiga, timeout, toggleText,
+  var BacklogController, BacklogDirective, BurndownBacklogGraphDirective, TgBacklogProgressBarDirective, ToggleBurndownVisibility, UsPointsDirective, UsRolePointsSelectorDirective, bindMethods, bindOnce, generateHash, groupBy, mixOf, module, scopeDefer, taiga, timeout, toggleText,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -8965,6 +8976,8 @@
   timeout = this.taiga.timeout;
 
   bindMethods = this.taiga.bindMethods;
+
+  generateHash = this.taiga.generateHash;
 
   module = angular.module("taigaBacklog");
 
@@ -9997,6 +10010,39 @@
   };
 
   module.directive("tgBacklogUsPoints", ["$tgEstimationsService", "$tgRepo", "$tgTemplate", UsPointsDirective]);
+
+  ToggleBurndownVisibility = function($storage) {
+    var link;
+    link = function($scope, $el, $attrs) {
+      var hash, toggleGraph;
+      hash = generateHash(["is-burndown-grpahs-collapsed"]);
+      toggleGraph = function() {
+        if ($scope.isBurndownGraphCollapsed) {
+          $(".js-toggle-burndown-visibility-button").removeClass("active");
+          return $(".js-burndown-graph").removeClass("open");
+        } else {
+          $(".js-toggle-burndown-visibility-button").addClass("active");
+          return $(".js-burndown-graph").addClass("open");
+        }
+      };
+      $scope.isBurndownGraphCollapsed = $storage.get(hash) || false;
+      toggleGraph();
+      $el.on("click", ".js-toggle-burndown-visibility-button", function() {
+        $scope.isBurndownGraphCollapsed = !$scope.isBurndownGraphCollapsed;
+        $storage.set(hash, $scope.isBurndownGraphCollapsed);
+        return toggleGraph();
+      });
+      return $scope.$on("$destroy", function() {
+        return $el.off();
+      });
+    };
+    return {
+      scope: {},
+      link: link
+    };
+  };
+
+  module.directive("tgToggleBurndownVisibility", ["$tgStorage", ToggleBurndownVisibility]);
 
   BurndownBacklogGraphDirective = function($translate) {
     var link, redrawChart;
@@ -20122,25 +20168,40 @@
       return defered.promise;
     };
     parseNav = function(data, $scope) {
-      var name, params, promises, ref, values;
+      var index, name, obj, params, promises, ref, result, values;
       ref = _.map(data.split(":"), trim), name = ref[0], params = ref[1];
       if (params) {
-        params = _.map(params.split(","), trim);
+        result = params.split(/(\w+)=/);
+        result = _.filter(result, function(str) {
+          return str.length;
+        });
+        result = _.map(result, function(str) {
+          return trim(str.replace(/,$/g, ''));
+        });
+        params = [];
+        index = 0;
+        while (index < result.length) {
+          obj = {};
+          obj[result[index]] = result[index + 1];
+          params.push(obj);
+          index = index + 2;
+        }
       } else {
         params = [];
       }
-      values = _.map(params, function(x) {
-        return trim(x.split("=")[1]);
+      values = _.map(params, function(param) {
+        return _.values(param)[0];
       });
       promises = _.map(values, function(x) {
         return bindOnceP($scope, x);
       });
       return $q.all(promises).then(function() {
-        var i, item, key, len, options, ref1, value;
+        var i, key, len, options, param, value;
         options = {};
         for (i = 0, len = params.length; i < len; i++) {
-          item = params[i];
-          ref1 = _.map(item.split("="), trim), key = ref1[0], value = ref1[1];
+          param = params[i];
+          key = Object.keys(param)[0];
+          value = param[key];
           options[key] = $scope.$eval(value);
         }
         return [name, options];
@@ -22757,6 +22818,7 @@
         this.location.replace();
       }
       this.scope.lang = this.getLan();
+      this.scope.theme = this.getTheme();
       maxFileSize = this.config.get("maxUploadFileSize", null);
       if (maxFileSize) {
         text = this.translate.instant("USER_SETTINGS.AVATAR_MAX_SIZE", {
@@ -22769,6 +22831,7 @@
     }
 
     UserSettingsController.prototype.loadInitialData = function() {
+      this.scope.availableThemes = this.config.get("themes", []);
       return this.rs.locales.list().then((function(_this) {
         return function(locales) {
           _this.scope.locales = locales;
@@ -22783,6 +22846,10 @@
 
     UserSettingsController.prototype.getLan = function() {
       return this.scope.user.lang || this.translate.preferredLanguage();
+    };
+
+    UserSettingsController.prototype.getTheme = function() {
+      return this.scope.user.theme || this.config.get("defaultTheme") || "taiga";
     };
 
     return UserSettingsController;
@@ -22805,6 +22872,7 @@
           }
           changeEmail = $scope.user.isAttributeModified("email");
           $scope.user.lang = $scope.lang;
+          $scope.user.theme = $scope.theme;
           onSuccess = function(data) {
             var text;
             $auth.setUser(data);
@@ -24878,6 +24946,40 @@
 }).call(this);
 
 (function() {
+  var ThemeService, taiga,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  ThemeService = (function(superClass) {
+    extend(ThemeService, superClass);
+
+    function ThemeService() {
+      return ThemeService.__super__.constructor.apply(this, arguments);
+    }
+
+    return ThemeService;
+
+  })(taiga.Service = function() {
+    return {
+      use: function(themeName) {
+        var stylesheetEl;
+        stylesheetEl = $("link[rel='stylesheet']");
+        if (stylesheetEl.length === 0) {
+          stylesheetEl = $("<link rel='stylesheet' href='' type='text/css'>");
+          $("head").append(stylesheetEl);
+        }
+        return stylesheetEl.attr("href", "/styles/theme-" + themeName + ".css");
+      }
+    };
+  });
+
+  angular.module("taigaCommon").service("tgThemeService", ThemeService);
+
+}).call(this);
+
+(function() {
   var UserService, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
@@ -24988,7 +25090,7 @@
     };
     link = function(scope, el) {
       var is_image, templateHtml;
-      is_image = isImage(scope.attachment.url);
+      is_image = isImage(scope.attachment.get('url'));
       if (is_image) {
         templateHtml = template.get("user-timeline/user-timeline-attachment/user-timeline-attachment-image.html");
       } else {
@@ -25031,7 +25133,77 @@
       'severity': 'ISSUES.FIELDS.SEVERITY',
       'priority': 'ISSUES.FIELDS.PRIORITY',
       'type': 'ISSUES.FIELDS.TYPE',
-      'is_iocaine': 'TASK.FIELDS.IS_IOCAINE'
+      'is_iocaine': 'TASK.FIELDS.IS_IOCAINE',
+      'is_blocked': 'COMMON.FIELDS.IS_BLOCKED'
+    };
+
+    UserTimelineItemTitle.prototype._params = {
+      username: function(timeline, event) {
+        var title_attr, url, user;
+        user = timeline.getIn(['data', 'user']);
+        if (user.get('is_profile_visible')) {
+          title_attr = this.translate.instant('COMMON.SEE_USER_PROFILE', {
+            username: user.get('username')
+          });
+          url = "user-profile:username=vm.timeline.getIn(['data', 'user', 'username'])";
+          return this._getLink(url, user.get('name'), title_attr);
+        } else {
+          return this._getUsernameSpan(user.get('name'));
+        }
+      },
+      field_name: function(timeline, event) {
+        var field_name;
+        field_name = timeline.getIn(['data', 'value_diff', 'key']);
+        return this.translate.instant(this._fieldTranslationKey[field_name]);
+      },
+      project_name: function(timeline, event) {
+        var url;
+        url = "project:project=vm.timeline.getIn(['data', 'project', 'slug'])";
+        return this._getLink(url, timeline.getIn(["data", "project", "name"]));
+      },
+      new_value: function(timeline, event) {
+        var value;
+        if (_.isArray(timeline.getIn(["data", "value_diff", "value"]).toJS())) {
+          value = timeline.getIn(["data", "value_diff", "value"]).get(1);
+          if (value === null && timeline.getIn(["data", "value_diff", "key"]) === 'assigned_to') {
+            value = this.translate.instant('ACTIVITY.VALUES.UNASSIGNED');
+          }
+          return value;
+        } else {
+          return timeline.getIn(["data", "value_diff", "value"]).first().get(1);
+        }
+      },
+      sprint_name: function(timeline, event) {
+        var url;
+        url = "project-taskboard:project=vm.timeline.getIn(['data', 'project', 'slug']),sprint=vm.timeline.getIn(['data', 'milestone', 'slug'])";
+        return this._getLink(url, timeline.getIn(['data', 'milestone', 'name']));
+      },
+      us_name: function(timeline, event) {
+        var event_us, obj, text, url;
+        obj = this._getTimelineObj(timeline, event).get('userstory');
+        event_us = {
+          obj: 'parent_userstory'
+        };
+        url = this._getDetailObjUrl(event_us);
+        text = '#' + obj.get('ref') + ' ' + obj.get('subject');
+        return this._getLink(url, text);
+      },
+      obj_name: function(timeline, event) {
+        var obj, text, url;
+        obj = this._getTimelineObj(timeline, event);
+        url = this._getDetailObjUrl(event);
+        if (event.obj === 'wikipage') {
+          text = unslugify(obj.get('slug'));
+        } else if (event.obj === 'milestone') {
+          text = obj.get('name');
+        } else {
+          text = '#' + obj.get('ref') + ' ' + obj.get('subject');
+        }
+        return this._getLink(url, text);
+      },
+      role_name: function(timeline, event) {
+        return timeline.getIn(['data', 'value_diff', 'value']).keySeq().first();
+      }
     };
 
     function UserTimelineItemTitle(translate) {
@@ -25039,61 +25211,22 @@
     }
 
     UserTimelineItemTitle.prototype._translateTitleParams = function(param, timeline, event) {
-      var event_us, field_name, obj, text, title_attr, url, user;
-      if (param === "username") {
-        user = timeline.data.user;
-        title_attr = this.translate.instant('COMMON.SEE_USER_PROFILE', {
-          username: user.username
-        });
-        url = 'user-profile:username=vm.activity.user.username';
-        return this._getLink(url, user.name, title_attr);
-      } else if (param === 'field_name') {
-        field_name = Object.keys(timeline.data.values_diff)[0];
-        return this.translate.instant(this._fieldTranslationKey[field_name]);
-      } else if (param === 'project_name') {
-        url = 'project:project=vm.activity.project.slug';
-        return this._getLink(url, timeline.data.project.name);
-      } else if (param === 'new_value') {
-        field_name = Object.keys(timeline.data.values_diff)[0];
-        return timeline.data.values_diff[field_name][1];
-      } else if (param === 'sprint_name') {
-        url = 'project-taskboard:project=vm.activity.project.slug,sprint=vm.activity.sprint.slug';
-        return this._getLink(url, timeline.data.milestone.name);
-      } else if (param === 'us_name') {
-        obj = this._getTimelineObj(timeline, event).userstory;
-        event_us = {
-          obj: 'parent_userstory'
-        };
-        url = this._getDetailObjUrl(event_us);
-        text = '#' + obj.ref + ' ' + obj.subject;
-        return this._getLink(url, text);
-      } else if (param === 'obj_name') {
-        obj = this._getTimelineObj(timeline, event);
-        url = this._getDetailObjUrl(event);
-        if (event.obj === 'wikipage') {
-          text = unslugify(obj.slug);
-        } else if (event.obj === 'milestone') {
-          text = obj.name;
-        } else {
-          text = '#' + obj.ref + ' ' + obj.subject;
-        }
-        return this._getLink(url, text);
-      }
+      return this._params[param].call(this, timeline, event);
     };
 
     UserTimelineItemTitle.prototype._getTimelineObj = function(timeline, event) {
-      return timeline.data[event.obj];
+      return timeline.getIn(['data', event.obj]);
     };
 
     UserTimelineItemTitle.prototype._getDetailObjUrl = function(event) {
       var url;
       url = {
-        "issue": ["project-issues-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.ref"],
-        "wikipage": ["project-wiki-page", ":project=vm.activity.project.slug,slug=vm.activity.obj.slug"],
-        "task": ["project-tasks-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.ref"],
-        "userstory": ["project-userstories-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.ref"],
-        "parent_userstory": ["project-userstories-detail", ":project=vm.activity.project.slug,ref=vm.activity.obj.userstory.ref"],
-        "milestone": ["project-taskboard", ":project=vm.activity.project.slug,sprint=vm.activity.obj.slug"]
+        "issue": ["project-issues-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"],
+        "wikipage": ["project-wiki-page", ":project=vm.timeline.getIn(['data', 'project', 'slug']),slug=vm.timeline.getIn(['obj', 'ref'])"],
+        "task": ["project-tasks-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"],
+        "userstory": ["project-userstories-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"],
+        "parent_userstory": ["project-userstories-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'userstory', 'ref'])"],
+        "milestone": ["project-taskboard", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"]
       };
       return url[event.obj][0] + url[event.obj][1];
     };
@@ -25101,6 +25234,12 @@
     UserTimelineItemTitle.prototype._getLink = function(url, text, title) {
       title = title || text;
       return $('<a>').attr('tg-nav', url).text(text).attr('title', title).prop('outerHTML');
+    };
+
+    UserTimelineItemTitle.prototype._getUsernameSpan = function(text) {
+      var title;
+      title = title || text;
+      return $('<span>').addClass('username').text(text).prop('outerHTML');
     };
 
     UserTimelineItemTitle.prototype._getParams = function(timeline, event, timeline_type) {
@@ -25130,7 +25269,7 @@
   var UserTimelineType, timelineType;
 
   timelineType = function(timeline, event) {
-    var field_name, types;
+    var types;
     types = [
       {
         check: function(timeline, event) {
@@ -25139,10 +25278,10 @@
         key: 'TIMELINE.NEW_MEMBER',
         translate_params: ['project_name'],
         member: function(timeline) {
-          return {
-            user: timeline.data.user,
-            role: timeline.data.role
-          };
+          return Immutable.Map({
+            user: timeline.getIn(['data', 'user']),
+            role: timeline.getIn(['data', 'role'])
+          });
         }
       }, {
         check: function(timeline, event) {
@@ -25151,11 +25290,11 @@
         key: 'TIMELINE.NEW_PROJECT',
         translate_params: ['username', 'project_name'],
         description: function(timeline) {
-          return timeline.data.project.description;
+          return timeline.getIn(['data', 'project', 'description']);
         }
       }, {
         check: function(timeline, event) {
-          return event.type === 'change' && timeline.data.values_diff.attachments;
+          return event.type === 'change' && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'attachments';
         },
         key: 'TIMELINE.UPLOAD_ATTACHMENT',
         translate_params: ['username', 'obj_name']
@@ -25179,13 +25318,13 @@
         translate_params: ['username', 'project_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'create' && !timeline.data.task.userstory;
+          return event.obj === 'task' && event.type === 'create' && !timeline.getIn(['data', 'task', 'userstory']);
         },
         key: 'TIMELINE.TASK_CREATED',
         translate_params: ['username', 'project_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'create' && timeline.data.task.userstory;
+          return event.obj === 'task' && event.type === 'create' && timeline.getIn(['data', 'task', 'userstory']);
         },
         key: 'TIMELINE.TASK_CREATED_WITH_US',
         translate_params: ['username', 'project_name', 'obj_name', 'us_name']
@@ -25197,44 +25336,44 @@
         translate_params: ['username', 'project_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return timeline.data.comment && event.obj === 'userstory';
+          return timeline.getIn(['data', 'comment']) && event.obj === 'userstory';
         },
         key: 'TIMELINE.NEW_COMMENT_US',
         translate_params: ['username', 'obj_name'],
         description: function(timeline) {
-          return $(timeline.data.comment_html).text();
+          return $(timeline.getIn(['data', 'comment_html'])).text();
         }
       }, {
         check: function(timeline, event) {
-          return timeline.data.comment && event.obj === 'issue';
+          return timeline.getIn(['data', 'comment']) && event.obj === 'issue';
         },
         key: 'TIMELINE.NEW_COMMENT_ISSUE',
         translate_params: ['username', 'obj_name'],
         description: function(timeline) {
-          return $(timeline.data.comment_html).text();
+          return $(timeline.getIn(['data', 'comment_html'])).text();
         }
       }, {
         check: function(timeline, event) {
-          return timeline.data.comment && event.obj === 'task';
+          return timeline.getIn(['data', 'comment']) && event.obj === 'task';
         },
         key: 'TIMELINE.NEW_COMMENT_TASK',
         translate_params: ['username', 'obj_name'],
         description: function(timeline) {
-          return $(timeline.data.comment_html).text();
+          return $(timeline.getIn(['data', 'comment_html'])).text();
         }
       }, {
-        check: function(timeline, event, field_name) {
-          if (field_name === 'milestone' && event.type === 'change') {
-            return timeline.data.values_diff.milestone[0] === null;
+        check: function(timeline, event) {
+          if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'milestone' && event.type === 'change') {
+            return timeline.getIn(['data', 'value_diff', 'value']).get(0) === null;
           }
           return false;
         },
         key: 'TIMELINE.US_ADDED_MILESTONE',
         translate_params: ['username', 'obj_name', 'sprint_name']
       }, {
-        check: function(timeline, event, field_name) {
-          if (field_name === 'milestone' && event.type === 'change') {
-            return timeline.data.values_diff.milestone[1] === null;
+        check: function(timeline, event) {
+          if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'milestone' && event.type === 'change') {
+            return timeline.getIn(['data', 'value_diff', 'value']).get(1) === null;
           }
           return false;
         },
@@ -25242,24 +25381,24 @@
         translate_params: ['username', 'obj_name']
       }, {
         check: function(timeline, event) {
-          if (event.type === 'change' && timeline.data.values_diff.is_blocked) {
-            return timeline.data.values_diff.is_blocked[1] === true;
+          if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'blocked' && event.type === 'change') {
+            return timeline.getIn(['data', 'value_diff', 'value', 'is_blocked']).get(1) === true;
           }
           return false;
         },
         key: 'TIMELINE.BLOCKED',
         translate_params: ['username', 'obj_name'],
         description: function(timeline) {
-          if (timeline.data.values_diff.blocked_note_html) {
-            return $(timeline.data.values_diff.blocked_note_html[1]).text();
+          if (timeline.hasIn(['data', 'value_diff', 'value', 'blocked_note_html'])) {
+            return $(timeline.getIn(['data', 'value_diff', 'value', 'blocked_note_html']).get(1)).text();
           } else {
             return false;
           }
         }
       }, {
         check: function(timeline, event) {
-          if (event.type === 'change' && timeline.data.values_diff.is_blocked) {
-            return timeline.data.values_diff.is_blocked[1] === false;
+          if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'blocked' && event.type === 'change') {
+            return timeline.getIn(['data', 'value_diff', 'value', 'is_blocked']).get(1) === false;
           }
           return false;
         },
@@ -25279,52 +25418,58 @@
         translate_params: ['username', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'userstory' && event.type === 'change' && !timeline.data.values_diff.description_diff;
+          return event.obj === 'userstory' && event.type === 'change' && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'points';
         },
-        key: 'TIMELINE.US_UPDATED_WITH_NEW_VALUE',
-        translate_params: ['username', 'field_name', 'obj_name', 'new_value']
+        key: 'TIMELINE.US_UPDATED_POINTS',
+        translate_params: ['username', 'field_name', 'obj_name', 'new_value', 'role_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'userstory' && event.type === 'change' && timeline.data.values_diff.description_diff;
+          return event.obj === 'userstory' && event.type === 'change' && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
         },
         key: 'TIMELINE.US_UPDATED',
         translate_params: ['username', 'field_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'issue' && event.type === 'change' && !timeline.data.values_diff.description_diff;
+          return event.obj === 'userstory' && event.type === 'change';
         },
-        key: 'TIMELINE.ISSUE_UPDATED_WITH_NEW_VALUE',
+        key: 'TIMELINE.US_UPDATED_WITH_NEW_VALUE',
         translate_params: ['username', 'field_name', 'obj_name', 'new_value']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'issue' && event.type === 'change' && timeline.data.values_diff.description_diff;
+          return event.obj === 'issue' && event.type === 'change' && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
         },
         key: 'TIMELINE.ISSUE_UPDATED',
         translate_params: ['username', 'field_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && !timeline.data.task.userstory && !timeline.data.values_diff.description_diff;
+          return event.obj === 'issue' && event.type === 'change';
         },
-        key: 'TIMELINE.TASK_UPDATED_WITH_NEW_VALUE',
+        key: 'TIMELINE.ISSUE_UPDATED_WITH_NEW_VALUE',
         translate_params: ['username', 'field_name', 'obj_name', 'new_value']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && !timeline.data.task.userstory && timeline.data.values_diff.description_diff;
+          return event.obj === 'task' && event.type === 'change' && !timeline.getIn('data', 'task', 'userstory') && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
         },
         key: 'TIMELINE.TASK_UPDATED',
         translate_params: ['username', 'field_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && timeline.data.task.userstory && !timeline.data.values_diff.description_diff;
-        },
-        key: 'TIMELINE.TASK_UPDATED_WITH_US_NEW_VALUE',
-        translate_params: ['username', 'field_name', 'obj_name', 'us_name', 'new_value']
-      }, {
-        check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && timeline.data.task.userstory && timeline.data.values_diff.description_diff;
+          return event.obj === 'task' && event.type === 'change' && timeline.getIn('data', 'task', 'userstory') && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
         },
         key: 'TIMELINE.TASK_UPDATED_WITH_US',
         translate_params: ['username', 'field_name', 'obj_name', 'us_name']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'change' && !timeline.getIn(['data', 'task', 'userstory']);
+        },
+        key: 'TIMELINE.TASK_UPDATED_WITH_NEW_VALUE',
+        translate_params: ['username', 'field_name', 'obj_name', 'new_value']
+      }, {
+        check: function(timeline, event) {
+          return event.obj === 'task' && event.type === 'change' && timeline.getIn(['data', 'task', 'userstory']);
+        },
+        key: 'TIMELINE.TASK_UPDATED_WITH_US_NEW_VALUE',
+        translate_params: ['username', 'field_name', 'obj_name', 'us_name', 'new_value']
       }, {
         check: function(timeline, event) {
           return event.obj === 'user' && event.type === 'create';
@@ -25333,11 +25478,8 @@
         translate_params: ['username']
       }
     ];
-    if (timeline.data.values_diff) {
-      field_name = Object.keys(timeline.data.values_diff)[0];
-    }
     return _.find(types, function(obj) {
-      return obj.check(timeline, event, field_name);
+      return obj.check(timeline, event);
     });
   };
 
@@ -25363,29 +25505,30 @@
     UserTimelineItemController.$inject = ["tgUserTimelineItemType", "tgUserTimelineItemTitle"];
 
     function UserTimelineItemController(userTimelineItemType, userTimelineItemTitle) {
-      var event, ref, timeline, type;
+      var event, title, type;
       this.userTimelineItemType = userTimelineItemType;
       this.userTimelineItemTitle = userTimelineItemTitle;
-      timeline = this.timeline.toJS();
-      event = this.parseEventType(timeline.event_type);
-      type = this.userTimelineItemType.getType(timeline, event);
-      this.activity = {};
-      this.activity.user = timeline.data.user;
-      this.activity.project = timeline.data.project;
-      this.activity.sprint = timeline.data.milestone;
-      this.activity.title = this.userTimelineItemTitle.getTitle(timeline, event, type);
-      this.activity.created_formated = moment(timeline.created).fromNow();
-      this.activity.obj = this.getObject(timeline, event);
+      event = this.parseEventType(this.timeline.get('event_type'));
+      type = this.userTimelineItemType.getType(this.timeline, event);
+      title = this.userTimelineItemTitle.getTitle(this.timeline, event, type);
+      this.timeline = this.timeline.set('title_html', title);
+      this.timeline = this.timeline.set('obj', this.getObject(this.timeline, event));
       if (type.description) {
-        this.activity.description = type.description(timeline);
+        this.timeline = this.timeline.set('description', type.description(this.timeline));
       }
       if (type.member) {
-        this.activity.member = type.member(timeline);
+        this.timeline = this.timeline.set('member', type.member(this.timeline));
       }
-      if ((ref = timeline.data.values_diff) != null ? ref.attachments : void 0) {
-        this.activity.attachments = timeline.data.values_diff.attachments["new"];
+      if (this.timeline.hasIn(['data', 'value_diff', 'attachments', 'new'])) {
+        this.timeline = this.timeline.set('attachments', this.timeline.getIn(['data', 'value_diff', 'attachments', 'new']));
       }
     }
+
+    UserTimelineItemController.prototype.getObject = function(timeline, event) {
+      if (timeline.get('data').get(event.obj)) {
+        return timeline.get('data').get(event.obj);
+      }
+    };
 
     UserTimelineItemController.prototype.parseEventType = function(event_type) {
       event_type = event_type.split(".");
@@ -25394,12 +25537,6 @@
         obj: event_type[1],
         type: event_type[2]
       };
-    };
-
-    UserTimelineItemController.prototype.getObject = function(timeline, event) {
-      if (timeline.data[event.obj]) {
-        return timeline.data[event.obj];
-      }
     };
 
     return UserTimelineItemController;
@@ -25584,22 +25721,18 @@
       this.userTimelinePaginationSequenceService = userTimelinePaginationSequenceService;
     }
 
+    UserTimelineService.prototype._valid_fields = ['status', 'subject', 'description_diff', 'assigned_to', 'points', 'severity', 'priority', 'type', 'attachments', 'milestone', 'is_iocaine', 'content_diff', 'name', 'estimated_finish', 'estimated_start', 'blocked'];
+
     UserTimelineService.prototype._invalid = [
       {
         check: function(timeline) {
-          var values, values_diff;
-          values_diff = timeline.get("data").get("values_diff");
-          if (values_diff) {
-            values = Object.keys(values_diff.toJS());
-          }
-          if (values && values.length) {
-            if (_.every(values, (function(_this) {
-              return function(value) {
-                return _this._valid_fields.indexOf(value) === -1;
-              };
-            })(this))) {
+          var fieldKey, value_diff;
+          value_diff = timeline.get("data").get("value_diff");
+          if (value_diff) {
+            fieldKey = value_diff.get('key');
+            if (this._valid_fields.indexOf(fieldKey) === -1) {
               return true;
-            } else if (values[0] === 'attachments' && values_diff.get('attachments').get('new').size === 0) {
+            } else if (fieldKey === 'attachments' && value_diff.get('value').get('new').size === 0) {
               return true;
             }
           }
@@ -25623,17 +25756,16 @@
         }
       }, {
         check: function(timeline) {
-          var event;
+          var event, value_diff;
           event = timeline.get('event_type').split(".");
-          if (event[1] === "task" && event[2] === "change") {
-            return timeline.get("data").get("values_diff").get("milestone");
+          value_diff = timeline.get("data").get("value_diff");
+          if (value_diff && event[1] === "task" && event[2] === "change" && value_diff.get("key") === "milestone") {
+            return timeline.get("data").get("value_diff").get("value");
           }
           return false;
         }
       }
     ];
-
-    UserTimelineService.prototype._valid_fields = ['status', 'subject', 'description_diff', 'assigned_to', 'points', 'severity', 'priority', 'type', 'attachments', 'milestone', 'is_blocked', 'is_iocaine', 'content_diff', 'name', 'estimated_finish', 'estimated_start'];
 
     UserTimelineService.prototype._isInValidTimeline = function(timeline) {
       return _.some(this._invalid, (function(_this) {
@@ -25643,12 +25775,45 @@
       })(this));
     };
 
+    UserTimelineService.prototype._splitChanges = function(response) {
+      var newdata;
+      newdata = Immutable.List();
+      response.get('data').forEach(function(item) {
+        var data, newItem, values_diff;
+        data = item.get('data');
+        values_diff = data.get('values_diff');
+        if (values_diff && values_diff.count()) {
+          if (values_diff.has('is_blocked')) {
+            values_diff = Immutable.Map({
+              'blocked': values_diff
+            });
+          }
+          return values_diff.forEach(function(value, key) {
+            var newItem, obj;
+            obj = Immutable.Map({
+              key: key,
+              value: value
+            });
+            newItem = item.setIn(['data', 'value_diff'], obj);
+            newItem = newItem.deleteIn(['data', 'values_diff']);
+            return newdata = newdata.push(newItem);
+          });
+        } else {
+          newItem = item.deleteIn(['data', 'values_diff']);
+          return newdata = newdata.push(newItem);
+        }
+      });
+      return response.set('data', newdata);
+    };
+
     UserTimelineService.prototype.getProfileTimeline = function(userId) {
       var config;
       config = {};
       config.fetch = (function(_this) {
         return function(page) {
-          return _this.rs.users.getProfileTimeline(userId, page);
+          return _this.rs.users.getProfileTimeline(userId, page).then(function(response) {
+            return _this._splitChanges(response);
+          });
         };
       })(this);
       config.filter = (function(_this) {
@@ -25666,7 +25831,9 @@
       config = {};
       config.fetch = (function(_this) {
         return function(page) {
-          return _this.rs.users.getUserTimeline(userId, page);
+          return _this.rs.users.getUserTimeline(userId, page).then(function(response) {
+            return _this._splitChanges(response);
+          });
         };
       })(this);
       config.filter = (function(_this) {
@@ -25684,7 +25851,9 @@
       config = {};
       config.fetch = (function(_this) {
         return function(page) {
-          return _this.rs.projects.getTimeline(projectId, page);
+          return _this.rs.projects.getTimeline(projectId, page).then(function(response) {
+            return _this._splitChanges(response);
+          });
         };
       })(this);
       config.filter = (function(_this) {
