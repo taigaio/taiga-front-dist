@@ -1853,7 +1853,7 @@
  */
 
 (function() {
-  var AnimationFrame, CheckPermissionDirective, ClassPermissionDirective, LimitLineLengthDirective, ProjectUrl, Qqueue, SelectedText, Template, ToggleCommentDirective, module, taiga,
+  var AnimationFrame, Capslock, CheckPermissionDirective, ClassPermissionDirective, LimitLineLengthDirective, ProjectUrl, Qqueue, SelectedText, Template, ToggleCommentDirective, module, taiga,
     slice = [].slice;
 
   taiga = this.taiga;
@@ -2097,6 +2097,54 @@
   };
 
   module.factory("$tgTemplate", ["$templateCache", Template]);
+
+  Capslock = function($translate) {
+    var link;
+    link = function($scope, $el, $attrs) {
+      var hideIcon, open, showIcon, warningIcon;
+      open = false;
+      warningIcon = $('<div>').addClass('icon').addClass('icon-capslock').attr('title', $translate.instant('COMMON.CAPSLOCK_WARNING'));
+      hideIcon = function() {
+        return warningIcon.fadeOut(function() {
+          open = false;
+          return $(this).remove();
+        });
+      };
+      showIcon = function() {
+        var left, top;
+        if (open) {
+          return;
+        }
+        top = $el.position().top;
+        left = $el.position().left + $el.outerWidth(true);
+        warningIcon.css({
+          display: 'none',
+          position: 'absolute',
+          top: top,
+          left: left - 25,
+          lineHeight: $el.outerHeight() + 'px',
+          marginLeft: 0
+        });
+        warningIcon.insertAfter($el).fadeIn();
+        return open = true;
+      };
+      $el.on('keyup.capslock', function(e) {
+        if ($el.val() === $el.val().toLowerCase()) {
+          return hideIcon();
+        } else {
+          return showIcon();
+        }
+      });
+      return $scope.$on("$destroy", function() {
+        return $el.off('.capslock');
+      });
+    };
+    return {
+      link: link
+    };
+  };
+
+  module.directive("tgCapslock", ["$translate", Capslock]);
 
 }).call(this);
 
@@ -2361,20 +2409,20 @@
       form = $el.find("form").checksley();
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.create("feedback", $scope.feedback);
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $lightboxService.close($el);
             return $confirm.notify("success", "\\o/ we'll be happy to read your");
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("error");
           });
         };
@@ -2559,20 +2607,20 @@
     link = function($scope, $el, $attrs, $model) {
       var renderEdit, renderView, saveTask;
       saveTask = debounce(2000, function(task) {
-        var promise;
+        var currentLoading, promise;
         task.subject = $el.find('input').val();
-        $loading.start($el.find('.task-name'));
+        currentLoading = $loading().target($el.find('.task-name')).start();
         promise = $repo.save(task);
         promise.then((function(_this) {
           return function() {
-            $loading.finish($el.find('.task-name'));
+            currentLoading.finish();
             $confirm.notify("success");
             return $rootscope.$broadcast("related-tasks:update");
           };
         })(this));
         promise.then(null, (function(_this) {
           return function() {
-            $loading.finish($el.find('.task-name'));
+            currentLoading.finish();
             $el.find('input').val(task.subject);
             return $confirm.notify("error");
           };
@@ -2669,23 +2717,23 @@
     link = function($scope, $el, $attrs) {
       var createTask, render;
       createTask = debounce(2000, function(task) {
-        var promise;
+        var currentLoading, promise;
         task.subject = $el.find('input').val();
         task.assigned_to = $scope.newTask.assigned_to;
         task.status = $scope.newTask.status;
         $scope.newTask.status = $scope.project.default_task_status;
         $scope.newTask.assigned_to = null;
-        $loading.start($el.find('.task-name'));
+        currentLoading = $loading().target($el.find('.task-name')).start();
         promise = $repo.create("tasks", task);
         promise.then(function() {
           $analytics.trackEvent("task", "create", "create task on userstory", 1);
-          $loading.finish($el.find('.task-name'));
+          currentLoading.finish();
           $scope.$emit("related-tasks:add");
           return $confirm.notify("success");
         });
         promise.then(null, function() {
           $el.find('input').val(task.subject);
-          $loading.finish($el.find('.task-name'));
+          currentLoading.finish();
           return $confirm.notify("error");
         });
         return promise;
@@ -2939,11 +2987,13 @@
     "bulk-update-us-backlog-order": "/userstories/bulk_update_backlog_order",
     "bulk-update-us-sprint-order": "/userstories/bulk_update_sprint_order",
     "bulk-update-us-kanban-order": "/userstories/bulk_update_kanban_order",
+    "userstories-filters": "/userstories/filters_data",
     "tasks": "/tasks",
     "bulk-create-tasks": "/tasks/bulk_create",
     "bulk-update-task-taskboard-order": "/tasks/bulk_update_taskboard_order",
     "issues": "/issues",
     "bulk-create-issues": "/issues/bulk_create",
+    "issues-filters": "/issues/filters_data",
     "wiki": "/wiki",
     "wiki-restore": "/wiki/%s/restore",
     "wiki-links": "/wiki-links",
@@ -3977,6 +4027,7 @@
       saveAttachment = function() {
         attachment.description = $el.find("input[name='description']").val();
         attachment.is_deprecated = $el.find("input[name='is-deprecated']").prop("checked");
+        attachment.isCreatedRightNow = false;
         return $scope.$apply(function() {
           return $ctrl.updateAttachment(attachment).then(function() {
             return render(attachment, false);
@@ -3991,7 +4042,9 @@
         if (event.keyCode === 13) {
           return saveAttachment();
         } else if (event.keyCode === 27) {
-          return render(attachment, false);
+          return $scope.$apply(function() {
+            return render(attachment, false);
+          });
         }
       });
       $el.on("click", "a.editable-settings.icon-delete", function(event) {
@@ -4399,12 +4452,12 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(userId) {
-          var promise;
+          var currentLoading, promise;
           $model.$modelValue.assigned_to = userId;
-          $loading.start($el);
+          currentLoading = $loading().target($el).start();
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
-            $loading.finish($el);
+            currentLoading.finish();
             $confirm.notify("success");
             renderAssignedTo($model.$modelValue);
             return $rootscope.$broadcast("object:updated");
@@ -4412,7 +4465,7 @@
           promise.then(null, function() {
             $model.$modelValue.revert();
             $confirm.notify("error");
-            return $loading.finish($el);
+            return currentLoading.finish();
           });
           return promise;
         };
@@ -4501,11 +4554,11 @@
         return $rootscope.$broadcast("block", $model.$modelValue);
       });
       $el.on("click", ".item-unblock", function(event) {
-        var finish;
+        var currentLoading, finish;
         event.preventDefault();
-        $loading.start($el.find(".item-unblock"));
+        currentLoading = $loading().target($el.find(".item-unblock")).start();
         finish = function() {
-          return $loading.finish($el.find(".item-unblock"));
+          return currentLoading.finish();
         };
         return $rootscope.$broadcast("unblock", $model.$modelValue, finish);
       });
@@ -4582,9 +4635,9 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(subject) {
-          var promise;
+          var currentLoading, promise;
           $model.$modelValue.subject = subject;
-          $loading.start($el.find('.save-container'));
+          currentLoading = $loading().target($el.find('.save-container')).start();
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
@@ -4596,7 +4649,7 @@
             return $confirm.notify("error");
           });
           promise["finally"](function() {
-            return $loading.finish($el.find('.save-container'));
+            return currentLoading.finish();
           });
           return promise;
         };
@@ -4673,9 +4726,9 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(description) {
-          var promise;
+          var currentLoading, promise;
           $model.$modelValue.description = description;
-          $loading.start($el.find('.save-container'));
+          currentLoading = $loading().target($el.find('.save-container')).start();
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
@@ -4687,7 +4740,7 @@
             return $confirm.notify("error");
           });
           return promise["finally"](function() {
-            return $loading.finish($el.find('.save-container'));
+            return currentLoading.finish();
           });
         };
       })(this));
@@ -5052,15 +5105,15 @@
       el.find("span.message").html(message);
       el.on("click.confirm-dialog", "a.button-green", debounce(2000, (function(_this) {
         return function(event) {
-          var target;
+          var currentLoading, target;
           event.preventDefault();
           target = angular.element(event.currentTarget);
-          _this.loading.start(target);
+          currentLoading = _this.loading().target(target).start();
           return defered.resolve(function(ok) {
             if (ok == null) {
               ok = true;
             }
-            _this.loading.finish(target);
+            currentLoading.finish();
             if (ok) {
               return _this.hide(el);
             }
@@ -5108,14 +5161,14 @@
       });
       el.on("click.confirm-dialog", "a.button-green", debounce(2000, (function(_this) {
         return function(event) {
-          var target;
+          var currentLoading, target;
           event.preventDefault();
           target = angular.element(event.currentTarget);
-          _this.loading.start(target);
+          currentLoading = _this.loading().target(target).start();
           return defered.resolve({
             selected: choicesField.val(),
             finish: function() {
-              _this.loading.finish(target);
+              currentLoading.finish();
               return _this.hide(el);
             }
           });
@@ -6307,21 +6360,21 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(target) {
-          var model, onError, onSuccess;
+          var currentLoading, model, onError, onSuccess;
           $scope.$broadcast("markdown-editor:submit");
           $el.find(".comment-list").addClass("activeanimation");
+          currentLoading = $loading().target(target).start();
           onSuccess = function() {
             $rootScope.$broadcast("comment:new");
             return $ctrl.loadHistory(type, objectId)["finally"](function() {
-              return $loading.finish(target);
+              return currentLoading.finish();
             });
           };
           onError = function() {
-            $loading.finish(target);
+            currentLoading.finish();
             return $confirm.notify("error");
           };
           model = $scope.$eval($attrs.ngModel);
-          $loading.start(target);
           return $ctrl.repo.save(model).then(onSuccess, onError);
         };
       })(this));
@@ -6330,7 +6383,7 @@
       $scope.$on("object:updated", function() {
         return $ctrl.loadHistory(type, objectId);
       });
-      $el.on("click", ".add-comment input.button-green", debounce(2000, function(event) {
+      $el.on("click", ".add-comment button.button-green", debounce(2000, function(event) {
         var target;
         event.preventDefault();
         target = angular.element(event.currentTarget);
@@ -6562,15 +6615,15 @@
       defered = this.q.defer();
       lightboxContent = $el.children().not(".close");
       lightboxContent.hide();
-      $el.css('display', 'flex');
-      this.animationFrame.add((function(_this) {
-        return function() {
-          $el.addClass("open");
-          return _this.animationFrame.add(function() {
-            return $el.find('input,textarea').first().focus();
-          });
-        };
-      })(this));
+      this.animationFrame.add(function() {
+        return $el.css('display', 'flex');
+      });
+      this.animationFrame.add(function() {
+        return $el.addClass("open");
+      });
+      this.animationFrame.add(function() {
+        return $el.find('input,textarea').first().focus();
+      });
       this.animationFrame.add((function(_this) {
         return function() {
           lightboxContent.show();
@@ -6739,9 +6792,9 @@
       })(this));
       block = $qqueue.bindAdd((function(_this) {
         return function(item) {
-          var promise;
+          var currentLoading, promise;
           $model.$setViewValue(item);
-          $loading.start($el.find(".button-green"));
+          currentLoading = $loading().target($el.find(".button-green")).start();
           promise = $tgrepo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
@@ -6753,7 +6806,7 @@
             return $model.$setViewValue(item);
           });
           return promise["finally"](function() {
-            $loading.finish($el.find(".button-green"));
+            currentLoading.finish();
             return lightboxService.close($el);
           });
         };
@@ -6873,13 +6926,13 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var broadcastEvent, form, promise;
+          var broadcastEvent, currentLoading, form, promise;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           if ($scope.isNew) {
             promise = $repo.create("userstories", $scope.us);
             broadcastEvent = "usform:new:success";
@@ -6888,12 +6941,12 @@
             broadcastEvent = "usform:edit:success";
           }
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             return $rootScope.$broadcast(broadcastEvent, data);
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -6945,7 +6998,7 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var form, promise;
+          var currentLoading, form, promise;
           event.preventDefault();
           form = $el.find("form").checksley({
             onlyOneErrorElement: true
@@ -6953,15 +7006,15 @@
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $rs.userstories.bulkCreate($scope["new"].projectId, $scope["new"].statusId, $scope["new"].bulk);
           promise.then(function(result) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("usform:bulk:success", result);
             return lightboxService.close($el);
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -7343,51 +7396,84 @@
 
 (function() {
   var LoadingDirective, TgLoadingService, module,
-    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
+    slice = [].slice;
 
   module = angular.module("taigaCommon");
 
-  TgLoadingService = (function(superClass) {
-    extend(TgLoadingService, superClass);
-
-    function TgLoadingService() {
-      return TgLoadingService.__super__.constructor.apply(this, arguments);
-    }
-
-    TgLoadingService.prototype.start = function(target) {
-      if (!target.hasClass('loading')) {
-        target.data('loading-old-content', target.html());
-        target.addClass('loading');
-        return target.html("<img class='loading-spinner' src='/svg/spinner-circle.svg' alt='loading...' />");
-      }
+  TgLoadingService = function() {
+    var spinner;
+    spinner = "<img class='loading-spinner' src='/svg/spinner-circle.svg' alt='loading...' />";
+    return function() {
+      var service;
+      service = {
+        settings: {
+          target: null,
+          classes: [],
+          timeout: 0
+        },
+        target: function(target) {
+          service.settings.target = target;
+          return service;
+        },
+        removeClasses: function() {
+          var classess;
+          classess = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+          service.settings.classes = classess;
+          return service;
+        },
+        timeout: function(timeout) {
+          service.settings.timeout = timeout;
+          return service;
+        },
+        start: function() {
+          var target, timeoutId;
+          target = service.settings.target;
+          service.settings.classes.map(function(className) {
+            return target.removeClass(className);
+          });
+          timeoutId = setTimeout((function() {
+            if (!target.hasClass('loading')) {
+              service.settings.oldContent = target.html();
+              target.addClass('loading');
+              return target.html(spinner);
+            }
+          }), service.settings.timeout);
+          service.settings.timeoutId = timeoutId;
+          return service;
+        },
+        finish: function() {
+          var removeClasses, target, timeoutId;
+          target = service.settings.target;
+          timeoutId = service.settings.timeoutId;
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            removeClasses = service.settings.classes;
+            removeClasses.map(function(className) {
+              return service.settings.target.addClass(className);
+            });
+            target.html(service.settings.oldContent);
+            target.removeClass('loading');
+          }
+          return service;
+        }
+      };
+      return service;
     };
+  };
 
-    TgLoadingService.prototype.finish = function(target) {
-      var oldContent;
-      if (target.hasClass('loading')) {
-        oldContent = target.data('loading-old-content');
-        target.data('loading-old-content', null);
-        target.html(oldContent);
-        return target.removeClass('loading');
-      }
-    };
-
-    return TgLoadingService;
-
-  })(taiga.Service);
-
-  module.service("$tgLoading", TgLoadingService);
+  module.factory("$tgLoading", TgLoadingService);
 
   LoadingDirective = function($loading) {
     var link;
     link = function($scope, $el, attr) {
+      var currentLoading;
+      currentLoading = null;
       return $scope.$watch(attr.tgLoading, (function(_this) {
         return function(showLoading) {
           if (showLoading) {
-            return $loading.start($el);
+            return currentLoading = $loading().target($el).start();
           } else {
-            return $loading.finish($el);
+            return currentLoading.finish();
           }
         };
       })(this));
@@ -8379,7 +8465,11 @@
             afterInsert: function(data) {
               var cursorLine, emptyListItem, lastLine, lines, markdownCaretPositon, match, newLineContent, nline, replace;
               lines = data.textarea.value.split("\n");
-              cursorLine = data.textarea.value.slice(0, +(data.caretPosition - 1) + 1 || 9e9).split("\n").length;
+              if (data.caretPosition > 0) {
+                cursorLine = data.textarea.value.slice(0, +(data.caretPosition - 1) + 1 || 9e9).split("\n").length;
+              } else {
+                cursorLine = 1;
+              }
               newLineContent = data.textarea.value.slice(data.caretPosition).split("\n")[0];
               lastLine = lines[cursorLine - 1];
               match = lastLine.match(/^(\s*- ).*/);
@@ -8589,12 +8679,13 @@
 
   module = angular.module("taigaBacklog");
 
-  BacklogFiltersDirective = function($log, $location, $templates) {
+  BacklogFiltersDirective = function($q, $log, $location, $templates) {
     var link, template, templateSelected;
     template = $templates.get("backlog/filters.html", true);
     templateSelected = $templates.get("backlog/filter-selected.html", true);
     link = function($scope, $el, $attrs) {
-      var $ctrl, initializeSelectedFilters, renderFilters, renderSelectedFilters, selectQFilter, selectedFilters, showCategories, showFilters, toggleFilterSelection;
+      var $ctrl, currentFiltersType, getFiltersType, initializeSelectedFilters, reloadUserstories, renderFilters, renderSelectedFilters, selectQFilter, selectedFilters, showCategories, showFilters, toggleFilterSelection;
+      currentFiltersType = '';
       $ctrl = $el.closest(".wrapper").controller();
       selectedFilters = [];
       showFilters = function(title, type) {
@@ -8602,19 +8693,21 @@
         $el.find(".filter-list").removeClass("hidden");
         $el.find("h2.breadcrumb").removeClass("hidden");
         $el.find("h2 a.subfilter span.title").html(title);
-        return $el.find("h2 a.subfilter span.title").prop("data-type", type);
+        $el.find("h2 a.subfilter span.title").prop("data-type", type);
+        return currentFiltersType = getFiltersType();
       };
       showCategories = function() {
         $el.find(".filters-cats").show();
         $el.find(".filter-list").addClass("hidden");
         return $el.find("h2.breadcrumb").addClass("hidden");
       };
-      initializeSelectedFilters = function(filters) {
-        var i, len, name, val, values;
+      initializeSelectedFilters = function() {
+        var i, len, name, ref, val, values;
         showCategories();
         selectedFilters = [];
-        for (name in filters) {
-          values = filters[name];
+        ref = $scope.filters;
+        for (name in ref) {
+          values = ref[name];
           for (i = 0, len = values.length; i < len; i++) {
             val = values[i];
             if (val.selected) {
@@ -8652,11 +8745,23 @@
         });
         return $el.find(".filter-list").html(html);
       };
+      getFiltersType = function() {
+        return $el.find("h2 a.subfilter span.title").prop('data-type');
+      };
+      reloadUserstories = function() {
+        currentFiltersType = getFiltersType();
+        return $q.all([$ctrl.loadUserstories(), $ctrl.generateFilters()]).then(function() {
+          var currentFilters;
+          currentFilters = $scope.filters[currentFiltersType];
+          return renderFilters(_.reject(currentFilters, "selected"));
+        });
+      };
       toggleFilterSelection = function(type, id) {
-        var currentFiltersType, filter, filters;
+        var filter, filters;
+        currentFiltersType = getFiltersType();
         filters = $scope.filters[type];
         filter = _.find(filters, {
-          id: taiga.toString(id)
+          id: id
         });
         filter.selected = !filter.selected;
         if (filter.selected) {
@@ -8665,17 +8770,16 @@
             return $ctrl.selectFilter(type, id);
           });
         } else {
-          selectedFilters = _.reject(selectedFilters, filter);
-          $scope.$apply(function() {
-            return $ctrl.unselectFilter(type, id);
+          selectedFilters = _.reject(selectedFilters, function(selected) {
+            return filter.type === selected.type && filter.id === selected.id;
           });
+          $ctrl.unselectFilter(type, id);
         }
         renderSelectedFilters(selectedFilters);
-        currentFiltersType = $el.find("h2 a.subfilter span.title").prop('data-type');
         if (type === currentFiltersType) {
           renderFilters(_.reject(filters, "selected"));
         }
-        return $ctrl.loadUserstories();
+        return reloadUserstories();
       };
       selectQFilter = debounceLeading(100, function(value) {
         if (value === void 0) {
@@ -8686,14 +8790,20 @@
         } else {
           $ctrl.replaceFilter("q", value);
         }
-        return $ctrl.loadUserstories();
+        return reloadUserstories();
       });
       $scope.$watch("filtersQ", selectQFilter);
-      $scope.$on("filters:loaded", function(ctx, filters) {
-        return initializeSelectedFilters(filters);
+      $scope.$on("backlog:loaded", function(ctx) {
+        return initializeSelectedFilters();
       });
-      $scope.$on("filters:update", function(ctx, filters) {
-        return renderFilters(filters);
+      $scope.$on("filters:update", function(ctx) {
+        return $ctrl.generateFilters().then(function() {
+          var filters;
+          filters = $scope.filters[currentFiltersType];
+          if (currentFiltersType) {
+            return renderFilters(_.reject(filters, "selected"));
+          }
+        });
       });
       $el.on("click", ".filters-cats > ul > li > a", function(event) {
         var tags, target;
@@ -8701,7 +8811,7 @@
         target = angular.element(event.currentTarget);
         tags = $scope.filters[target.data("type")];
         renderFilters(_.reject(tags, "selected"));
-        return showFilters(target.attr("title"), target.data("type"));
+        return showFilters(target.attr("title"), target.data('type'));
       });
       $el.on("click", ".filters-inner > .filters-step-cat > .breadcrumb > .back", function(event) {
         event.preventDefault();
@@ -8734,7 +8844,7 @@
     };
   };
 
-  module.directive("tgBacklogFilters", ["$log", "$tgLocation", "$tgTemplate", BacklogFiltersDirective]);
+  module.directive("tgBacklogFilters", ["$q", "$log", "$tgLocation", "$tgTemplate", BacklogFiltersDirective]);
 
 }).call(this);
 
@@ -8774,7 +8884,7 @@
   CreateEditSprint = function($repo, $confirm, $rs, $rootscope, lightboxService, $loading, $translate) {
     var link;
     link = function($scope, $el, attrs) {
-      var createSprint, hasErrors, remove, submit;
+      var createSprint, getLastSprint, hasErrors, remove, submit;
       hasErrors = false;
       createSprint = true;
       $scope.sprint = {
@@ -8785,7 +8895,7 @@
       };
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var broadcastEvent, form, newSprint, prettyDate, promise, submitButton, target;
+          var broadcastEvent, currentLoading, form, newSprint, prettyDate, promise, submitButton, target;
           event.preventDefault();
           target = angular.element(event.currentTarget);
           prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
@@ -8810,9 +8920,9 @@
             promise = $repo.save(newSprint);
             broadcastEvent = "sprintform:edit:success";
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             if (createSprint) {
               $scope.sprintsCounter += 1;
             }
@@ -8820,7 +8930,7 @@
             return lightboxService.close($el);
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("light-error", data._error_message);
@@ -8851,6 +8961,16 @@
           };
         })(this));
       };
+      getLastSprint = function() {
+        var openSprints, sortedSprints;
+        openSprints = _.filter($scope.sprints, function(sprint) {
+          return !sprint.closed;
+        });
+        sortedSprints = _.sortBy(openSprints, function(sprint) {
+          return moment(sprint.estimated_finish, 'YYYY-MM-DD').format('X');
+        });
+        return sortedSprints[sortedSprints.length - 1];
+      };
       $scope.$on("sprintform:create", function(event, projectId) {
         var estimatedFinish, estimatedStart, form, lastSprint, lastSprintNameDom, prettyDate, text;
         form = $el.find("form").checksley();
@@ -8860,19 +8980,19 @@
         $scope.sprint.project = projectId;
         $scope.sprint.name = null;
         $scope.sprint.slug = null;
-        lastSprint = $scope.sprints[0];
+        lastSprint = getLastSprint();
         estimatedStart = moment();
-        if ($scope.sprint.estimated_start) {
-          estimatedStart = moment($scope.sprint.estimated_start);
-        } else if (lastSprint != null) {
+        if (lastSprint) {
           estimatedStart = moment(lastSprint.estimated_finish);
+        } else if ($scope.sprint.estimated_start) {
+          estimatedStart = moment($scope.sprint.estimated_start);
         }
         $scope.sprint.estimated_start = estimatedStart.format(prettyDate);
         estimatedFinish = moment().add(2, "weeks");
-        if ($scope.sprint.estimated_finish) {
-          estimatedFinish = moment($scope.sprint.estimated_finish);
-        } else if (lastSprint != null) {
+        if (lastSprint) {
           estimatedFinish = moment(lastSprint.estimated_finish).add(2, "weeks");
+        } else if ($scope.sprint.estimated_finish) {
+          estimatedFinish = moment($scope.sprint.estimated_finish);
         }
         $scope.sprint.estimated_finish = estimatedFinish.format(prettyDate);
         lastSprintNameDom = $el.find(".last-sprint-name");
@@ -8984,11 +9104,11 @@
   BacklogController = (function(superClass) {
     extend(BacklogController, superClass);
 
-    BacklogController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate"];
+    BacklogController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate", "$tgLoading"];
 
-    function BacklogController(scope, rootscope, repo, confirm, rs, params1, q, location, appMetaService, navUrls, events, analytics, translate) {
+    function BacklogController(scope1, rootscope, repo, confirm, rs, params1, q, location, appMetaService, navUrls, events, analytics, translate, loading) {
       var promise;
-      this.scope = scope;
+      this.scope = scope1;
       this.rootscope = rootscope;
       this.repo = repo;
       this.confirm = confirm;
@@ -9001,6 +9121,7 @@
       this.events = events;
       this.analytics = analytics;
       this.translate = translate;
+      this.loading = loading;
       bindMethods(this);
       this.scope.sectionName = this.translate.instant("BACKLOG.SECTION_NAME");
       this.showTags = false;
@@ -9046,6 +9167,7 @@
         return function() {
           _this.loadUserstories();
           _this.loadProjectStats();
+          _this.rootscope.$broadcast("filters:update");
           return _this.analytics.trackEvent("userstory", "create", "create userstory on backlog", 1);
         };
       })(this));
@@ -9058,12 +9180,14 @@
         return function() {
           _this.loadSprints();
           _this.loadProjectStats();
-          return _this.loadUserstories();
+          _this.loadUserstories();
+          return _this.rootscope.$broadcast("filters:update");
         };
       })(this));
       this.scope.$on("usform:edit:success", (function(_this) {
         return function() {
-          return _this.loadUserstories();
+          _this.loadUserstories();
+          return _this.rootscope.$broadcast("filters:update");
         };
       })(this));
       this.scope.$on("sprint:us:move", this.moveUs);
@@ -9113,14 +9237,6 @@
             _this.scope.stats.completedPercentage = 0;
           }
           return stats;
-        };
-      })(this));
-    };
-
-    BacklogController.prototype.refreshTagsColors = function() {
-      return this.rs.projects.tagsColors(this.scope.projectId).then((function(_this) {
-        return function(tags_colors) {
-          return _this.scope.project.tags_colors = tags_colors;
         };
       })(this));
     };
@@ -9185,7 +9301,7 @@
     BacklogController.prototype.resetFilters = function() {
       var selectedStatuses, selectedTags;
       selectedTags = _.filter(this.scope.filters.tags, "selected");
-      selectedStatuses = _.filter(this.scope.filters.statuses, "selected");
+      selectedStatuses = _.filter(this.scope.filters.status, "selected");
       this.scope.filtersQ = "";
       _.each([selectedTags, selectedStatuses], (function(_this) {
         return function(filterGrp) {
@@ -9200,23 +9316,19 @@
           });
         };
       })(this));
-      return this.loadUserstories();
+      this.loadUserstories();
+      return this.rootscope.$broadcast("filters:update");
     };
 
     BacklogController.prototype.loadUserstories = function() {
       var promise;
       this.scope.httpParams = this.getUrlFilters();
       this.rs.userstories.storeQueryParams(this.scope.projectId, this.scope.httpParams);
-      promise = this.q.all([this.refreshTagsColors(), this.rs.userstories.listUnassigned(this.scope.projectId, this.scope.httpParams)]);
+      promise = this.rs.userstories.listUnassigned(this.scope.projectId, this.scope.httpParams);
       return promise.then((function(_this) {
-        return function(data) {
-          var userstories;
-          userstories = data[1];
+        return function(userstories) {
           _this.scope.userstories = _.sortBy(userstories, "backlog_order");
           _this.setSearchDataFilters();
-          _this.filterVisibleUserstories();
-          _this.generateFilters();
-          _this.rootscope.$broadcast("filters:loaded", _this.scope.filters);
           scopeDefer(_this.scope, function() {
             return _this.scope.$broadcast("userstories:loaded");
           });
@@ -9265,24 +9377,13 @@
         return function() {
           return _this.loadBacklog();
         };
-      })(this));
-    };
-
-    BacklogController.prototype.filterVisibleUserstories = function() {
-      this.scope.visibleUserstories = [];
-      this.scope.visibleUserstories = _.reject(this.scope.userstories, (function(_this) {
-        return function(us) {
-          return _.some(us.tags, function(tag) {
-            return _this.isFilterSelected("tag", tag);
-          });
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.generateFilters();
         };
-      })(this));
-      return this.scope.visibleUserstories = _.filter(this.scope.visibleUserstories, (function(_this) {
-        return function(us) {
-          if (_this.searchdata["statuses"] && Object.keys(_this.searchdata["statuses"]).length) {
-            return _this.isFilterSelected("statuses", taiga.toString(us.status));
-          }
-          return true;
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.scope.$emit("backlog:loaded");
         };
       })(this));
     };
@@ -9378,8 +9479,6 @@
             var args, key, l, len1, r, results, sprint;
             args = [newUsIndex, 0].concat(usList);
             Array.prototype.splice.apply(_this.scope.userstories, args);
-            Array.prototype.splice.apply(_this.scope.visibleUserstories, args);
-            _this.filterVisibleUserstories();
             sprint = _this.scope.sprintsById[oldSprintId];
             results = [];
             for (key = l = 0, len1 = usList.length; l < len1; key = ++l) {
@@ -9419,8 +9518,6 @@
             results = [];
             for (key = m = 0, len2 = usList.length; m < len2; key = ++m) {
               us = usList[key];
-              r = _this.scope.visibleUserstories.indexOf(us);
-              _this.scope.visibleUserstories.splice(r, 1);
               r = _this.scope.userstories.indexOf(us);
               results.push(_this.scope.userstories.splice(r, 1));
             }
@@ -9498,11 +9595,11 @@
           this.searchdata[name] = {};
         }
         results.push((function() {
-          var j, len, ref, results1;
-          ref = taiga.toString(value).split(",");
+          var j, len, ref1, results1;
+          ref1 = taiga.toString(value).split(",");
           results1 = [];
-          for (j = 0, len = ref.length; j < len; j++) {
-            val = ref[j];
+          for (j = 0, len = ref1.length; j < len; j++) {
+            val = ref1[j];
             results1.push(this.searchdata[name][val] = true);
           }
           return results1;
@@ -9512,83 +9609,107 @@
     };
 
     BacklogController.prototype.getUrlFilters = function() {
-      return _.pick(this.location.search(), "statuses", "tags", "q");
+      return _.pick(this.location.search(), "status", "tags", "q");
     };
 
     BacklogController.prototype.generateFilters = function() {
-      var plainStatuses, plainTags, selectedStatuses, selectedTags, urlfilters;
+      var loadFilters, urlfilters;
       urlfilters = this.getUrlFilters();
       this.scope.filters = {};
-      plainTags = _.flatten(_.filter(_.map(this.scope.visibleUserstories, "tags")));
-      plainTags.sort();
-      if (plainTags.length === 0 && urlfilters["tags"]) {
-        plainTags.push(urlfilters["tags"]);
-      }
-      this.scope.filters.tags = _.map(_.countBy(plainTags), (function(_this) {
-        return function(v, k) {
-          var obj;
-          obj = {
-            id: k,
-            type: "tags",
-            name: k,
-            color: _this.scope.project.tags_colors[k],
-            count: v
+      loadFilters = {};
+      loadFilters.project = this.scope.projectId;
+      loadFilters.tags = urlfilters.tags;
+      loadFilters.status = urlfilters.status;
+      loadFilters.q = urlfilters.q;
+      loadFilters.milestone = 'null';
+      return this.rs.userstories.filtersData(loadFilters).then((function(_this) {
+        return function(data) {
+          var choicesFiltersFormat, selectedStatuses, selectedTags, tagsFilterFormat;
+          choicesFiltersFormat = function(choices, type, byIdObject) {
+            return _.map(choices, function(t) {
+              t.type = type;
+              return t;
+            });
           };
-          if (_this.isFilterSelected("tags", obj.id)) {
-            obj.selected = true;
-          }
-          return obj;
-        };
-      })(this));
-      selectedTags = _.filter(this.scope.filters.tags, "selected");
-      selectedTags = _.map(selectedTags, "name");
-      plainStatuses = _.map(this.scope.visibleUserstories, "status");
-      plainStatuses = _.filter(plainStatuses, (function(_this) {
-        return function(status) {
-          if (status) {
-            return status;
-          }
-        };
-      })(this));
-      if (plainStatuses.length === 0 && urlfilters["statuses"]) {
-        plainStatuses.push(urlfilters["statuses"]);
-      }
-      this.scope.filters.statuses = _.map(_.countBy(plainStatuses), (function(_this) {
-        return function(v, k) {
-          var obj;
-          obj = {
-            id: k,
-            type: "statuses",
-            name: _this.scope.usStatusById[k].name,
-            color: _this.scope.usStatusById[k].color,
-            count: v
+          tagsFilterFormat = function(tags) {
+            return _.map(tags, function(t) {
+              t.id = t.name;
+              t.type = 'tags';
+              return t;
+            });
           };
-          if (_this.isFilterSelected("statuses", obj.id)) {
-            obj.selected = true;
-          }
-          return obj;
+          _this.scope.filters.status = choicesFiltersFormat(data.statuses, "status", _this.scope.usStatusById);
+          _this.scope.filters.tags = tagsFilterFormat(data.tags);
+          selectedTags = _.filter(_this.scope.filters.tags, "selected");
+          selectedTags = _.map(selectedTags, "id");
+          selectedStatuses = _.filter(_this.scope.filters.status, "selected");
+          selectedStatuses = _.map(selectedStatuses, "id");
+          _this.markSelectedFilters(_this.scope.filters, urlfilters);
+          return _this.rs.userstories.storeQueryParams(_this.scope.projectId, {
+            "status": selectedStatuses,
+            "tags": selectedTags,
+            "project": _this.scope.projectId,
+            "milestone": null
+          });
         };
       })(this));
-      selectedStatuses = _.filter(this.scope.filters.statuses, "selected");
-      selectedStatuses = _.map(selectedStatuses, "id");
-      return this.rs.userstories.storeQueryParams(this.scope.projectId, {
-        "status": selectedStatuses,
-        "tags": selectedTags,
-        "project": this.scope.projectId,
-        "milestone": null
-      });
+    };
+
+    BacklogController.prototype.markSelectedFilters = function(filters, urlfilters) {
+      var isSelected, j, key, len, name, obj, ref1, ref2, results, searchdata, val, value;
+      searchdata = {};
+      ref1 = _.omit(urlfilters, "page", "orderBy");
+      for (name in ref1) {
+        value = ref1[name];
+        if (searchdata[name] == null) {
+          searchdata[name] = {};
+        }
+        ref2 = ("" + value).split(",");
+        for (j = 0, len = ref2.length; j < len; j++) {
+          val = ref2[j];
+          searchdata[name][val] = true;
+        }
+      }
+      isSelected = function(type, id) {
+        if ((searchdata[type] != null) && searchdata[type][id]) {
+          return true;
+        }
+        return false;
+      };
+      results = [];
+      for (key in filters) {
+        value = filters[key];
+        results.push((function() {
+          var l, len1, results1;
+          results1 = [];
+          for (l = 0, len1 = value.length; l < len1; l++) {
+            obj = value[l];
+            results1.push(obj.selected = isSelected(obj.type, obj.id) ? true : void 0);
+          }
+          return results1;
+        })());
+      }
+      return results;
     };
 
     BacklogController.prototype.updateUserStoryStatus = function() {
       this.setSearchDataFilters();
-      this.filterVisibleUserstories();
-      this.generateFilters();
-      this.rootscope.$broadcast("filters:update", this.scope.filters['statuses']);
-      return this.loadProjectStats();
+      return this.generateFilters().then(function() {
+        this.rootscope.$broadcast("filters:update");
+        return this.loadProjectStats();
+      });
     };
 
-    BacklogController.prototype.editUserStory = function(us) {
-      return this.rootscope.$broadcast("usform:edit", us);
+    BacklogController.prototype.editUserStory = function(projectId, ref, $event) {
+      var currentLoading, target;
+      target = $($event.target);
+      currentLoading = this.loading().target(target).removeClasses("icon-edit").timeout(200).start();
+      return this.rs.userstories.getByRef(projectId, ref).then((function(_this) {
+        return function(us) {
+          _this.rootscope.$broadcast("usform:edit", us);
+          return currentLoading.finish();
+        };
+      })(this));
     };
 
     BacklogController.prototype.deleteUserStory = function(us) {
@@ -9599,7 +9720,6 @@
         return function(finish) {
           var promise;
           _this.scope.userstories = _.without(_this.scope.userstories, us);
-          _this.filterVisibleUserstories();
           promise = _this.repo.remove(us);
           promise.then(function() {
             finish();
@@ -9638,19 +9758,19 @@
     linkDoomLine = function($scope, $el, $attrs, $ctrl) {
       var addDoomLineDom, getUsItems, reloadDoomLine, removeDoomlineDom;
       reloadDoomLine = function() {
-        var current_sum, domElement, i, j, len, ref, results, stats, total_points, us;
+        var current_sum, domElement, i, j, len, ref1, results, stats, total_points, us;
         if ($scope.stats != null) {
           removeDoomlineDom();
           stats = $scope.stats;
           total_points = stats.total_points;
           current_sum = stats.assigned_points;
-          if (!$scope.visibleUserstories) {
+          if (!$scope.userstories) {
             return;
           }
-          ref = $scope.visibleUserstories;
+          ref1 = $scope.userstories;
           results = [];
-          for (i = j = 0, len = ref.length; j < len; i = ++j) {
-            us = ref[i];
+          for (i = j = 0, len = ref1.length; j < len; i = ++j) {
+            us = ref1[i];
             current_sum += us.total_points;
             if (current_sum > total_points) {
               domElement = $el.find('.backlog-table-body .us-item-row')[i];
@@ -9697,7 +9817,6 @@
         });
         $scope.sprints[0].user_stories = _.union($scope.sprints[0].user_stories, selectedUss);
         $scope.sprints[0].total_points += totalExtraPoints;
-        $ctrl.filterVisibleUserstories();
         return $repo.saveAll(selectedUss).then(function() {
           $ctrl.loadSprints();
           return $ctrl.loadProjectStats();
@@ -9818,7 +9937,7 @@
       linkDoomLine($scope, $el, $attrs, $ctrl);
       $el.find(".backlog-table-body").disableSelection();
       filters = $ctrl.getUrlFilters();
-      if (filters.statuses || filters.tags || filters.q) {
+      if (filters.status || filters.tags || filters.q) {
         showHideFilter($scope, $el, $ctrl);
       }
       $scope.$on("showTags", function() {
@@ -10047,12 +10166,12 @@
   BurndownBacklogGraphDirective = function($translate) {
     var link, redrawChart;
     redrawChart = function(element, dataToDraw) {
-      var client_increment_line, colors, data, evolution_line, j, milestonesRange, optimal_line, options, ref, results, team_increment_line, width, zero_line;
+      var client_increment_line, colors, data, evolution_line, j, milestonesRange, optimal_line, options, ref1, results, team_increment_line, width, zero_line;
       width = element.width();
       element.height(width / 6);
       milestonesRange = (function() {
         results = [];
-        for (var j = 0, ref = dataToDraw.milestones.length - 1; 0 <= ref ? j <= ref : j >= ref; 0 <= ref ? j++ : j--){ results.push(j); }
+        for (var j = 0, ref1 = dataToDraw.milestones.length - 1; 0 <= ref1 ? j <= ref1 : j >= ref1; 0 <= ref1 ? j++ : j--){ results.push(j); }
         return results;
       }).apply(this);
       data = [];
@@ -10207,14 +10326,17 @@
 
   module.directive("tgBurndownBacklogGraph", ["$translate", BurndownBacklogGraphDirective]);
 
-  TgBacklogProgressBarDirective = function($template) {
+  TgBacklogProgressBarDirective = function($template, $compile) {
     var adjustPercentaje, link, render, template;
     template = $template.get("backlog/progress-bar.html", true);
-    render = function(el, projectPointsPercentaje, closedPointsPercentaje) {
-      return el.html(template({
+    render = function(scope, el, projectPointsPercentaje, closedPointsPercentaje) {
+      var html;
+      html = template({
         projectPointsPercentaje: projectPointsPercentaje,
         closedPointsPercentaje: closedPointsPercentaje
-      }));
+      });
+      html = $compile(html)(scope);
+      return el.html(html);
     };
     adjustPercentaje = function(percentage) {
       var adjusted;
@@ -10240,7 +10362,7 @@
           }
           projectPointsPercentaje = adjustPercentaje(projectPointsPercentaje - 3);
           closedPointsPercentaje = adjustPercentaje(closedPointsPercentaje - 3);
-          return render($el, projectPointsPercentaje, closedPointsPercentaje);
+          return render($scope, $el, projectPointsPercentaje, closedPointsPercentaje);
         }
       });
       return $scope.$on("$destroy", function() {
@@ -10252,7 +10374,7 @@
     };
   };
 
-  module.directive("tgBacklogProgressBar", ["$tgTemplate", TgBacklogProgressBarDirective]);
+  module.directive("tgBacklogProgressBar", ["$tgTemplate", "$compile", TgBacklogProgressBarDirective]);
 
 }).call(this);
 
@@ -10629,13 +10751,14 @@
     var excludeClosedSprints, link;
     excludeClosedSprints = true;
     link = function($scope, $el, $attrs) {
-      var loadingElm;
+      var currentLoading, loadingElm;
       loadingElm = $("<div>");
       $el.after(loadingElm);
+      currentLoading = null;
       $el.on("click", function(event) {
         event.preventDefault();
         excludeClosedSprints = !excludeClosedSprints;
-        $loading.start(loadingElm);
+        currentLoading = $loading().target(loadingElm).start();
         if (excludeClosedSprints) {
           return $rootscope.$broadcast("backlog:unload-closed-sprints");
         } else {
@@ -10648,7 +10771,7 @@
       return $scope.$on("closed-sprints:reloaded", (function(_this) {
         return function(ctx, sprints) {
           var key, text;
-          $loading.finish(loadingElm);
+          currentLoading.finish();
           if (sprints.length > 0) {
             key = "BACKLOG.SPRINTS.ACTION_HIDE_CLOSED_SPRINTS";
           } else {
@@ -10907,7 +11030,7 @@
       submitButton = $el.find(".submit-button");
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var broadcastEvent, form, promise;
+          var broadcastEvent, currentLoading, form, promise;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
@@ -10920,9 +11043,9 @@
             promise = $repo.save($scope.task);
             broadcastEvent = "taskform:edit:success";
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           return promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             return $rootscope.$broadcast(broadcastEvent, data);
           });
@@ -10948,25 +11071,25 @@
       };
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var data, form, projectId, promise, sprintId, usId;
+          var currentLoading, data, form, projectId, promise, sprintId, usId;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           data = $scope.form.data;
           projectId = $scope.projectId;
           sprintId = $scope.form.sprintId;
           usId = $scope.form.usId;
           promise = $rs.tasks.bulkCreate(projectId, sprintId, usId, data);
           promise.then(function(result) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("taskform:bulk:success", result);
             return lightboxService.close($el);
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return console.log("FAIL");
           });
         };
@@ -11386,7 +11509,7 @@
 
   module.directive("tgTaskboard", ["$rootScope", TaskboardDirective]);
 
-  TaskboardTaskDirective = function($rootscope) {
+  TaskboardTaskDirective = function($rootscope, $loading, $rs) {
     var link;
     link = function($scope, $el, $attrs, $model) {
       $el.disableSelection();
@@ -11402,7 +11525,16 @@
           return;
         }
         return $scope.$apply(function() {
-          return $rootscope.$broadcast("taskform:edit", $scope.task);
+          var currentLoading, target, task;
+          target = $(event.target);
+          currentLoading = $loading().target(target).timeout(200).removeClasses("icon-edit").start();
+          task = $scope.task;
+          return $rs.tasks.getByRef(task.project, task.ref).then((function(_this) {
+            return function(editingTask) {
+              $rootscope.$broadcast("taskform:edit", editingTask);
+              return currentLoading.finish();
+            };
+          })(this));
         });
       });
     };
@@ -11411,7 +11543,7 @@
     };
   };
 
-  module.directive("tgTaskboardTask", ["$rootScope", TaskboardTaskDirective]);
+  module.directive("tgTaskboardTask", ["$rootScope", "$tgLoading", "$tgResources", TaskboardTaskDirective]);
 
   TaskboardSquishColumnDirective = function(rs) {
     var avatarWidth, link, maxColumnWidth;
@@ -12152,7 +12284,7 @@
 
   module.directive("tgKanbanArchivedStatusIntro", ["$translate", KanbanArchivedStatusIntroDirective]);
 
-  KanbanUserstoryDirective = function($rootscope) {
+  KanbanUserstoryDirective = function($rootscope, $loading, $rs) {
     var link;
     link = function($scope, $el, $attrs, $model) {
       $el.disableSelection();
@@ -12164,12 +12296,19 @@
         }
       });
       $el.find(".icon-edit").on("click", function(event) {
+        var currentLoading, target, us;
         if ($el.find(".icon-edit").hasClass("noclick")) {
           return;
         }
-        return $scope.$apply(function() {
-          return $rootscope.$broadcast("usform:edit", $model.$modelValue);
-        });
+        target = $(event.target);
+        currentLoading = $loading().target(target).timeout(200).removeClasses("icon-edit").start();
+        us = $model.$modelValue;
+        return $rs.userstories.getByRef(us.project, us.ref).then((function(_this) {
+          return function(editingUserStory) {
+            $rootscope.$broadcast("usform:edit", editingUserStory);
+            return currentLoading.finish();
+          };
+        })(this));
       });
       return $scope.$on("$destroy", function() {
         return $el.off();
@@ -12182,7 +12321,7 @@
     };
   };
 
-  module.directive("tgKanbanUserstory", ["$rootScope", KanbanUserstoryDirective]);
+  module.directive("tgKanbanUserstory", ["$rootScope", "$tgLoading", "$tgResources", KanbanUserstoryDirective]);
 
   KanbanSquishColumnDirective = function(rs) {
     var link;
@@ -12697,23 +12836,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(statusId) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.status = statusId;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -12776,23 +12915,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(type) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.type = type;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -12856,23 +12995,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(severity) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.severity = severity;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -12936,23 +13075,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(priority) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.priority = priority;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -13107,21 +13246,21 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.create("issues", $scope.issue);
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("issueform:new:success", data);
             lightboxService.close($el);
             return $confirm.notify("success");
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("error");
           });
         };
@@ -13149,24 +13288,24 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var data, form, projectId, promise;
+          var currentLoading, data, form, projectId, promise;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           data = $scope["new"].bulk;
           projectId = $scope["new"].projectId;
           promise = $rs.issues.bulkCreate(projectId, data);
           promise.then(function(result) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("issueform:new:success", result);
             lightboxService.close($el);
             return $confirm.notify("success");
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("error");
           });
         };
@@ -13283,8 +13422,7 @@
       this.scope.$on("issueform:new:success", (function(_this) {
         return function() {
           _this.analytics.trackEvent("issue", "create", "create issue on issues list", 1);
-          _this.loadIssues();
-          return _this.loadFilters();
+          return _this.loadIssues();
         };
       })(this));
     }
@@ -13335,7 +13473,7 @@
 
     IssuesController.prototype.getUrlFilters = function() {
       var filters;
-      filters = _.pick(this.location.search(), "page", "tags", "statuses", "types", "q", "severities", "priorities", "assignedTo", "createdBy", "orderBy");
+      filters = _.pick(this.location.search(), "page", "tags", "status", "types", "q", "severities", "priorities", "assignedTo", "createdBy", "orderBy");
       if (!filters.page) {
         filters.page = 1;
       }
@@ -13431,7 +13569,7 @@
     };
 
     IssuesController.prototype.loadFilters = function() {
-      var promise, urlfilters;
+      var loadFilters, promise, urlfilters;
       urlfilters = this.getUrlFilters();
       if (urlfilters.q) {
         this.scope.filtersQ = urlfilters.q;
@@ -13442,9 +13580,19 @@
           return myFilters;
         };
       })(this));
+      loadFilters = {};
+      loadFilters.project = this.scope.projectId;
+      loadFilters.tags = urlfilters.tags;
+      loadFilters.status = urlfilters.status;
+      loadFilters.q = urlfilters.q;
+      loadFilters.types = urlfilters.types;
+      loadFilters.severities = urlfilters.severities;
+      loadFilters.priorities = urlfilters.priorities;
+      loadFilters.assigned_to = urlfilters.assignedTo;
+      loadFilters.owner = urlfilters.createdBy;
       promise = promise.then((function(_this) {
         return function() {
-          return _this.rs.issues.filtersData(_this.scope.projectId);
+          return _this.rs.issues.filtersData(loadFilters);
         };
       })(this));
       return promise.then((function(_this) {
@@ -13453,12 +13601,9 @@
           usersFiltersFormat = function(users, type, unknownOption) {
             var reformatedUsers, unknownItem;
             reformatedUsers = _.map(users, function(t) {
-              return {
-                id: t[0],
-                count: t[1],
-                type: type,
-                name: t[0] ? _this.scope.usersById[t[0]].full_name_display : unknownOption
-              };
+              t.type = type;
+              t.name = t.full_name ? t.full_name : unknownOption;
+              return t;
             });
             unknownItem = _.remove(reformatedUsers, function(u) {
               return !u.id;
@@ -13473,31 +13618,22 @@
           };
           choicesFiltersFormat = function(choices, type, byIdObject) {
             return _.map(choices, function(t) {
-              return {
-                id: t[0],
-                name: byIdObject[t[0]].name,
-                color: byIdObject[t[0]].color,
-                count: t[1],
-                type: type
-              };
+              t.type = type;
+              return t;
             });
           };
           tagsFilterFormat = function(tags) {
             return _.map(tags, function(t) {
-              return {
-                id: t[0],
-                name: t[0],
-                color: _this.scope.project.tags_colors[t[0]],
-                count: t[1],
-                type: "tags"
-              };
+              t.id = t.name;
+              t.type = 'tags';
+              return t;
             });
           };
-          _this.scope.filters.statuses = choicesFiltersFormat(data.statuses, "statuses", _this.scope.issueStatusById);
+          _this.scope.filters.status = choicesFiltersFormat(data.statuses, "status", _this.scope.issueStatusById);
           _this.scope.filters.severities = choicesFiltersFormat(data.severities, "severities", _this.scope.severityById);
           _this.scope.filters.priorities = choicesFiltersFormat(data.priorities, "priorities", _this.scope.priorityById);
           _this.scope.filters.assignedTo = usersFiltersFormat(data.assigned_to, "assignedTo", "Unassigned");
-          _this.scope.filters.createdBy = usersFiltersFormat(data.created_by, "createdBy", "Unknown");
+          _this.scope.filters.createdBy = usersFiltersFormat(data.owners, "createdBy", "Unknown");
           _this.scope.filters.types = choicesFiltersFormat(data.types, "types", _this.scope.issueTypeById);
           _this.scope.filters.tags = tagsFilterFormat(data.tags);
           _this.removeNotExistingFiltersFromUrl();
@@ -13526,7 +13662,7 @@
           name = "assigned_to";
         } else if (name === "createdBy") {
           name = "owner";
-        } else if (name === "statuses") {
+        } else if (name === "status") {
           name = "status";
         } else if (name === "types") {
           name = "type";
@@ -13536,7 +13672,7 @@
       promise = this.rs.issues.list(this.scope.projectId, this.scope.httpParams);
       this.loadIssuesRequests += 1;
       promise.index = this.loadIssuesRequests;
-      return promise.then((function(_this) {
+      promise.then((function(_this) {
         return function(data) {
           if (promise.index === _this.loadIssuesRequests) {
             _this.scope.issues = data.models;
@@ -13547,6 +13683,7 @@
           return data;
         };
       })(this));
+      return promise;
     };
 
     IssuesController.prototype.loadInitialData = function() {
@@ -13554,9 +13691,10 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.members, project.roles);
+          _this.fillUsersAndRoles(project.users, project.roles);
           _this.initializeSubscription();
-          return _this.q.all([_this.loadFilters(), _this.loadIssues()]);
+          _this.loadFilters();
+          return _this.loadIssues();
         };
       })(this));
     };
@@ -13742,12 +13880,12 @@
 
   module.directive("tgIssues", ["$log", "$tgLocation", "$tgTemplate", "$compile", IssuesDirective]);
 
-  IssuesFiltersDirective = function($log, $location, $rs, $confirm, $loading, $template, $translate, $compile, $auth) {
+  IssuesFiltersDirective = function($q, $log, $location, $rs, $confirm, $loading, $template, $translate, $compile, $auth) {
     var link, template, templateSelected;
     template = $template.get("issue/issues-filters.html", true);
     templateSelected = $template.get("issue/issues-filters-selected.html", true);
     link = function($scope, $el, $attrs) {
-      var $ctrl, initializeSelectedFilters, renderFilters, renderSelectedFilters, selectQFilter, selectedFilters, showCategories, showFilters, toggleFilterSelection;
+      var $ctrl, getFiltersType, initializeSelectedFilters, reloadIssues, renderFilters, renderSelectedFilters, selectQFilter, selectedFilters, showCategories, showFilters, toggleFilterSelection;
       $ctrl = $el.closest(".wrapper").controller();
       selectedFilters = [];
       showFilters = function(title, type) {
@@ -13811,6 +13949,18 @@
         html = $compile(html)($scope);
         return $el.find(".filter-list").html(html);
       };
+      getFiltersType = function() {
+        return $el.find("h2 a.subfilter span.title").prop('data-type');
+      };
+      reloadIssues = function() {
+        var currentFiltersType;
+        currentFiltersType = getFiltersType();
+        return $q.all([$ctrl.loadIssues(), $ctrl.loadFilters()]).then(function() {
+          var filters;
+          filters = $scope.filters[currentFiltersType];
+          return renderFilters(_.reject(filters, "selected"));
+        });
+      };
       toggleFilterSelection = function(type, id) {
         var currentFiltersType, filter, filterId, filters;
         if (type === "myFilters") {
@@ -13838,23 +13988,20 @@
         }
         if (filter.selected) {
           selectedFilters.push(filter);
-          $scope.$apply(function() {
-            $ctrl.selectFilter(type, id);
-            $ctrl.selectFilter("page", 1);
-            $ctrl.storeFilters();
-            return $ctrl.loadIssues();
-          });
+          $ctrl.selectFilter(type, id);
+          $ctrl.selectFilter("page", 1);
+          $ctrl.storeFilters();
         } else {
-          selectedFilters = _.reject(selectedFilters, filter);
-          $scope.$apply(function() {
-            $ctrl.unselectFilter(type, id);
-            $ctrl.selectFilter("page", 1);
-            $ctrl.storeFilters();
-            return $ctrl.loadIssues();
+          selectedFilters = _.reject(selectedFilters, function(f) {
+            return f.id === filter.id && f.type === filter.type;
           });
+          $ctrl.unselectFilter(type, id);
+          $ctrl.selectFilter("page", 1);
+          $ctrl.storeFilters();
         }
+        reloadIssues();
         renderSelectedFilters(selectedFilters);
-        currentFiltersType = $el.find("h2 a.subfilter span.title").prop('data-type');
+        currentFiltersType = getFiltersType();
         if (type === currentFiltersType) {
           return renderFilters(_.reject(filters, "selected"));
         }
@@ -13865,7 +14012,7 @@
       $scope.$on("filters:issueupdate", function(ctx, filters) {
         var html;
         html = template({
-          filters: filters.statuses
+          filters: filters.status
         });
         html = $compile(html)($scope);
         return $el.find(".filter-list").html(html);
@@ -13882,7 +14029,7 @@
           $ctrl.replaceFilter("q", value);
           $ctrl.storeFilters();
         }
-        return $ctrl.loadIssues();
+        return reloadIssues();
       });
       $scope.$watch("filtersQ", selectQFilter);
       $el.on("click", ".filters-cats > ul > li > a", function(event) {
@@ -13957,19 +14104,19 @@
         return $scope.$apply();
       });
       return $el.on("keyup", ".my-filter-name", function(event) {
-        var newFilter, promise, target;
+        var currentLoading, newFilter, promise, target;
         event.preventDefault();
         if (event.keyCode === 13) {
           target = angular.element(event.currentTarget);
           newFilter = target.val();
-          $loading.start($el.find(".new"));
+          currentLoading = $loading().target($el.find(".new")).start();
           promise = $ctrl.saveCurrentFiltersTo(newFilter);
           promise.then(function() {
             var loadPromise;
             loadPromise = $ctrl.loadMyFilters();
             loadPromise.then(function(filters) {
               var currentfilterstype;
-              $loading.finish($el.find(".new"));
+              currentLoading.finish();
               $scope.filters.myFilters = filters;
               currentfilterstype = $el.find("h2 a.subfilter span.title").prop('data-type');
               if (currentfilterstype === "myFilters") {
@@ -13979,12 +14126,12 @@
               return $el.find('.save-filters').show();
             });
             return loadPromise.then(null, function() {
-              $loading.finish($el.find(".new"));
+              currentLoading.finish();
               return $confirm.notify("error", "Error loading custom filters");
             });
           });
           return promise.then(null, function() {
-            $loading.finish($el.find(".new"));
+            currentLoading.finish();
             $el.find(".my-filter-name").val(newFilter).focus().select();
             return $confirm.notify("error", "Filter not saved");
           });
@@ -14000,7 +14147,7 @@
     };
   };
 
-  module.directive("tgIssuesFilters", ["$log", "$tgLocation", "$tgResources", "$tgConfirm", "$tgLoading", "$tgTemplate", "$translate", "$compile", "$tgAuth", IssuesFiltersDirective]);
+  module.directive("tgIssuesFilters", ["$q", "$log", "$tgLocation", "$tgResources", "$tgConfirm", "$tgLoading", "$tgTemplate", "$translate", "$compile", "$tgAuth", IssuesFiltersDirective]);
 
   IssueStatusInlineEditionDirective = function($repo, $template, $rootscope) {
 
@@ -14042,7 +14189,7 @@
         event.preventDefault();
         event.stopPropagation();
         target = angular.element(event.currentTarget);
-        ref = $scope.filters.statuses;
+        ref = $scope.filters.status;
         for (j = 0, len = ref.length; j < len; j++) {
           filter = ref[j];
           if (filter.id === issue.status) {
@@ -14057,7 +14204,7 @@
           $repo.save(issue).then(function() {
             var k, len1, ref1;
             $ctrl.loadIssues();
-            ref1 = $scope.filters.statuses;
+            ref1 = $scope.filters.status;
             for (k = 0, len1 = ref1.length; k < len1; k++) {
               filter = ref1[k];
               if (filter.id === issue.status) {
@@ -14066,7 +14213,7 @@
             }
             return $rootscope.$broadcast("filters:issueupdate", $scope.filters);
           });
-          ref1 = $scope.filters.statuses;
+          ref1 = $scope.filters.status;
           for (k = 0, len1 = ref1.length; k < len1; k++) {
             filter = ref1[k];
             if (filter.id === issue.status) {
@@ -14258,29 +14405,12 @@
     UserStoryDetailController.prototype.initializeEventHandlers = function() {
       this.scope.$on("related-tasks:update", (function(_this) {
         return function() {
-          _this.loadUs();
           return _this.scope.tasks = _.clone(_this.scope.tasks, false);
         };
       })(this));
       this.scope.$on("attachment:create", (function(_this) {
         return function() {
-          _this.analytics.trackEvent("attachment", "create", "create attachment on userstory", 1);
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("attachment:edit", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("attachment:delete", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("custom-attributes-values:edit", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
+          return _this.analytics.trackEvent("attachment", "create", "create attachment on userstory", 1);
         };
       })(this));
       return this.scope.$on("comment:new", (function(_this) {
@@ -14515,24 +14645,22 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(status) {
-          var onError, onSuccess, us;
+          var currentLoading, onError, onSuccess, us;
           us = $model.$modelValue.clone();
           us.status = status;
           $.fn.popover().closeAll();
-          $model.$setViewValue(us);
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
+            $model.$setViewValue(us);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
-            us.revert();
-            $model.$setViewValue(us);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
-          return $repo.save($model.$modelValue).then(onSuccess, onError);
+          return $repo.save(us).then(onSuccess, onError);
         };
       })(this));
       $el.on("click", ".status-data", function(event) {
@@ -14596,21 +14724,19 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(team_requirement) {
-          var promise, us;
+          var currentLoading, promise, us;
           us = $model.$modelValue.clone();
           us.team_requirement = team_requirement;
-          $model.$setViewValue(us);
-          $loading.start($el.find("label"));
-          promise = $tgrepo.save($model.$modelValue);
+          currentLoading = $loading().target($el.find("label")).start();
+          promise = $tgrepo.save(us);
           promise.then(function() {
-            $loading.finish($el.find("label"));
+            $model.$setViewValue(us);
+            currentLoading.finish();
             return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
-            $loading.finish($el.find("label"));
-            $confirm.notify("error");
-            us.revert();
-            return $model.$setViewValue(us);
+            currentLoading.finish();
+            return $confirm.notify("error");
           });
         };
       })(this));
@@ -14663,21 +14789,18 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(client_requirement) {
-          var promise, us;
+          var currentLoading, promise, us;
           us = $model.$modelValue.clone();
           us.client_requirement = client_requirement;
-          $model.$setViewValue(us);
-          $loading.start($el.find("label"));
-          promise = $tgrepo.save($model.$modelValue);
+          currentLoading = $loading().target($el.find("label")).start();
+          promise = $tgrepo.save(us);
           promise.then(function() {
-            $loading.finish($el.find("label"));
+            $model.$setViewValue(us);
+            currentLoading.finish();
             return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
-            $loading.finish($el.find("label"));
-            $confirm.notify("error");
-            us.revert();
-            return $model.$setViewValue(us);
+            return $confirm.notify("error");
           });
         };
       })(this));
@@ -14979,23 +15102,21 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(status) {
-          var onError, onSuccess, task;
+          var currentLoading, onError, onSuccess, task;
           task = $model.$modelValue.clone();
           task.status = status;
-          $model.$setViewValue(task);
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
+            $model.$setViewValue(task);
             $confirm.notify("success");
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
-            task.revert();
-            $model.$setViewValue(task);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
-          return $repo.save($model.$modelValue).then(onSuccess, onError);
+          return $repo.save(task).then(onSuccess, onError);
         };
       })(this));
       $el.on("click", ".status-data", function(event) {
@@ -15058,23 +15179,21 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(is_iocaine) {
-          var promise, task;
+          var currentLoading, promise, task;
           task = $model.$modelValue.clone();
           task.is_iocaine = is_iocaine;
-          $model.$setViewValue(task);
-          $loading.start($el.find('label'));
+          currentLoading = $loading().target($el.find('label')).start();
           promise = $tgrepo.save(task);
           promise.then(function() {
+            $model.$setViewValue(task);
             $confirm.notify("success");
             return $rootscope.$broadcast("object:updated");
           });
           promise.then(null, function() {
-            task.revert();
-            $model.$setViewValue(task);
             return $confirm.notify("error");
           });
           return promise["finally"](function() {
-            return $loading.finish($el.find('label'));
+            return currentLoading.finish();
           });
         };
       })(this));
@@ -15655,7 +15774,7 @@
         return null;
       };
       save = $qqueue.bindAdd(function(wiki) {
-        var onError, onSuccess, promise;
+        var currentLoading, onError, onSuccess, promise;
         onSuccess = function(wikiPage) {
           if (wiki.id == null) {
             $analytics.trackEvent("wikipage", "create", "create wiki page", 1);
@@ -15667,14 +15786,15 @@
         onError = function() {
           return $confirm.notify("error");
         };
-        $loading.start($el.find('.save-container'));
+        console.log($el.find('.save-container'));
+        currentLoading = $loading().removeClasses("icon-floppy").target($el.find('.icon-floppy')).start();
         if (wiki.id != null) {
           promise = $repo.save(wiki).then(onSuccess, onError);
         } else {
           promise = $repo.create("wiki", wiki).then(onSuccess, onError);
         }
         return promise["finally"](function() {
-          return $loading.finish($el.find('.save-container'));
+          return currentLoading.finish();
         });
       });
       $el.on("click", "a", function(event) {
@@ -15865,12 +15985,12 @@
           })(this));
         });
         return $el.on("keyup", ".new input", function(event) {
-          var newLink, promise, target;
+          var currentLoading, newLink, promise, target;
           event.preventDefault();
           if (event.keyCode === 13) {
             target = angular.element(event.currentTarget);
             newLink = target.val();
-            $loading.start($el.find(".new"));
+            currentLoading = $loading().target($el.find(".new")).start();
             promise = $tgrepo.create("wiki-links", {
               project: $scope.projectId,
               title: newLink,
@@ -15881,14 +16001,14 @@
               $analytics.trackEvent("wikilink", "create", "create wiki link", 1);
               loadPromise = $ctrl.loadWikiLinks();
               loadPromise.then(function() {
-                $loading.finish($el.find(".new"));
+                currentLoading.finish();
                 $el.find(".new").addClass("hidden");
                 $el.find(".new input").val('');
                 $el.find(".add-button").show();
                 return render($scope.wikiLinks);
               });
               return loadPromise.then(null, function() {
-                $loading.finish($el.find(".new"));
+                currentLoading.finish();
                 $el.find(".new").addClass("hidden");
                 $el.find(".new input").val('');
                 $el.find(".add-button").show();
@@ -15897,7 +16017,7 @@
             });
             return promise.then(null, function(error) {
               var ref;
-              $loading.finish($el.find(".new"));
+              currentLoading.finish();
               $el.find(".new input").val(newLink);
               $el.find(".new input").focus().select();
               if ((error != null ? (ref = error.__all__) != null ? ref[0] : void 0 : void 0) != null) {
@@ -15961,7 +16081,7 @@
   CreateMembersDirective = function($rs, $rootScope, $confirm, $loading, lightboxService, $compile) {
     var extraTextTemplate, link, template;
     extraTextTemplate = "<fieldset class=\"extra-text\">\n    <textarea ng-attr-placeholder=\"{{'LIGHTBOX.CREATE_MEMBER.PLACEHOLDER_INVITATION_TEXT' | translate}}\"\n              maxlength=\"255\"></textarea>\n</fieldset>";
-    template = _.template("<div class=\"add-member-wrapper\">\n    <fieldset>\n        <input type=\"email\" placeholder=\"{{'LIGHTBOX.CREATE_MEMBER.PLACEHOLDER_TYPE_EMAIL' | translate}}\"\n               <% if(required) { %> data-required=\"true\" <% } %> data-type=\"email\" />\n    </fieldset>\n    <fieldset>\n        <select <% if(required) { %> data-required=\"true\" <% } %> data-required=\"true\">\n            <% _.each(roleList, function(role) { %>\n            <option value=\"<%- role.id %>\"><%- role.name %></option>\n            <% }); %>\n        </select>\n        <a class=\"icon icon-plus add-fieldset\" href=\"\"></a>\n    </fieldset>\n</div>");
+    template = _.template("<div class=\"add-member-wrapper\">\n    <fieldset>\n        <input tg-capslock type=\"email\" placeholder=\"{{'LIGHTBOX.CREATE_MEMBER.PLACEHOLDER_TYPE_EMAIL' | translate}}\"\n               <% if(required) { %> data-required=\"true\" <% } %> data-type=\"email\" />\n    </fieldset>\n    <fieldset>\n        <select <% if(required) { %> data-required=\"true\" <% } %> data-required=\"true\">\n            <% _.each(roleList, function(role) { %>\n            <option value=\"<%- role.id %>\"><%- role.name %></option>\n            <% }); %>\n        </select>\n        <a class=\"icon icon-plus add-fieldset\" href=\"\"></a>\n    </fieldset>\n</div>");
     link = function($scope, $el, $attrs) {
       var createFieldSet, resetForm, submit, submitButton;
       createFieldSet = function(required) {
@@ -16017,17 +16137,17 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var form, invitation_extra_text, invitations, memberWrappers, onError, onSuccess, promise;
+          var currentLoading, form, invitation_extra_text, invitations, memberWrappers, onError, onSuccess, promise;
           event.preventDefault();
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           onSuccess = function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             $confirm.notify("success");
             return $rootScope.$broadcast("membersform:new:success");
           };
           onError = function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             $confirm.notify("error");
             return $rootScope.$broadcast("membersform:new:error");
@@ -16710,16 +16830,16 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.save($scope.project);
           promise.then(function() {
             var newUrl;
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $confirm.notify("success");
             newUrl = $navurls.resolve("project-admin-project-profile-details", {
               project: $scope.project.slug
@@ -16730,7 +16850,7 @@
             return currentUserService.loadProjects();
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -16757,19 +16877,19 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.save($scope.project);
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("success");
           });
           return promise.then(null, function(data) {
-            $loading.finish(target);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -16796,22 +16916,22 @@
       var submit;
       submit = (function(_this) {
         return function() {
-          var form, promise, target;
+          var currentLoading, form, promise, target;
           form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
-          target = angular.element(".admin-functionalities a.button-green");
-          $loading.start(target);
+          target = angular.element(".admin-functionalities .submit-button");
+          currentLoading = $loading().target(target).start();
           promise = $repo.save($scope.project);
           promise.then(function() {
-            $loading.finish(target);
+            currentLoading.finish();
             $confirm.notify("success");
             $scope.$emit("project:loaded", $scope.project);
             return projectService.fetchProject();
           });
           return promise.then(null, function(data) {
-            $loading.finish(target);
+            currentLoading.finish();
             return $confirm.notify("error", data._error_message);
           });
         };
@@ -18975,19 +19095,19 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.saveAttribute($scope.github, "github");
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("success");
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -19014,20 +19134,20 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.saveAttribute($scope.gitlab, "gitlab");
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $confirm.notify("success");
             return $scope.$emit("project:modules:reload");
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -19054,20 +19174,20 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.saveAttribute($scope.bitbucket, "bitbucket");
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $confirm.notify("success");
             return $scope.$emit("project:modules:reload");
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -19145,15 +19265,16 @@
   CreateProject = function($rootscope, $repo, $confirm, $location, $navurls, $rs, $projectUrl, $loading, lightboxService, $cacheFactory, $translate, currentUserService) {
     var directive, link;
     link = function($scope, $el, attrs) {
-      var form, onErrorSubmit, onSuccessSubmit, openLightbox, submit, submitButton;
+      var currentLoading, form, onErrorSubmit, onSuccessSubmit, openLightbox, submit, submitButton;
       $scope.data = {};
       $scope.templates = [];
+      currentLoading = null;
       form = $el.find("form").checksley({
         "onlyOneErrorElement": true
       });
       onSuccessSubmit = function(response) {
         $cacheFactory.get('$http').removeAll();
-        $loading.finish(submitButton);
+        currentLoading.finish();
         $rootscope.$broadcast("projects:reload");
         $confirm.notify("success", $translate.instant("COMMON.SAVE"));
         $location.url($projectUrl.get(response));
@@ -19162,7 +19283,7 @@
       };
       onErrorSubmit = function(response) {
         var error_field, error_step, i, len, ref, selectors;
-        $loading.finish(submitButton);
+        currentLoading.finish();
         form.setErrors(response);
         selectors = [];
         ref = _.keys(response);
@@ -19182,7 +19303,7 @@
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.create("projects", $scope.data);
           return promise.then(onSuccessSubmit, onErrorSubmit);
         };
@@ -21236,8 +21357,8 @@
     service.stats = function(projectId) {
       return $repo.queryOneRaw("projects", projectId + "/issues_stats");
     };
-    service.filtersData = function(projectId) {
-      return $repo.queryOneRaw("projects", projectId + "/issue_filters_data");
+    service.filtersData = function(params) {
+      return $repo.queryOneRaw("issues-filters", null, params);
     };
     service.listValues = function(projectId, type) {
       var params;
@@ -22372,6 +22493,9 @@
     service.listInAllProjects = function(filters) {
       return $repo.queryMany("userstories", filters);
     };
+    service.filtersData = function(params) {
+      return $repo.queryOneRaw("userstories-filters", null, params);
+    };
     service.listUnassigned = function(projectId, filters) {
       var params;
       params = {
@@ -22647,20 +22771,20 @@
       var submit, submitButton;
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if ($scope.newPassword1 !== $scope.newPassword2) {
             $confirm.notify('error', $translate.instant("CHANGE_PASSWORD.ERROR_PASSWORD_MATCH"));
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $rs.userSettings.changePassword($scope.currentPassword, $scope.newPassword1);
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify('success');
           });
           return promise.then(null, function(response) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify('error', response.data._error_message);
           });
         };
@@ -22676,7 +22800,7 @@
     };
   };
 
-  module.directive("tgUserChangePassword", ["$tgResources", "$tgConfirm", "$tgLoading", UserChangePasswordDirective]);
+  module.directive("tgUserChangePassword", ["$tgResources", "$tgConfirm", "$tgLoading", "$translate", UserChangePasswordDirective]);
 
 }).call(this);
 
@@ -24202,7 +24326,12 @@
       this.user = this.auth.userData;
       this.projectsService.getProjectBySlug(projectSlug).then((function(_this) {
         return function(project) {
+          var members;
           _this.project = project;
+          members = _this.project.get('members').filter(function(member) {
+            return member.get('is_active');
+          });
+          _this.project = _this.project.set('members', members);
           return _this._setMeta(_this.project);
         };
       })(this))["catch"]((function(_this) {
@@ -25363,22 +25492,25 @@
         }
       }, {
         check: function(timeline, event) {
-          if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'milestone' && event.type === 'change') {
-            return timeline.getIn(['data', 'value_diff', 'value']).get(0) === null;
-          }
-          return false;
+          return timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'moveInBacklog' && timeline.hasIn(['data', 'value_diff', 'value', 'backlog_order']) && event.type === 'change';
         },
-        key: 'TIMELINE.US_ADDED_MILESTONE',
-        translate_params: ['username', 'obj_name', 'sprint_name']
+        key: 'TIMELINE.US_MOVED',
+        translate_params: ['username', 'obj_name']
       }, {
         check: function(timeline, event) {
-          if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'milestone' && event.type === 'change') {
-            return timeline.getIn(['data', 'value_diff', 'value']).get(1) === null;
+          if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'moveInBacklog' && event.type === 'change') {
+            return timeline.getIn(['data', 'value_diff', 'value', 'milestone']).get(1) === null;
           }
           return false;
         },
         key: 'TIMELINE.US_REMOVED_FROM_MILESTONE',
         translate_params: ['username', 'obj_name']
+      }, {
+        check: function(timeline, event) {
+          return timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'moveInBacklog' && event.type === 'change';
+        },
+        key: 'TIMELINE.US_ADDED_MILESTONE',
+        translate_params: ['username', 'obj_name', 'sprint_name']
       }, {
         check: function(timeline, event) {
           if (timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'blocked' && event.type === 'change') {
@@ -25519,8 +25651,8 @@
       if (type.member) {
         this.timeline = this.timeline.set('member', type.member(this.timeline));
       }
-      if (this.timeline.hasIn(['data', 'value_diff', 'attachments', 'new'])) {
-        this.timeline = this.timeline.set('attachments', this.timeline.getIn(['data', 'value_diff', 'attachments', 'new']));
+      if (this.timeline.getIn(['data', 'value_diff', 'key']) === 'attachments' && this.timeline.hasIn(['data', 'value_diff', 'value', 'new'])) {
+        this.timeline = this.timeline.set('attachments', this.timeline.getIn(['data', 'value_diff', 'value', 'new']));
       }
     }
 
@@ -25721,7 +25853,7 @@
       this.userTimelinePaginationSequenceService = userTimelinePaginationSequenceService;
     }
 
-    UserTimelineService.prototype._valid_fields = ['status', 'subject', 'description_diff', 'assigned_to', 'points', 'severity', 'priority', 'type', 'attachments', 'milestone', 'is_iocaine', 'content_diff', 'name', 'estimated_finish', 'estimated_start', 'blocked'];
+    UserTimelineService.prototype._valid_fields = ['status', 'subject', 'description_diff', 'assigned_to', 'points', 'severity', 'priority', 'type', 'attachments', 'is_iocaine', 'content_diff', 'name', 'estimated_finish', 'estimated_start', 'blocked', 'moveInBacklog', 'milestone'];
 
     UserTimelineService.prototype._invalid = [
       {
@@ -25779,13 +25911,23 @@
       var newdata;
       newdata = Immutable.List();
       response.get('data').forEach(function(item) {
-        var data, newItem, values_diff;
+        var data, event_type, newItem, values_diff;
+        event_type = item.get('event_type').split(".");
         data = item.get('data');
         values_diff = data.get('values_diff');
         if (values_diff && values_diff.count()) {
           if (values_diff.has('is_blocked')) {
             values_diff = Immutable.Map({
               'blocked': values_diff
+            });
+          }
+          if (values_diff.has('milestone')) {
+            values_diff = Immutable.Map({
+              'moveInBacklog': values_diff
+            });
+          } else if (event_type[1] === 'milestone') {
+            values_diff = Immutable.Map({
+              'milestone': values_diff
             });
           }
           return values_diff.forEach(function(value, key) {

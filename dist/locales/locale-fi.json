@@ -36,6 +36,7 @@
         "EXTERNAL_USER": "ulkoinen käyttäjä",
         "GENERIC_ERROR": "Oompa Loompas havaitsivat virheen {{error}}.",
         "IOCAINE_TEXT": "Jos tehtävä ahdistaa, merkitse se myrkylliseksi. Ajan mittaa pieninä annoksina saattaa kastokykysi myrkkyä vastaan parantua.",
+        "CAPSLOCK_WARNING": "Be careful! You're writing with capital letters and this input is case sensitive.",
         "FORM_ERRORS": {
             "DEFAULT_MESSAGE": "Tämä arvo vaikuttaa virheelliseltä.",
             "TYPE_EMAIL": "Tämän pitäisi olla toimiva sähköpostiosoite.",
@@ -343,7 +344,7 @@
         "DESCRIPTION": "Kirjoita lyhyt kuvaus",
         "DEPRECATED": "(poistettu)",
         "DEPRECATED_FILE": "Vanhentunut?",
-        "ADD": "Lisää liite. <%- maxFileSizeMsg %>",
+        "ADD": "Add new attachment. {{maxFileSizeMsg}}",
         "MAX_FILE_SIZE": "[Maks. koko: {{maxFileSize}}]",
         "SHOW_DEPRECATED": "+ näytä vanhentuneet liitteet",
         "HIDE_DEPRECATED": "- piilota vanhentuneet liitteet",
@@ -430,7 +431,7 @@
         "REPORTS": {
             "TITLE": "Raportit",
             "SUBTITLE": "Vie projektisi CSV-tiedostoon",
-            "DESCRIPTION": "Lataa CSV-tiedosto tai luo URL ja avaa haluamassasi ohjelmassa. Voit visualisoida ja analysoida tietoa helposti.",
+            "DESCRIPTION": "Download a CSV file or copy the generated URL and open it in your favourite text editor or spreadsheet to make your own project data reports. You will be able to visualize and analyze all your data easily.",
             "HELP": "Kuinka tätä käytetään omassa taulukossani?",
             "REGENERATE_TITLE": "Vaihda URL",
             "REGENERATE_SUBTITLE": "Jos muutata CSV-datan URLia, edellien lakkaa toimimasta. Oletko varma?"
@@ -1245,6 +1246,7 @@
         "MILESTONE_UPDATED": "{{username}} has updated the sprint {{obj_name}}",
         "US_UPDATED": "{{username}} has updated the attribute \"{{field_name}}\" of the US {{obj_name}}",
         "US_UPDATED_WITH_NEW_VALUE": "{{username}} has updated the attribute \"{{field_name}}\" of the US {{obj_name}} to {{new_value}}",
+        "US_UPDATED_POINTS": "{{username}} has updated '{{role_name}}' points of the US {{obj_name}} to {{new_value}}",
         "ISSUE_UPDATED": "{{username}} has updated the attribute \"{{field_name}}\" of the issue {{obj_name}}",
         "ISSUE_UPDATED_WITH_NEW_VALUE": "{{username}} has updated the attribute \"{{field_name}}\" of the issue {{obj_name}} to {{new_value}}",
         "TASK_UPDATED": "{{username}} has updated the attribute \"{{field_name}}\" of the task {{obj_name}} to {{new_value}}",
@@ -1257,6 +1259,7 @@
         "NEW_COMMENT_TASK": "{{username}} has commented in the task {{obj_name}}",
         "NEW_MEMBER": "{{project_name}} has a new member",
         "US_ADDED_MILESTONE": "{{username}} has added the US {{obj_name}} to {{sprint_name}}",
+        "US_MOVED": "{{username}} has moved the US {{obj_name}}",
         "US_REMOVED_FROM_MILESTONE": "{{username}} has added the US {{obj_name}} to the backlog",
         "BLOCKED": "{{username}} has blocked {{obj_name}}",
         "UNBLOCKED": "{{username}} has unblocked {{obj_name}}",

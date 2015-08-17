@@ -36,6 +36,7 @@
         "EXTERNAL_USER": "ein externer Benutzer",
         "GENERIC_ERROR": "Eins unserer Helferlein sagt {{error}}.",
         "IOCAINE_TEXT": "Fühlen Sie sich von einer Aufgabe etwas erdrückt? Stellen Sie sicher, dass andere davon erfahren, indem Sie auf Locaine klicken, wenn Sie eine Aufgabe ändern. Es ist möglich, gegen dieses (fiktive) tödliche Gift immun zu werden, indem man kleine Mengen über einen Zeitraum hinweg einnimmt. Genauso, wie es möglich ist, besser in dem zu werden, was man tut, indem man gelegentlich zusätzliche Herausforderungen annimmt! ",
+        "CAPSLOCK_WARNING": "Be careful! You're writing with capital letters and this input is case sensitive.",
         "FORM_ERRORS": {
             "DEFAULT_MESSAGE": "Dieser Wert scheint ungültig zu sein. ",
             "TYPE_EMAIL": "Dieser Wert sollte eine gültige E-Mail Adresse enthalten.",
@@ -343,7 +344,7 @@
         "DESCRIPTION": "Geben Sie eine kurze Beschreibung ein",
         "DEPRECATED": "(verworfen)",
         "DEPRECATED_FILE": "Verworfen?",
-        "ADD": "Neuen Anhang hinzufügen. <%- maxFileSizeMsg %>",
+        "ADD": "Neuen Anhang hinzufügen. {{maxFileSizeMsg}}",
         "MAX_FILE_SIZE": "[Max. Größe: {{maxFileSize}}]",
         "SHOW_DEPRECATED": "+ verworfene Anhänge zeigen",
         "HIDE_DEPRECATED": "- verworfene Anhänge verbergen",
@@ -430,7 +431,7 @@
         "REPORTS": {
             "TITLE": "Berichte",
             "SUBTITLE": "Exportieren Sie Ihre Projektdaten in CSV Format und erstellen Sie Ihre eigenen Berichte. ",
-            "DESCRIPTION": "Laden Sie eine CSV Datei herunter oder kopieren Sie die generierte URL und öffnen Sie sie in Ihrem bevorzugten Text-Editor oder in Ihrer Tabellenkalkulation, um Ihre eigenen Projektdaten-Berichte zu erstellen. So können Sie Ihre Daten leicht überblicken und analysieren.",
+            "DESCRIPTION": "Download a CSV file or copy the generated URL and open it in your favourite text editor or spreadsheet to make your own project data reports. You will be able to visualize and analyze all your data easily.",
             "HELP": "Wie kann ich dies in meiner eigenen Tabellenkalkulation nutzen?",
             "REGENERATE_TITLE": "Die URL ändern",
             "REGENERATE_SUBTITLE": "Sie sind im Begriff, die CSV data access URL zu ändern. Die vorherige URL wird deaktiviert. Sind Sie sicher?"
@@ -896,10 +897,10 @@
         "CHART": {
             "XAXIS_LABEL": "Sprints",
             "YAXIS_LABEL": "Punkte",
-            "OPTIMAL": "Optimal pending points for sprint \"{{sprintName}}\" should be {{value}}",
-            "REAL": "Real pending points for sprint \"{{sprintName}}\" is {{value}}",
+            "OPTIMAL": "Optimale unerledigte Punkte für Sprint \"{{sprintName}}\" sollten sein {{value}}",
+            "REAL": "Tatsächliche Anzahl unerledigter Punkte für Sprint \"{{sprintName}}\" ist {{value}}",
             "INCREMENT_TEAM": "Erhöhte Punktezahl von Teamanfragen für Sprint \"{{sprintName}}\" ist {{value}}",
-            "INCREMENT_CLIENT": "Incremented points by client requirements for sprint \"{{sprintName}}\" is {{value}}"
+            "INCREMENT_CLIENT": "Erhöhte Punkteanzahl von Kundenanfragen für Sprint \"{{sprintName}}\" ist {{value}}"
         },
         "TAGS": {
             "TOGGLE": "Sichtbarkeit des Schlagwortes umschalten",
@@ -1245,6 +1246,7 @@
         "MILESTONE_UPDATED": "{{username}} aktualisierte den Sprint {{obj_name}}",
         "US_UPDATED": "{{username}} aktualisierte das Attribut \"{{field_name}}\" der User-Story {{obj_name}}",
         "US_UPDATED_WITH_NEW_VALUE": "{{username}} aktualisierte das Attribut \"{{field_name}}\" der User-Story {{obj_name}} zu {{new_value}}",
+        "US_UPDATED_POINTS": "{{username}} has updated '{{role_name}}' points of the US {{obj_name}} to {{new_value}}",
         "ISSUE_UPDATED": "{{username}} aktualisierte das Attribut \"{{field_name}}\" des Tickets {{obj_name}}",
         "ISSUE_UPDATED_WITH_NEW_VALUE": "{{username}} aktualisierte das Attribut \"{{field_name}}\" des Tickets {{obj_name}} zu {{new_value}}",
         "TASK_UPDATED": "{{username}} aktualisierte das Attribut \"{{field_name}}\" der Aufgabe {{obj_name}} zu {{new_value}}",
@@ -1257,6 +1259,7 @@
         "NEW_COMMENT_TASK": "{{username}} schrieb einen Kommentar in der Aufgabe {{obj_name}}",
         "NEW_MEMBER": "{{project_name}} hat ein neues Mitglied",
         "US_ADDED_MILESTONE": "{{username}} fügte dem Sprint {{sprint_name}} die User-Story {{obj_name}} hinzu",
+        "US_MOVED": "{{username}} has moved the US {{obj_name}}",
         "US_REMOVED_FROM_MILESTONE": "{{username}} fügte der Auftragsliste die User-Story {{obj_name}} hinzu",
         "BLOCKED": "{{username}} vermerkte die Blockierung von {{obj_name}}",
         "UNBLOCKED": "{{username}} hob die Blockierung von {{obj_name}} auf",
