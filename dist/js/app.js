@@ -2349,20 +2349,20 @@
       form = $el.find("form").checksley();
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.create("feedback", $scope.feedback);
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $lightboxService.close($el);
             return $confirm.notify("success", "\\o/ we'll be happy to read your");
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("error");
           });
         };
@@ -2547,20 +2547,20 @@
     link = function($scope, $el, $attrs, $model) {
       var renderEdit, renderView, saveTask;
       saveTask = debounce(2000, function(task) {
-        var promise;
+        var currentLoading, promise;
         task.subject = $el.find('input').val();
-        $loading.start($el.find('.task-name'));
+        currentLoading = $loading().target($el.find('.task-name')).start();
         promise = $repo.save(task);
         promise.then((function(_this) {
           return function() {
-            $loading.finish($el.find('.task-name'));
+            currentLoading.finish();
             $confirm.notify("success");
             return $rootscope.$broadcast("related-tasks:update");
           };
         })(this));
         promise.then(null, (function(_this) {
           return function() {
-            $loading.finish($el.find('.task-name'));
+            currentLoading.finish();
             $el.find('input').val(task.subject);
             return $confirm.notify("error");
           };
@@ -2657,23 +2657,23 @@
     link = function($scope, $el, $attrs) {
       var createTask, render;
       createTask = debounce(2000, function(task) {
-        var promise;
+        var currentLoading, promise;
         task.subject = $el.find('input').val();
         task.assigned_to = $scope.newTask.assigned_to;
         task.status = $scope.newTask.status;
         $scope.newTask.status = $scope.project.default_task_status;
         $scope.newTask.assigned_to = null;
-        $loading.start($el.find('.task-name'));
+        currentLoading = $loading().target($el.find('.task-name')).start();
         promise = $repo.create("tasks", task);
         promise.then(function() {
           $analytics.trackEvent("task", "create", "create task on userstory", 1);
-          $loading.finish($el.find('.task-name'));
+          currentLoading.finish();
           $scope.$emit("related-tasks:add");
           return $confirm.notify("success");
         });
         promise.then(null, function() {
           $el.find('input').val(task.subject);
-          $loading.finish($el.find('.task-name'));
+          currentLoading.finish();
           return $confirm.notify("error");
         });
         return promise;
@@ -4384,12 +4384,12 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(userId) {
-          var promise;
+          var currentLoading, promise;
           $model.$modelValue.assigned_to = userId;
-          $loading.start($el);
+          currentLoading = $loading().target($el).start();
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
-            $loading.finish($el);
+            currentLoading.finish();
             $confirm.notify("success");
             renderAssignedTo($model.$modelValue);
             return $rootscope.$broadcast("object:updated");
@@ -4397,7 +4397,7 @@
           promise.then(null, function() {
             $model.$modelValue.revert();
             $confirm.notify("error");
-            return $loading.finish($el);
+            return currentLoading.finish();
           });
           return promise;
         };
@@ -4486,11 +4486,11 @@
         return $rootscope.$broadcast("block", $model.$modelValue);
       });
       $el.on("click", ".item-unblock", function(event) {
-        var finish;
+        var currentLoading, finish;
         event.preventDefault();
-        $loading.start($el.find(".item-unblock"));
+        currentLoading = $loading().target($el.find(".item-unblock")).start();
         finish = function() {
-          return $loading.finish($el.find(".item-unblock"));
+          return currentLoading.finish();
         };
         return $rootscope.$broadcast("unblock", $model.$modelValue, finish);
       });
@@ -4567,9 +4567,9 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(subject) {
-          var promise;
+          var currentLoading, promise;
           $model.$modelValue.subject = subject;
-          $loading.start($el.find('.save-container'));
+          currentLoading = $loading().target($el.find('.save-container')).start();
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
@@ -4581,7 +4581,7 @@
             return $confirm.notify("error");
           });
           promise["finally"](function() {
-            return $loading.finish($el.find('.save-container'));
+            return currentLoading.finish();
           });
           return promise;
         };
@@ -4658,9 +4658,9 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(description) {
-          var promise;
+          var currentLoading, promise;
           $model.$modelValue.description = description;
-          $loading.start($el.find('.save-container'));
+          currentLoading = $loading().target($el.find('.save-container')).start();
           promise = $repo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
@@ -4672,7 +4672,7 @@
             return $confirm.notify("error");
           });
           return promise["finally"](function() {
-            return $loading.finish($el.find('.save-container'));
+            return currentLoading.finish();
           });
         };
       })(this));
@@ -5028,15 +5028,15 @@
       el.find("span.message").html(message);
       el.on("click.confirm-dialog", "a.button-green", debounce(2000, (function(_this) {
         return function(event) {
-          var target;
+          var currentLoading, target;
           event.preventDefault();
           target = angular.element(event.currentTarget);
-          _this.loading.start(target);
+          currentLoading = _this.loading().target(target).start();
           return defered.resolve(function(ok) {
             if (ok == null) {
               ok = true;
             }
-            _this.loading.finish(target);
+            currentLoading.finish();
             if (ok) {
               return _this.hide(el);
             }
@@ -5084,14 +5084,14 @@
       });
       el.on("click.confirm-dialog", "a.button-green", debounce(2000, (function(_this) {
         return function(event) {
-          var target;
+          var currentLoading, target;
           event.preventDefault();
           target = angular.element(event.currentTarget);
-          _this.loading.start(target);
+          currentLoading = _this.loading().target(target).start();
           return defered.resolve({
             selected: choicesField.val(),
             finish: function() {
-              _this.loading.finish(target);
+              currentLoading.finish();
               return _this.hide(el);
             }
           });
@@ -6284,20 +6284,20 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(target) {
-          var model, onError, onSuccess;
+          var currentLoading, model, onError, onSuccess;
           $scope.$broadcast("markdown-editor:submit");
           $el.find(".comment-list").addClass("activeanimation");
+          currentLoading = $loading().target(target).start();
           onSuccess = function() {
             return $ctrl.loadHistory(type, objectId)["finally"](function() {
-              return $loading.finish(target);
+              return currentLoading.finish();
             });
           };
           onError = function() {
-            $loading.finish(target);
+            currentLoading.finish();
             return $confirm.notify("error");
           };
           model = $scope.$eval($attrs.ngModel);
-          $loading.start(target);
           return $ctrl.repo.save(model).then(onSuccess, onError);
         };
       })(this));
@@ -6306,7 +6306,7 @@
       $scope.$on("object:updated", function() {
         return $ctrl.loadHistory(type, objectId);
       });
-      $el.on("click", ".add-comment input.button-green", debounce(2000, function(event) {
+      $el.on("click", ".add-comment button.button-green", debounce(2000, function(event) {
         var target;
         event.preventDefault();
         target = angular.element(event.currentTarget);
@@ -6702,9 +6702,9 @@
       })(this));
       block = $qqueue.bindAdd((function(_this) {
         return function(item) {
-          var promise;
+          var currentLoading, promise;
           $model.$setViewValue(item);
-          $loading.start($el.find(".button-green"));
+          currentLoading = $loading().target($el.find(".button-green")).start();
           promise = $tgrepo.save($model.$modelValue);
           promise.then(function() {
             $confirm.notify("success");
@@ -6716,7 +6716,7 @@
             return $model.$setViewValue(item);
           });
           return promise["finally"](function() {
-            $loading.finish($el.find(".button-green"));
+            currentLoading.finish();
             return lightboxService.close($el);
           });
         };
@@ -6836,13 +6836,13 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var broadcastEvent, form, promise;
+          var broadcastEvent, currentLoading, form, promise;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           if ($scope.isNew) {
             promise = $repo.create("userstories", $scope.us);
             broadcastEvent = "usform:new:success";
@@ -6851,12 +6851,12 @@
             broadcastEvent = "usform:edit:success";
           }
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             return $rootScope.$broadcast(broadcastEvent, data);
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -6908,7 +6908,7 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var form, promise;
+          var currentLoading, form, promise;
           event.preventDefault();
           form = $el.find("form").checksley({
             onlyOneErrorElement: true
@@ -6916,15 +6916,15 @@
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $rs.userstories.bulkCreate($scope["new"].projectId, $scope["new"].statusId, $scope["new"].bulk);
           promise.then(function(result) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("usform:bulk:success", result);
             return lightboxService.close($el);
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -7304,42 +7304,95 @@
  */
 
 (function() {
-  var TgLoadingService, module,
-    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
+  var LoadingDirective, TgLoadingService, module,
+    slice = [].slice;
 
   module = angular.module("taigaCommon");
 
-  TgLoadingService = (function(superClass) {
-    extend(TgLoadingService, superClass);
-
-    function TgLoadingService() {
-      return TgLoadingService.__super__.constructor.apply(this, arguments);
-    }
-
-    TgLoadingService.prototype.start = function(target) {
-      if (!target.hasClass('loading')) {
-        target.data('loading-old-content', target.html());
-        target.addClass('loading');
-        return target.html("<img class='loading-spinner' src='/svg/spinner-circle.svg' alt='loading...' />");
-      }
+  TgLoadingService = function() {
+    var spinner;
+    spinner = "<img class='loading-spinner' src='/svg/spinner-circle.svg' alt='loading...' />";
+    return function() {
+      var service;
+      service = {
+        settings: {
+          target: null,
+          classes: [],
+          timeout: 0
+        },
+        target: function(target) {
+          service.settings.target = target;
+          return service;
+        },
+        removeClasses: function() {
+          var classess;
+          classess = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+          service.settings.classes = classess;
+          return service;
+        },
+        timeout: function(timeout) {
+          service.settings.timeout = timeout;
+          return service;
+        },
+        start: function() {
+          var target, timeoutId;
+          target = service.settings.target;
+          service.settings.classes.map(function(className) {
+            return target.removeClass(className);
+          });
+          timeoutId = setTimeout((function() {
+            if (!target.hasClass('loading')) {
+              service.settings.oldContent = target.html();
+              target.addClass('loading');
+              return target.html(spinner);
+            }
+          }), service.settings.timeout);
+          service.settings.timeoutId = timeoutId;
+          return service;
+        },
+        finish: function() {
+          var removeClasses, target, timeoutId;
+          target = service.settings.target;
+          timeoutId = service.settings.timeoutId;
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            removeClasses = service.settings.classes;
+            removeClasses.map(function(className) {
+              return service.settings.target.addClass(className);
+            });
+            target.html(service.settings.oldContent);
+            target.removeClass('loading');
+          }
+          return service;
+        }
+      };
+      return service;
     };
+  };
 
-    TgLoadingService.prototype.finish = function(target) {
-      var oldContent;
-      if (target.hasClass('loading')) {
-        oldContent = target.data('loading-old-content');
-        target.data('loading-old-content', null);
-        target.html(oldContent);
-        return target.removeClass('loading');
-      }
+  module.factory("$tgLoading", TgLoadingService);
+
+  LoadingDirective = function($loading) {
+    var link;
+    link = function($scope, $el, attr) {
+      var currentLoading;
+      currentLoading = null;
+      return $scope.$watch(attr.tgLoading, (function(_this) {
+        return function(showLoading) {
+          if (showLoading) {
+            return currentLoading = $loading().target($el).start();
+          } else {
+            return currentLoading.finish();
+          }
+        };
+      })(this));
     };
+    return {
+      link: link
+    };
+  };
 
-    return TgLoadingService;
-
-  })(taiga.Service);
-
-  module.service("$tgLoading", TgLoadingService);
+  module.directive("tgLoading", ["$tgLoading", LoadingDirective]);
 
 }).call(this);
 
@@ -8727,7 +8780,7 @@
       };
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var broadcastEvent, form, newSprint, prettyDate, promise, submitButton, target;
+          var broadcastEvent, currentLoading, form, newSprint, prettyDate, promise, submitButton, target;
           event.preventDefault();
           target = angular.element(event.currentTarget);
           prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
@@ -8752,9 +8805,9 @@
             promise = $repo.save(newSprint);
             broadcastEvent = "sprintform:edit:success";
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             if (createSprint) {
               $scope.sprintsCounter += 1;
             }
@@ -8762,7 +8815,7 @@
             return lightboxService.close($el);
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("light-error", data._error_message);
@@ -8924,9 +8977,9 @@
   BacklogController = (function(superClass) {
     extend(BacklogController, superClass);
 
-    BacklogController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate"];
+    BacklogController.$inject = ["$scope", "$rootScope", "$tgRepo", "$tgConfirm", "$tgResources", "$routeParams", "$q", "$tgLocation", "tgAppMetaService", "$tgNavUrls", "$tgEvents", "$tgAnalytics", "$translate", "$tgLoading"];
 
-    function BacklogController(scope, rootscope, repo, confirm, rs, params1, q, location, appMetaService, navUrls, events, analytics, translate) {
+    function BacklogController(scope, rootscope, repo, confirm, rs, params1, q, location, appMetaService, navUrls, events, analytics, translate, loading) {
       var promise;
       this.scope = scope;
       this.rootscope = rootscope;
@@ -8941,6 +8994,7 @@
       this.events = events;
       this.analytics = analytics;
       this.translate = translate;
+      this.loading = loading;
       bindMethods(this);
       this.scope.sectionName = this.translate.instant("BACKLOG.SECTION_NAME");
       this.showTags = false;
@@ -9438,11 +9492,11 @@
           this.searchdata[name] = {};
         }
         results.push((function() {
-          var j, len, ref, results1;
-          ref = taiga.toString(value).split(",");
+          var j, len, ref1, results1;
+          ref1 = taiga.toString(value).split(",");
           results1 = [];
-          for (j = 0, len = ref.length; j < len; j++) {
-            val = ref[j];
+          for (j = 0, len = ref1.length; j < len; j++) {
+            val = ref1[j];
             results1.push(this.searchdata[name][val] = true);
           }
           return results1;
@@ -9527,8 +9581,16 @@
       return this.loadProjectStats();
     };
 
-    BacklogController.prototype.editUserStory = function(us) {
-      return this.rootscope.$broadcast("usform:edit", us);
+    BacklogController.prototype.editUserStory = function(projectId, ref, $event) {
+      var currentLoading, target;
+      target = $($event.target);
+      currentLoading = this.loading().target(target).removeClasses("icon-edit").timeout(200).start();
+      return this.rs.userstories.getByRef(projectId, ref).then((function(_this) {
+        return function(us) {
+          _this.rootscope.$broadcast("usform:edit", us);
+          return currentLoading.finish();
+        };
+      })(this));
     };
 
     BacklogController.prototype.deleteUserStory = function(us) {
@@ -9578,7 +9640,7 @@
     linkDoomLine = function($scope, $el, $attrs, $ctrl) {
       var addDoomLineDom, getUsItems, reloadDoomLine, removeDoomlineDom;
       reloadDoomLine = function() {
-        var current_sum, domElement, i, j, len, ref, results, stats, total_points, us;
+        var current_sum, domElement, i, j, len, ref1, results, stats, total_points, us;
         if ($scope.stats != null) {
           removeDoomlineDom();
           stats = $scope.stats;
@@ -9587,10 +9649,10 @@
           if (!$scope.visibleUserstories) {
             return;
           }
-          ref = $scope.visibleUserstories;
+          ref1 = $scope.visibleUserstories;
           results = [];
-          for (i = j = 0, len = ref.length; j < len; i = ++j) {
-            us = ref[i];
+          for (i = j = 0, len = ref1.length; j < len; i = ++j) {
+            us = ref1[i];
             current_sum += us.total_points;
             if (current_sum > total_points) {
               domElement = $el.find('.backlog-table-body .us-item-row')[i];
@@ -9954,12 +10016,12 @@
   BurndownBacklogGraphDirective = function($translate) {
     var link, redrawChart;
     redrawChart = function(element, dataToDraw) {
-      var client_increment_line, colors, data, evolution_line, j, milestonesRange, optimal_line, options, ref, results, team_increment_line, width, zero_line;
+      var client_increment_line, colors, data, evolution_line, j, milestonesRange, optimal_line, options, ref1, results, team_increment_line, width, zero_line;
       width = element.width();
       element.height(width / 6);
       milestonesRange = (function() {
         results = [];
-        for (var j = 0, ref = dataToDraw.milestones.length - 1; 0 <= ref ? j <= ref : j >= ref; 0 <= ref ? j++ : j--){ results.push(j); }
+        for (var j = 0, ref1 = dataToDraw.milestones.length - 1; 0 <= ref1 ? j <= ref1 : j >= ref1; 0 <= ref1 ? j++ : j--){ results.push(j); }
         return results;
       }).apply(this);
       data = [];
@@ -10536,13 +10598,14 @@
     var excludeClosedSprints, link;
     excludeClosedSprints = true;
     link = function($scope, $el, $attrs) {
-      var loadingElm;
+      var currentLoading, loadingElm;
       loadingElm = $("<div>");
       $el.after(loadingElm);
+      currentLoading = null;
       $el.on("click", function(event) {
         event.preventDefault();
         excludeClosedSprints = !excludeClosedSprints;
-        $loading.start(loadingElm);
+        currentLoading = $loading().target(loadingElm).start();
         if (excludeClosedSprints) {
           return $rootscope.$broadcast("backlog:unload-closed-sprints");
         } else {
@@ -10555,7 +10618,7 @@
       return $scope.$on("closed-sprints:reloaded", (function(_this) {
         return function(ctx, sprints) {
           var key, text;
-          $loading.finish(loadingElm);
+          currentLoading.finish();
           if (sprints.length > 0) {
             key = "BACKLOG.SPRINTS.ACTION_HIDE_CLOSED_SPRINTS";
           } else {
@@ -10814,7 +10877,7 @@
       submitButton = $el.find(".submit-button");
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var broadcastEvent, form, promise;
+          var broadcastEvent, currentLoading, form, promise;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
@@ -10827,9 +10890,9 @@
             promise = $repo.save($scope.task);
             broadcastEvent = "taskform:edit:success";
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           return promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             return $rootscope.$broadcast(broadcastEvent, data);
           });
@@ -10855,25 +10918,25 @@
       };
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var data, form, projectId, promise, sprintId, usId;
+          var currentLoading, data, form, projectId, promise, sprintId, usId;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           data = $scope.form.data;
           projectId = $scope.projectId;
           sprintId = $scope.form.sprintId;
           usId = $scope.form.usId;
           promise = $rs.tasks.bulkCreate(projectId, sprintId, usId, data);
           promise.then(function(result) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("taskform:bulk:success", result);
             return lightboxService.close($el);
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return console.log("FAIL");
           });
         };
@@ -11293,7 +11356,7 @@
 
   module.directive("tgTaskboard", ["$rootScope", TaskboardDirective]);
 
-  TaskboardTaskDirective = function($rootscope) {
+  TaskboardTaskDirective = function($rootscope, $loading, $rs) {
     var link;
     link = function($scope, $el, $attrs, $model) {
       $el.disableSelection();
@@ -11309,7 +11372,16 @@
           return;
         }
         return $scope.$apply(function() {
-          return $rootscope.$broadcast("taskform:edit", $scope.task);
+          var currentLoading, target, task;
+          target = $(event.target);
+          currentLoading = $loading().target(target).timeout(200).removeClasses("icon-edit").start();
+          task = $scope.task;
+          return $rs.tasks.getByRef(task.project, task.ref).then((function(_this) {
+            return function(editingTask) {
+              $rootscope.$broadcast("taskform:edit", editingTask);
+              return currentLoading.finish();
+            };
+          })(this));
         });
       });
     };
@@ -11318,7 +11390,7 @@
     };
   };
 
-  module.directive("tgTaskboardTask", ["$rootScope", TaskboardTaskDirective]);
+  module.directive("tgTaskboardTask", ["$rootScope", "$tgLoading", "$tgResources", TaskboardTaskDirective]);
 
   TaskboardSquishColumnDirective = function(rs) {
     var avatarWidth, link, maxColumnWidth;
@@ -12059,7 +12131,7 @@
 
   module.directive("tgKanbanArchivedStatusIntro", ["$translate", KanbanArchivedStatusIntroDirective]);
 
-  KanbanUserstoryDirective = function($rootscope) {
+  KanbanUserstoryDirective = function($rootscope, $loading, $rs) {
     var link;
     link = function($scope, $el, $attrs, $model) {
       $el.disableSelection();
@@ -12071,12 +12143,19 @@
         }
       });
       $el.find(".icon-edit").on("click", function(event) {
+        var currentLoading, target, us;
         if ($el.find(".icon-edit").hasClass("noclick")) {
           return;
         }
-        return $scope.$apply(function() {
-          return $rootscope.$broadcast("usform:edit", $model.$modelValue);
-        });
+        target = $(event.target);
+        currentLoading = $loading().target(target).timeout(200).removeClasses("icon-edit").start();
+        us = $model.$modelValue;
+        return $rs.userstories.getByRef(us.project, us.ref).then((function(_this) {
+          return function(editingUserStory) {
+            $rootscope.$broadcast("usform:edit", editingUserStory);
+            return currentLoading.finish();
+          };
+        })(this));
       });
       return $scope.$on("$destroy", function() {
         return $el.off();
@@ -12089,7 +12168,7 @@
     };
   };
 
-  module.directive("tgKanbanUserstory", ["$rootScope", KanbanUserstoryDirective]);
+  module.directive("tgKanbanUserstory", ["$rootScope", "$tgLoading", "$tgResources", KanbanUserstoryDirective]);
 
   KanbanSquishColumnDirective = function(rs) {
     var link;
@@ -12602,23 +12681,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(statusId) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.status = statusId;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -12681,23 +12760,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(type) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.type = type;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -12761,23 +12840,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(severity) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.severity = severity;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -12841,23 +12920,23 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(priority) {
-          var issue, onError, onSuccess;
+          var currentLoading, issue, onError, onSuccess;
           $.fn.popover().closeAll();
           issue = $model.$modelValue.clone();
           issue.priority = priority;
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
             $model.$setViewValue(issue);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
             issue.revert();
             $model.$setViewValue(issue);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
           return $repo.save(issue).then(onSuccess, onError);
         };
       })(this));
@@ -13012,21 +13091,21 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.create("issues", $scope.issue);
           promise.then(function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("issueform:new:success", data);
             lightboxService.close($el);
             return $confirm.notify("success");
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("error");
           });
         };
@@ -13054,24 +13133,24 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var data, form, projectId, promise;
+          var currentLoading, data, form, projectId, promise;
           event.preventDefault();
           form = $el.find("form").checksley();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           data = $scope["new"].bulk;
           projectId = $scope["new"].projectId;
           promise = $rs.issues.bulkCreate(projectId, data);
           promise.then(function(result) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $rootscope.$broadcast("issueform:new:success", result);
             lightboxService.close($el);
             return $confirm.notify("success");
           });
           return promise.then(null, function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("error");
           });
         };
@@ -13865,19 +13944,19 @@
         return $scope.$apply();
       });
       return $el.on("keyup", ".my-filter-name", function(event) {
-        var newFilter, promise, target;
+        var currentLoading, newFilter, promise, target;
         event.preventDefault();
         if (event.keyCode === 13) {
           target = angular.element(event.currentTarget);
           newFilter = target.val();
-          $loading.start($el.find(".new"));
+          currentLoading = $loading().target($el.find(".new")).start();
           promise = $ctrl.saveCurrentFiltersTo(newFilter);
           promise.then(function() {
             var loadPromise;
             loadPromise = $ctrl.loadMyFilters();
             loadPromise.then(function(filters) {
               var currentfilterstype;
-              $loading.finish($el.find(".new"));
+              currentLoading.finish();
               $scope.filters.myFilters = filters;
               currentfilterstype = $el.find("h2 a.subfilter span.title").prop('data-type');
               if (currentfilterstype === "myFilters") {
@@ -13887,12 +13966,12 @@
               return $el.find('.save-filters').show();
             });
             return loadPromise.then(null, function() {
-              $loading.finish($el.find(".new"));
+              currentLoading.finish();
               return $confirm.notify("error", "Error loading custom filters");
             });
           });
           return promise.then(null, function() {
-            $loading.finish($el.find(".new"));
+            currentLoading.finish();
             $el.find(".my-filter-name").val(newFilter).focus().select();
             return $confirm.notify("error", "Filter not saved");
           });
@@ -14166,29 +14245,12 @@
     UserStoryDetailController.prototype.initializeEventHandlers = function() {
       this.scope.$on("related-tasks:update", (function(_this) {
         return function() {
-          _this.loadUs();
           return _this.scope.tasks = _.clone(_this.scope.tasks, false);
         };
       })(this));
-      this.scope.$on("attachment:create", (function(_this) {
+      return this.scope.$on("attachment:create", (function(_this) {
         return function() {
-          _this.analytics.trackEvent("attachment", "create", "create attachment on userstory", 1);
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("attachment:edit", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("attachment:delete", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      return this.scope.$on("custom-attributes-values:edit", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
+          return _this.analytics.trackEvent("attachment", "create", "create attachment on userstory", 1);
         };
       })(this));
     };
@@ -14421,24 +14483,22 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(status) {
-          var onError, onSuccess, us;
+          var currentLoading, onError, onSuccess, us;
           us = $model.$modelValue.clone();
           us.status = status;
           $.fn.popover().closeAll();
-          $model.$setViewValue(us);
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
             $confirm.notify("success");
+            $model.$setViewValue(us);
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
-            us.revert();
-            $model.$setViewValue(us);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
-          return $repo.save($model.$modelValue).then(onSuccess, onError);
+          return $repo.save(us).then(onSuccess, onError);
         };
       })(this));
       $el.on("click", ".status-data", function(event) {
@@ -14502,21 +14562,19 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(team_requirement) {
-          var promise, us;
+          var currentLoading, promise, us;
           us = $model.$modelValue.clone();
           us.team_requirement = team_requirement;
-          $model.$setViewValue(us);
-          $loading.start($el.find("label"));
-          promise = $tgrepo.save($model.$modelValue);
+          currentLoading = $loading().target($el.find("label")).start();
+          promise = $tgrepo.save(us);
           promise.then(function() {
-            $loading.finish($el.find("label"));
+            $model.$setViewValue(us);
+            currentLoading.finish();
             return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
-            $loading.finish($el.find("label"));
-            $confirm.notify("error");
-            us.revert();
-            return $model.$setViewValue(us);
+            currentLoading.finish();
+            return $confirm.notify("error");
           });
         };
       })(this));
@@ -14569,21 +14627,18 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(client_requirement) {
-          var promise, us;
+          var currentLoading, promise, us;
           us = $model.$modelValue.clone();
           us.client_requirement = client_requirement;
-          $model.$setViewValue(us);
-          $loading.start($el.find("label"));
-          promise = $tgrepo.save($model.$modelValue);
+          currentLoading = $loading().target($el.find("label")).start();
+          promise = $tgrepo.save(us);
           promise.then(function() {
-            $loading.finish($el.find("label"));
+            $model.$setViewValue(us);
+            currentLoading.finish();
             return $rootscope.$broadcast("object:updated");
           });
           return promise.then(null, function() {
-            $loading.finish($el.find("label"));
-            $confirm.notify("error");
-            us.revert();
-            return $model.$setViewValue(us);
+            return $confirm.notify("error");
           });
         };
       })(this));
@@ -14883,23 +14938,21 @@
       })(this);
       save = $qqueue.bindAdd((function(_this) {
         return function(status) {
-          var onError, onSuccess, task;
+          var currentLoading, onError, onSuccess, task;
           task = $model.$modelValue.clone();
           task.status = status;
-          $model.$setViewValue(task);
+          currentLoading = $loading().target($el.find(".level-name")).start();
           onSuccess = function() {
+            $model.$setViewValue(task);
             $confirm.notify("success");
             $rootScope.$broadcast("object:updated");
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
           onError = function() {
             $confirm.notify("error");
-            task.revert();
-            $model.$setViewValue(task);
-            return $loading.finish($el.find(".level-name"));
+            return currentLoading.finish();
           };
-          $loading.start($el.find(".level-name"));
-          return $repo.save($model.$modelValue).then(onSuccess, onError);
+          return $repo.save(task).then(onSuccess, onError);
         };
       })(this));
       $el.on("click", ".status-data", function(event) {
@@ -14962,23 +15015,21 @@
       };
       save = $qqueue.bindAdd((function(_this) {
         return function(is_iocaine) {
-          var promise, task;
+          var currentLoading, promise, task;
           task = $model.$modelValue.clone();
           task.is_iocaine = is_iocaine;
-          $model.$setViewValue(task);
-          $loading.start($el.find('label'));
+          currentLoading = $loading().target($el.find('label')).start();
           promise = $tgrepo.save(task);
           promise.then(function() {
+            $model.$setViewValue(task);
             $confirm.notify("success");
             return $rootscope.$broadcast("object:updated");
           });
           promise.then(null, function() {
-            task.revert();
-            $model.$setViewValue(task);
             return $confirm.notify("error");
           });
           return promise["finally"](function() {
-            return $loading.finish($el.find('label'));
+            return currentLoading.finish();
           });
         };
       })(this));
@@ -15588,7 +15639,7 @@
         return null;
       };
       save = $qqueue.bindAdd(function(wiki) {
-        var onError, onSuccess, promise;
+        var currentLoading, onError, onSuccess, promise;
         onSuccess = function(wikiPage) {
           if (wiki.id == null) {
             $analytics.trackEvent("wikipage", "create", "create wiki page", 1);
@@ -15600,14 +15651,15 @@
         onError = function() {
           return $confirm.notify("error");
         };
-        $loading.start($el.find('.save-container'));
+        console.log($el.find('.save-container'));
+        currentLoading = $loading().removeClasses("icon-floppy").target($el.find('.icon-floppy')).start();
         if (wiki.id != null) {
           promise = $repo.save(wiki).then(onSuccess, onError);
         } else {
           promise = $repo.create("wiki", wiki).then(onSuccess, onError);
         }
         return promise["finally"](function() {
-          return $loading.finish($el.find('.save-container'));
+          return currentLoading.finish();
         });
       });
       $el.on("mousedown", ".view-wiki-content", function(event) {
@@ -15789,12 +15841,12 @@
           })(this));
         });
         return $el.on("keyup", ".new input", function(event) {
-          var newLink, promise, target;
+          var currentLoading, newLink, promise, target;
           event.preventDefault();
           if (event.keyCode === 13) {
             target = angular.element(event.currentTarget);
             newLink = target.val();
-            $loading.start($el.find(".new"));
+            currentLoading = $loading().target($el.find(".new")).start();
             promise = $tgrepo.create("wiki-links", {
               project: $scope.projectId,
               title: newLink,
@@ -15805,14 +15857,14 @@
               $analytics.trackEvent("wikilink", "create", "create wiki link", 1);
               loadPromise = $ctrl.loadWikiLinks();
               loadPromise.then(function() {
-                $loading.finish($el.find(".new"));
+                currentLoading.finish();
                 $el.find(".new").addClass("hidden");
                 $el.find(".new input").val('');
                 $el.find(".add-button").show();
                 return render($scope.wikiLinks);
               });
               return loadPromise.then(null, function() {
-                $loading.finish($el.find(".new"));
+                currentLoading.finish();
                 $el.find(".new").addClass("hidden");
                 $el.find(".new input").val('');
                 $el.find(".add-button").show();
@@ -15821,7 +15873,7 @@
             });
             return promise.then(null, function(error) {
               var ref;
-              $loading.finish($el.find(".new"));
+              currentLoading.finish();
               $el.find(".new input").val(newLink);
               $el.find(".new input").focus().select();
               if ((error != null ? (ref = error.__all__) != null ? ref[0] : void 0 : void 0) != null) {
@@ -15941,17 +15993,17 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var form, invitation_extra_text, invitations, memberWrappers, onError, onSuccess, promise;
+          var currentLoading, form, invitation_extra_text, invitations, memberWrappers, onError, onSuccess, promise;
           event.preventDefault();
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           onSuccess = function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             $confirm.notify("success");
             return $rootScope.$broadcast("membersform:new:success");
           };
           onError = function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             lightboxService.close($el);
             $confirm.notify("error");
             return $rootScope.$broadcast("membersform:new:error");
@@ -16634,16 +16686,16 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.save($scope.project);
           promise.then(function() {
             var newUrl;
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $confirm.notify("success");
             newUrl = $navurls.resolve("project-admin-project-profile-details", {
               project: $scope.project.slug
@@ -16653,7 +16705,7 @@
             return projectService.fetchProject();
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -16680,19 +16732,19 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.save($scope.project);
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("success");
           });
           return promise.then(null, function(data) {
-            $loading.finish(target);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -16720,21 +16772,21 @@
       form = $el.find("form").checksley();
       submit = (function(_this) {
         return function() {
-          var promise, target;
+          var currentLoading, promise, target;
           if (!form.validate()) {
             return;
           }
-          target = angular.element(".admin-functionalities a.button-green");
-          $loading.start(target);
+          target = angular.element(".admin-functionalities .submit-button");
+          currentLoading = $loading().target(target).start();
           promise = $repo.save($scope.project);
           promise.then(function() {
-            $loading.finish(target);
+            currentLoading.finish();
             $confirm.notify("success");
             $scope.$emit("project:loaded", $scope.project);
             return projectService.fetchProject();
           });
           return promise.then(null, function(data) {
-            $loading.finish(target);
+            currentLoading.finish();
             return $confirm.notify("error", data._error_message);
           });
         };
@@ -18898,19 +18950,19 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.saveAttribute($scope.github, "github");
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify("success");
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -18937,20 +18989,20 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.saveAttribute($scope.gitlab, "gitlab");
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $confirm.notify("success");
             return $scope.$emit("project:modules:reload");
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -18977,20 +19029,20 @@
       });
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.saveAttribute($scope.bitbucket, "bitbucket");
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             $confirm.notify("success");
             return $scope.$emit("project:modules:reload");
           });
           return promise.then(null, function(data) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             form.setErrors(data);
             if (data._error_message) {
               return $confirm.notify("error", data._error_message);
@@ -19068,15 +19120,16 @@
   CreateProject = function($rootscope, $repo, $confirm, $location, $navurls, $rs, $projectUrl, $loading, lightboxService, $cacheFactory, $translate, currentUserService) {
     var directive, link;
     link = function($scope, $el, attrs) {
-      var form, onErrorSubmit, onSuccessSubmit, openLightbox, submit, submitButton;
+      var currentLoading, form, onErrorSubmit, onSuccessSubmit, openLightbox, submit, submitButton;
       $scope.data = {};
       $scope.templates = [];
+      currentLoading = null;
       form = $el.find("form").checksley({
         "onlyOneErrorElement": true
       });
       onSuccessSubmit = function(response) {
         $cacheFactory.get('$http').removeAll();
-        $loading.finish(submitButton);
+        currentLoading.finish();
         $rootscope.$broadcast("projects:reload");
         $confirm.notify("success", $translate.instant("COMMON.SAVE"));
         $location.url($projectUrl.get(response));
@@ -19085,7 +19138,7 @@
       };
       onErrorSubmit = function(response) {
         var error_field, error_step, i, len, ref, selectors;
-        $loading.finish(submitButton);
+        currentLoading.finish();
         form.setErrors(response);
         selectors = [];
         ref = _.keys(response);
@@ -19105,7 +19158,7 @@
           if (!form.validate()) {
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $repo.create("projects", $scope.data);
           return promise.then(onSuccessSubmit, onErrorSubmit);
         };
@@ -22555,20 +22608,20 @@
       var submit, submitButton;
       submit = debounce(2000, (function(_this) {
         return function(event) {
-          var promise;
+          var currentLoading, promise;
           event.preventDefault();
           if ($scope.newPassword1 !== $scope.newPassword2) {
             $confirm.notify('error', $translate.instant("CHANGE_PASSWORD.ERROR_PASSWORD_MATCH"));
             return;
           }
-          $loading.start(submitButton);
+          currentLoading = $loading().target(submitButton).start();
           promise = $rs.userSettings.changePassword($scope.currentPassword, $scope.newPassword1);
           promise.then(function() {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify('success');
           });
           return promise.then(null, function(response) {
-            $loading.finish(submitButton);
+            currentLoading.finish();
             return $confirm.notify('error', response.data._error_message);
           });
         };
