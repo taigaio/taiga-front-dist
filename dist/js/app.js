@@ -23776,9 +23776,12 @@
   WorkingOnDirective = function(homeService, currentUserService) {
     var link;
     link = function(scope, el, attrs, ctrl) {
-      var userId;
-      userId = currentUserService.getUser().get("id");
-      return ctrl.getWorkInProgress(userId);
+      var user, userId;
+      user = currentUserService.getUser();
+      if (user) {
+        userId = user.get("id");
+        return ctrl.getWorkInProgress(userId);
+      }
     };
     return {
       controller: "WorkingOn",
