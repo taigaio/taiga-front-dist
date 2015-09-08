@@ -46,8 +46,9 @@
 
   taiga.sessionId = taiga.generateUniqueSessionIdentifier();
 
-  configure = function($routeProvider, $locationProvider, $httpProvider, $provide, $tgEventsProvider, $compileProvider, $translateProvider) {
+  configure = function($routeProvider, $locationProvider, $httpProvider, $provide, $tgEventsProvider, $compileProvider, $translateProvider, $animateProvider) {
     var authHttpIntercept, defaultHeaders, loaderIntercept, originalWhen, preferedLangCode, userInfo, versionCheckHttpIntercept;
+    $animateProvider.classNameFilter(/^(?:(?!ng-animate-disabled).)*$/);
     originalWhen = $routeProvider.when;
     $routeProvider.when = function(path, route) {
       route.resolve || (route.resolve = {});
@@ -487,7 +488,7 @@
 
   module = angular.module("taiga", modules);
 
-  module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "$compileProvider", "$translateProvider", configure]);
+  module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "$compileProvider", "$translateProvider", "$animateProvider", configure]);
 
   module.run(["$log", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "tgProjectService", "tgLoader", init]);
 
@@ -2655,7 +2656,7 @@
       assigned_to: null
     };
     link = function($scope, $el, $attrs) {
-      var createTask, render;
+      var close, createTask, render;
       createTask = debounce(2000, function(task) {
         var currentLoading, promise;
         task.subject = $el.find('input').val();
@@ -2678,8 +2679,13 @@
         });
         return promise;
       });
-      render = function() {
+      close = function() {
         $el.off();
+        $el.html("");
+        return $scope.newRelatedTaskFormOpen = false;
+      };
+      render = function() {
+        $scope.newRelatedTaskFormOpen = true;
         $el.html($compile(template())($scope));
         $el.find('input').focus().select();
         $el.addClass('active');
@@ -2689,15 +2695,19 @@
               return render();
             });
           } else if (event.keyCode === 27) {
-            return $el.html("");
+            return $scope.$apply(function() {
+              return close();
+            });
           }
         });
         $el.on("click", ".icon-delete", function(event) {
-          return $el.html("");
+          return $scope.$apply(function() {
+            return close();
+          });
         });
         return $el.on("click", ".icon-floppy", function(event) {
           return createTask(newTask).then(function() {
-            return $el.html("");
+            return close();
           });
         });
       };
@@ -2724,7 +2734,7 @@
 
   RelatedTaskCreateButtonDirective = function($repo, $compile, $confirm, $tgmodel) {
     var link, template;
-    template = _.template("<a class=\"icon icon-plus related-tasks-buttons\"></a>");
+    template = _.template("<a ng-show=\"!newRelatedTaskFormOpen\" class=\"icon icon-plus related-tasks-buttons ng-animate-disabled\"></a>");
     link = function($scope, $el, $attrs) {
       $scope.$watch("project", function(val) {
         if (!val) {
@@ -2732,7 +2742,7 @@
         }
         $el.off();
         if ($scope.project.my_permissions.indexOf("add_task") !== -1) {
-          $el.html(template());
+          $el.html($compile(template())($scope));
         } else {
           $el.html("");
         }
@@ -16184,7 +16194,7 @@
 
   module.controller("MembershipsController", MembershipsController);
 
-  MembershipsDirective = function($template) {
+  MembershipsDirective = function($template, $compile) {
     var link, linkPagination, template;
     template = $template.get("admin/admin-membership-paginator.html", true);
     linkPagination = function($scope, $el, $attrs, $ctrl) {
@@ -16205,7 +16215,7 @@
         return numPages;
       };
       renderPagination = function() {
-        var cpage, i, j, numPages, options, pages, ref;
+        var cpage, html, i, j, numPages, options, pages, ref;
         numPages = getNumPages();
         if (numPages <= 1) {
           $pagEl.hide();
@@ -16246,7 +16256,10 @@
             });
           }
         }
-        return $pagEl.html(template(options));
+        html = template(options);
+        html = $compile(html)($scope);
+        $pagEl.html(html);
+        return $pagEl.show();
       };
       $scope.$watch("memberships", function(value) {
         if (!value) {
@@ -16292,7 +16305,7 @@
     };
   };
 
-  module.directive("tgMemberships", ["$tgTemplate", MembershipsDirective]);
+  module.directive("tgMemberships", ["$tgTemplate", "$compile", MembershipsDirective]);
 
   MembershipsRowAvatarDirective = function($log, $template) {
     var link, template;
@@ -16464,13 +16477,18 @@
         var defaultMsg, message, title;
         event.preventDefault();
         title = $translate.instant("ADMIN.MEMBERSHIP.DELETE_MEMBER");
-        defaultMsg = $translate.instant("ADMIN.MEMBERSHIP.DEFAULT_DELETE_MESSAGE");
+        defaultMsg = $translate.instant("ADMIN.MEMBERSHIP.DEFAULT_DELETE_MESSAGE", {
+          email: member.email
+        });
         message = member.user ? member.full_name : defaultMsg;
         return $confirm.askOnDelete(title, message).then(function(finish) {
           var onError, onSuccess;
           onSuccess = function() {
             var text;
             finish();
+            if ($scope.page > 1 && ($scope.count - 1) <= $scope.paginatedBy) {
+              $ctrl.selectFilter("page", $scope.page - 1);
+            }
             $ctrl.loadMembers();
             text = $translate.instant("ADMIN.MEMBERSHIP.SUCCESS_DELETE");
             return $confirm.notify("success", null, text);
