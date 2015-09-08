@@ -46,8 +46,9 @@
 
   taiga.sessionId = taiga.generateUniqueSessionIdentifier();
 
-  configure = function($routeProvider, $locationProvider, $httpProvider, $provide, $tgEventsProvider, $compileProvider, $translateProvider) {
+  configure = function($routeProvider, $locationProvider, $httpProvider, $provide, $tgEventsProvider, $compileProvider, $translateProvider, $animateProvider) {
     var authHttpIntercept, defaultHeaders, loaderIntercept, originalWhen, preferedLangCode, userInfo, versionCheckHttpIntercept;
+    $animateProvider.classNameFilter(/^(?:(?!ng-animate-disabled).)*$/);
     originalWhen = $routeProvider.when;
     $routeProvider.when = function(path, route) {
       route.resolve || (route.resolve = {});
@@ -394,9 +395,7 @@
       prefix: "/locales/locale-",
       suffix: ".json"
     }).addInterpolation('$translateMessageFormatInterpolation').preferredLanguage(preferedLangCode);
-    if (!window.taigaConfig.debugInfo) {
-      return $translateProvider.fallbackLanguage(preferedLangCode);
-    }
+    return $translateProvider.fallbackLanguage(preferedLangCode);
   };
 
   i18nInit = function(lang, $translate) {
@@ -488,7 +487,7 @@
 
   module = angular.module("taiga", modules);
 
-  module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "$compileProvider", "$translateProvider", configure]);
+  module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "$compileProvider", "$translateProvider", "$animateProvider", configure]);
 
   module.run(["$log", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "tgProjectService", "tgLoader", init]);
 
@@ -1117,6 +1116,7 @@
       this.currentUserService = currentUserService;
       this.themeService = themeService;
       AuthService.__super__.constructor.call(this);
+      this._currentTheme = this.config.get("defaultTheme") || "taiga";
       userModel = this.getUser();
       this.setUserdata(userModel);
     }
@@ -1130,10 +1130,18 @@
       }
     };
 
+    AuthService.prototype._getUserTheme = function() {
+      var ref;
+      return ((ref = this.rootscope.user) != null ? ref.theme : void 0) || this.config.get("defaultTheme") || "taiga";
+    };
+
     AuthService.prototype._setTheme = function() {
-      var ref, theme;
-      theme = ((ref = this.rootscope.user) != null ? ref.theme : void 0) || this.config.get("defaultTheme") || "taiga";
-      return this.themeService.use(theme);
+      var newTheme;
+      newTheme = this._getUserTheme();
+      if (this._currentTheme !== newTheme) {
+        this._currentTheme = newTheme;
+        return this.themeService.use(this._currentTheme);
+      }
     };
 
     AuthService.prototype._setLocales = function() {
@@ -2715,7 +2723,7 @@
       assigned_to: null
     };
     link = function($scope, $el, $attrs) {
-      var createTask, render;
+      var close, createTask, render;
       createTask = debounce(2000, function(task) {
         var currentLoading, promise;
         task.subject = $el.find('input').val();
@@ -2738,8 +2746,13 @@
         });
         return promise;
       });
-      render = function() {
+      close = function() {
         $el.off();
+        $el.html("");
+        return $scope.newRelatedTaskFormOpen = false;
+      };
+      render = function() {
+        $scope.newRelatedTaskFormOpen = true;
         $el.html($compile(template())($scope));
         $el.find('input').focus().select();
         $el.addClass('active');
@@ -2749,15 +2762,19 @@
               return render();
             });
           } else if (event.keyCode === 27) {
-            return $el.html("");
+            return $scope.$apply(function() {
+              return close();
+            });
           }
         });
         $el.on("click", ".icon-delete", function(event) {
-          return $el.html("");
+          return $scope.$apply(function() {
+            return close();
+          });
         });
         return $el.on("click", ".icon-floppy", function(event) {
           return createTask(newTask).then(function() {
-            return $el.html("");
+            return close();
           });
         });
       };
@@ -2784,7 +2801,7 @@
 
   RelatedTaskCreateButtonDirective = function($repo, $compile, $confirm, $tgmodel) {
     var link, template;
-    template = _.template("<a class=\"icon icon-plus related-tasks-buttons\"></a>");
+    template = _.template("<a ng-show=\"!newRelatedTaskFormOpen\" class=\"icon icon-plus related-tasks-buttons ng-animate-disabled\"></a>");
     link = function($scope, $el, $attrs) {
       $scope.$watch("project", function(val) {
         if (!val) {
@@ -2792,7 +2809,7 @@
         }
         $el.off();
         if ($scope.project.my_permissions.indexOf("add_task") !== -1) {
-          $el.html(template());
+          $el.html($compile(template())($scope));
         } else {
           $el.html("");
         }
@@ -3253,14 +3270,22 @@
   SearchDirective = function($log, $compile, $templatecache, $routeparams, $location) {
     var link, linkTable;
     linkTable = function($scope, $el, $attrs, $ctrl) {
-      var getActiveSection, lastSeatchResults, markSectionTabActive, renderFilterTabs, renderTableContent, tabsDom, templates;
+      var activeSectionName, applyAutoTab, getActiveSection, lastSeatchResults, markSectionTabActive, renderFilterTabs, renderTableContent, tabsDom, templates;
+      applyAutoTab = true;
+      activeSectionName = "userstories";
       tabsDom = $el.find("section.search-filter");
       lastSeatchResults = null;
       getActiveSection = function(data) {
-        var i, len, maxVal, name, ref, selectedSectionData, selectedSectionName, value;
+        var i, len, maxVal, name, ref, selectedSection, value;
         maxVal = 0;
-        selectedSectionName = null;
-        selectedSectionData = null;
+        selectedSection = {};
+        selectedSection.name = "userstories";
+        selectedSection.value = [];
+        if (!applyAutoTab) {
+          selectedSection.name = activeSectionName;
+          selectedSection.value = data[activeSectionName];
+          return selectedSection;
+        }
         if (data) {
           ref = ["userstories", "issues", "tasks", "wikipages"];
           for (i = 0, len = ref.length; i < len; i++) {
@@ -3268,22 +3293,16 @@
             value = data[name];
             if (value.length > maxVal) {
               maxVal = value.length;
-              selectedSectionName = name;
-              selectedSectionData = value;
+              selectedSection.name = name;
+              selectedSection.value = value;
               break;
             }
           }
         }
         if (maxVal === 0) {
-          return {
-            name: "userstories",
-            value: []
-          };
+          return selectedSection;
         }
-        return {
-          name: selectedSectionName,
-          value: selectedSectionData
-        };
+        return selectedSection;
       };
       renderFilterTabs = function(data) {
         var name, results, value;
@@ -3299,7 +3318,9 @@
       };
       markSectionTabActive = function(section) {
         tabsDom.find("a.active").removeClass("active");
-        return tabsDom.find("li." + section.name + " a").addClass("active");
+        tabsDom.find("li." + section.name + " a").addClass("active");
+        applyAutoTab = false;
+        return activeSectionName = section.name;
       };
       templates = {
         issues: $templatecache.get("search-issues"),
@@ -3324,6 +3345,9 @@
       $scope.$watch("searchResults", function(data) {
         var activeSection;
         lastSeatchResults = data;
+        if (!lastSeatchResults) {
+          return;
+        }
         activeSection = getActiveSection(data);
         renderFilterTabs(data);
         renderTableContent(activeSection);
@@ -3985,7 +4009,7 @@
 
   module.directive("tgAttachments", ["$tgConfig", "$tgConfirm", "$tgTemplate", "$translate", AttachmentsDirective]);
 
-  AttachmentDirective = function($template, $compile, $translate) {
+  AttachmentDirective = function($template, $compile, $translate, $rootScope) {
     var link, template, templateEdit;
     template = $template.get("attachment/attachment.html", true);
     templateEdit = $template.get("attachment/attachment-edit.html", true);
@@ -4062,6 +4086,14 @@
           return $ctrl.removeAttachment(attachment);
         });
       });
+      $el.on("click", "div.attachment-name a", function(event) {
+        if (null !== attachment.name.match(/\.(jpe?g|png|gif|gifv|webm)/i)) {
+          event.preventDefault();
+          return $scope.$apply(function() {
+            return $rootScope.$broadcast("attachment:preview", attachment);
+          });
+        }
+      });
       $scope.$on("$destroy", function() {
         return $el.off();
       });
@@ -4078,7 +4110,7 @@
     };
   };
 
-  module.directive("tgAttachment", ["$tgTemplate", "$compile", "$translate", AttachmentDirective]);
+  module.directive("tgAttachment", ["$tgTemplate", "$compile", "$translate", "$rootScope", AttachmentDirective]);
 
 }).call(this);
 
@@ -6590,7 +6622,7 @@
  */
 
 (function() {
-  var AssignedToLightboxDirective, BlockLightboxDirective, BlockingMessageInputDirective, CreateBulkUserstoriesDirective, CreateEditUserstoryDirective, LightboxDirective, LightboxKeyboardNavigationService, LightboxService, WatchersLightboxDirective, bindOnce, debounce, module, timeout,
+  var AssignedToLightboxDirective, AttachmentPreviewLightboxDirective, BlockLightboxDirective, BlockingMessageInputDirective, CreateBulkUserstoriesDirective, CreateEditUserstoryDirective, LightboxDirective, LightboxKeyboardNavigationService, LightboxService, WatchersLightboxDirective, bindOnce, debounce, module, timeout,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -7228,6 +7260,37 @@
 
   module.directive("tgLbWatchers", ["$tgRepo", "lightboxService", "lightboxKeyboardNavigationService", "$tgTemplate", "$compile", WatchersLightboxDirective]);
 
+  AttachmentPreviewLightboxDirective = function($repo, lightboxService, lightboxKeyboardNavigationService, $template, $compile) {
+    var link;
+    link = function($scope, $el, attrs) {
+      var render, template;
+      template = $template.get("common/lightbox/lightbox-attachment-preview.html", true);
+      $scope.$on("attachment:preview", function(event, attachment) {
+        lightboxService.open($el);
+        return render(attachment);
+      });
+      $scope.$on("$destroy", function() {
+        return $el.off();
+      });
+      return render = function(attachment) {
+        var ctx, html;
+        ctx = {
+          url: attachment.url,
+          title: attachment.description,
+          name: attachment.name
+        };
+        html = template(ctx);
+        html = $compile(html)($scope);
+        return $el.html(html);
+      };
+    };
+    return {
+      link: link
+    };
+  };
+
+  module.directive("tgLbAttachmentPreview", ["$tgRepo", "lightboxService", "lightboxKeyboardNavigationService", "$tgTemplate", "$compile", AttachmentPreviewLightboxDirective]);
+
 }).call(this);
 
 
@@ -7318,17 +7381,11 @@
       return lastResponseDate = 0;
     };
     autoClose = function() {
-      var intervalAuto, maxAuto, timeoutAuto;
-      maxAuto = 5000;
-      timeoutAuto = setTimeout((function() {
-        pageLoaded();
-        return clearInterval(intervalAuto);
-      }), maxAuto);
+      var intervalAuto;
       return intervalAuto = setInterval((function() {
         if (lastResponseDate && requestCount === 0) {
           pageLoaded();
-          clearInterval(intervalAuto);
-          return clearTimeout(timeoutAuto);
+          return clearInterval(intervalAuto);
         }
       }), 50);
     };
@@ -8460,7 +8517,9 @@
           onEnter: {
             keepDefault: false,
             replaceWith: function() {
-              return "\n";
+              if (!$('.textcomplete-dropdown').is(':visible')) {
+                return "\n";
+              }
             },
             afterInsert: function(data) {
               var cursorLine, emptyListItem, lastLine, lines, markdownCaretPositon, match, newLineContent, nline, replace;
@@ -8616,7 +8675,115 @@
             return $model.$setViewValue(target.val());
           }
         };
-        return element.markItUpRemove().markItUp(markdownSettings);
+        return element.markItUpRemove().markItUp(markdownSettings).textcomplete([
+          {
+            cache: true,
+            match: /(^|\s)#([a-z0-9]+)$/i,
+            search: function(term, callback) {
+              var filter, searchProps, searchTypes;
+              term = taiga.slugify(term);
+              searchTypes = ['issues', 'tasks', 'userstories'];
+              searchProps = ['ref', 'subject'];
+              filter = (function(_this) {
+                return function(item) {
+                  var j, len, prop;
+                  for (j = 0, len = searchProps.length; j < len; j++) {
+                    prop = searchProps[j];
+                    if (taiga.slugify(item[prop]).indexOf(term) >= 0) {
+                      return true;
+                    }
+                  }
+                  return false;
+                };
+              })(this);
+              $rs.search["do"]($scope.projectId, term).then((function(_this) {
+                return function(res) {
+                  var j, len, results, type;
+                  if (res.count < 1 || res.count === res.wikipages.length) {
+                    return callback([]);
+                  } else {
+                    results = [];
+                    for (j = 0, len = searchTypes.length; j < len; j++) {
+                      type = searchTypes[j];
+                      if (res[type] && res[type].length > 0) {
+                        results.push(callback(res[type].filter(filter), true));
+                      } else {
+                        results.push(void 0);
+                      }
+                    }
+                    return results;
+                  }
+                };
+              })(this));
+              return callback([]);
+            },
+            replace: function(res) {
+              return "$1\#" + res.ref + " ";
+            },
+            template: function(res, term) {
+              return "\#" + res.ref + " - " + res.subject;
+            }
+          }, {
+            cache: true,
+            match: /(^|\s)@([a-z0-9\-\._]{2,})$/i,
+            search: function(term, callback) {
+              var searchProps, username;
+              username = taiga.slugify(term);
+              searchProps = ['username', 'full_name', 'full_name_display'];
+              if ($scope.project.members.length < 1) {
+                return callback([]);
+              } else {
+                return callback($scope.project.members.filter((function(_this) {
+                  return function(user) {
+                    var j, len, prop;
+                    for (j = 0, len = searchProps.length; j < len; j++) {
+                      prop = searchProps[j];
+                      if (taiga.slugify(user[prop]).indexOf(username) >= 0) {
+                        return true;
+                      }
+                    }
+                    return false;
+                  };
+                })(this)));
+              }
+            },
+            replace: function(user) {
+              return "$1@" + user.username + " ";
+            },
+            template: function(user) {
+              return user.username + " - " + user.full_name_display;
+            }
+          }, {
+            cache: true,
+            match: /(^|\s)\[\[([a-z0-9\-]+)$/i,
+            search: function(term, callback) {
+              term = taiga.slugify(term);
+              return $rs.search["do"]($scope.projectId, term).then((function(_this) {
+                return function(res) {
+                  if (res.count < 1) {
+                    callback([]);
+                  }
+                  if (res.count < 1 || !res.wikipages || res.wikipages.length <= 0) {
+                    callback([]);
+                  } else {
+                    callback(res.wikipages.filter(function(page) {
+                      return taiga.slugify(page['slug']).indexOf(term) >= 0;
+                    }), true);
+                  }
+                  return callback([]);
+                };
+              })(this));
+            },
+            replace: function(res) {
+              return "$1[[" + res.slug + "]]";
+            },
+            template: function(res, term) {
+              return res.slug;
+            }
+          }
+        ], {
+          debounce: 200
+        });
       };
       renderMarkItUp();
       unbind = $rootscope.$on("$translateChangeEnd", renderMarkItUp);
@@ -8951,7 +9118,7 @@
               finish();
               $scope.milestonesCounter -= 1;
               lightboxService.close($el);
-              return $rootscope.$broadcast("sprintform:remove:success");
+              return $rootscope.$broadcast("sprintform:remove:success", $scope.sprint);
             };
             onError = function() {
               finish(false);
@@ -9177,10 +9344,13 @@
         };
       })(this));
       this.scope.$on("sprintform:remove:success", (function(_this) {
-        return function() {
+        return function(event, sprint) {
           _this.loadSprints();
           _this.loadProjectStats();
           _this.loadUserstories();
+          if (sprint.closed) {
+            _this.loadClosedSprints();
+          }
           return _this.rootscope.$broadcast("filters:update");
         };
       })(this));
@@ -9256,13 +9426,18 @@
         closed: true
       };
       return this.rs.sprints.list(this.scope.projectId, params).then((function(_this) {
-        return function(sprints) {
-          var j, len, sprint;
+        return function(result) {
+          var j, len, sprint, sprints;
+          sprints = result.milestones;
+          _this.scope.totalClosedMilestones = result.closed;
           for (j = 0, len = sprints.length; j < len; j++) {
             sprint = sprints[j];
             sprint.user_stories = _.sortBy(sprint.user_stories, "sprint_order");
           }
           _this.scope.closedSprints = sprints;
+          _this.scope.closedSprintsById = groupBy(sprints, function(x) {
+            return x.id;
+          });
           _this.rootscope.$broadcast("closed-sprints:reloaded", sprints);
           return sprints;
         };
@@ -9275,8 +9450,10 @@
         closed: false
       };
       return this.rs.sprints.list(this.scope.projectId, params).then((function(_this) {
-        return function(sprints) {
-          var j, len, sprint;
+        return function(result) {
+          var j, len, sprint, sprints;
+          sprints = result.milestones;
+          _this.scope.totalClosedMilestones = result.closed;
           for (j = 0, len = sprints.length; j < len; j++) {
             sprint = sprints[j];
             sprint.user_stories = _.sortBy(sprint.user_stories, "sprint_order");
@@ -9349,7 +9526,7 @@
           }
           _this.scope.projectId = project.id;
           _this.scope.project = project;
-          _this.scope.totalClosedMilestones = project.total_closed_milestones;
+          _this.scope.closedMilestones = !!project.total_closed_milestones;
           _this.scope.$emit('project:loaded', project);
           _this.scope.points = _.sortBy(project.points, "order");
           _this.scope.pointsById = groupBy(project.points, function(x) {
@@ -9417,16 +9594,32 @@
     };
 
     BacklogController.prototype.moveUs = function(ctx, usList, newUsIndex, newSprintId) {
-      var data, items, j, l, len, len1, len2, m, newSprint, oldSprintId, project, promise, promises, us, userstories;
+      var data, items, j, l, len, len1, len2, m, movedFromClosedSprint, movedToClosedSprint, newSprint, oldSprintId, project, promise, promises, sprint, us, userstories;
       oldSprintId = usList[0].milestone;
       project = usList[0].project;
+      movedFromClosedSprint = false;
+      movedToClosedSprint = false;
+      sprint = this.scope.sprintsById[oldSprintId];
+      if (!sprint && this.scope.closedSprintsById) {
+        sprint = this.scope.closedSprintsById[oldSprintId];
+        if (sprint) {
+          movedFromClosedSprint = true;
+        }
+      }
+      newSprint = this.scope.sprintsById[newSprintId];
+      if (!newSprint) {
+        newSprint = this.scope.closedSprintsById[newSprintId];
+        if (newSprint) {
+          movedToClosedSprint = true;
+        }
+      }
       if (newSprintId === oldSprintId) {
         items = null;
         userstories = null;
         if (newSprintId === null) {
           userstories = this.scope.userstories;
         } else {
-          userstories = this.scope.sprintsById[newSprintId].user_stories;
+          userstories = newSprint.user_stories;
         }
         this.scope.$apply(function() {
           var args, j, key, len, r, us;
@@ -9476,10 +9669,9 @@
         }
         this.scope.$apply((function(_this) {
           return function() {
-            var args, key, l, len1, r, results, sprint;
+            var args, key, l, len1, r, results;
             args = [newUsIndex, 0].concat(usList);
             Array.prototype.splice.apply(_this.scope.userstories, args);
-            sprint = _this.scope.sprintsById[oldSprintId];
             results = [];
             for (key = l = 0, len1 = usList.length; l < len1; key = ++l) {
               us = usList[key];
@@ -9495,7 +9687,10 @@
             items = _this.resortUserStories(_this.scope.userstories, "backlog_order");
             data = _this.prepareBulkUpdateData(items, "backlog_order");
             return _this.rs.userstories.bulkUpdateBacklogOrder(us.project, data).then(function() {
-              return _this.rootscope.$broadcast("sprint:us:moved", us, oldSprintId, newSprintId);
+              _this.rootscope.$broadcast("sprint:us:moved", us, oldSprintId, newSprintId);
+              if (movedFromClosedSprint) {
+                return _this.rootscope.$broadcast("backlog:load-closed-sprints");
+              }
             });
           };
         })(this));
@@ -9504,7 +9699,6 @@
         });
         return promise;
       }
-      newSprint = this.scope.sprintsById[newSprintId];
       if (oldSprintId === null) {
         for (l = 0, len1 = usList.length; l < len1; l++) {
           us = usList[l];
@@ -9531,15 +9725,14 @@
         }
         this.scope.$apply((function(_this) {
           return function() {
-            var args, len3, n, oldSprint, r, results;
+            var args, len3, n, r, results;
             args = [newUsIndex, 0].concat(usList);
             Array.prototype.splice.apply(newSprint.user_stories, args);
             results = [];
             for (n = 0, len3 = usList.length; n < len3; n++) {
               us = usList[n];
-              oldSprint = _this.scope.sprintsById[oldSprintId];
-              r = oldSprint.user_stories.indexOf(us);
-              results.push(oldSprint.user_stories.splice(r, 1));
+              r = sprint.user_stories.indexOf(us);
+              results.push(sprint.user_stories.splice(r, 1));
             }
             return results;
           };
@@ -9554,10 +9747,10 @@
         return function() {
           items = _this.resortUserStories(newSprint.user_stories, "sprint_order");
           data = _this.prepareBulkUpdateData(items, "sprint_order");
-          _this.rs.userstories.bulkUpdateSprintOrder(project, data).then(function() {
+          _this.rs.userstories.bulkUpdateSprintOrder(project, data).then(function(result) {
             return _this.rootscope.$broadcast("sprint:us:moved", us, oldSprintId, newSprintId);
           });
-          return _this.rs.userstories.bulkUpdateBacklogOrder(project, data).then(function() {
+          _this.rs.userstories.bulkUpdateBacklogOrder(project, data).then(function() {
             var len3, n, results;
             results = [];
             for (n = 0, len3 = usList.length; n < len3; n++) {
@@ -9566,6 +9759,9 @@
             }
             return results;
           });
+          if (movedToClosedSprint || movedFromClosedSprint) {
+            return _this.scope.$broadcast("backlog:load-closed-sprints");
+          }
         };
       })(this));
       promise.then(null, function() {
@@ -9694,10 +9890,12 @@
 
     BacklogController.prototype.updateUserStoryStatus = function() {
       this.setSearchDataFilters();
-      return this.generateFilters().then(function() {
-        this.rootscope.$broadcast("filters:update");
-        return this.loadProjectStats();
-      });
+      return this.generateFilters().then((function(_this) {
+        return function() {
+          _this.rootscope.$broadcast("filters:update");
+          return _this.loadProjectStats();
+        };
+      })(this));
     };
 
     BacklogController.prototype.editUserStory = function(projectId, ref, $event) {
@@ -16328,7 +16526,7 @@
 
   module.controller("MembershipsController", MembershipsController);
 
-  MembershipsDirective = function($template) {
+  MembershipsDirective = function($template, $compile) {
     var link, linkPagination, template;
     template = $template.get("admin/admin-membership-paginator.html", true);
     linkPagination = function($scope, $el, $attrs, $ctrl) {
@@ -16349,7 +16547,7 @@
         return numPages;
       };
       renderPagination = function() {
-        var cpage, i, j, numPages, options, pages, ref;
+        var cpage, html, i, j, numPages, options, pages, ref;
         numPages = getNumPages();
         if (numPages <= 1) {
           $pagEl.hide();
@@ -16390,7 +16588,10 @@
             });
           }
         }
-        return $pagEl.html(template(options));
+        html = template(options);
+        html = $compile(html)($scope);
+        $pagEl.html(html);
+        return $pagEl.show();
       };
       $scope.$watch("memberships", function(value) {
         if (!value) {
@@ -16436,7 +16637,7 @@
     };
   };
 
-  module.directive("tgMemberships", ["$tgTemplate", MembershipsDirective]);
+  module.directive("tgMemberships", ["$tgTemplate", "$compile", MembershipsDirective]);
 
   MembershipsRowAvatarDirective = function($log, $template) {
     var link, template;
@@ -16608,13 +16809,18 @@
         var defaultMsg, message, title;
         event.preventDefault();
         title = $translate.instant("ADMIN.MEMBERSHIP.DELETE_MEMBER");
-        defaultMsg = $translate.instant("ADMIN.MEMBERSHIP.DEFAULT_DELETE_MESSAGE");
+        defaultMsg = $translate.instant("ADMIN.MEMBERSHIP.DEFAULT_DELETE_MESSAGE", {
+          email: member.email
+        });
         message = member.user ? member.full_name : defaultMsg;
         return $confirm.askOnDelete(title, message).then(function(finish) {
           var onError, onSuccess;
           onSuccess = function() {
             var text;
             finish();
+            if ($scope.page > 1 && ($scope.count - 1) <= $scope.paginatedBy) {
+              $ctrl.selectFilter("page", $scope.page - 1);
+            }
             $ctrl.loadMembers();
             text = $translate.instant("ADMIN.MEMBERSHIP.SUCCESS_DELETE");
             return $confirm.notify("success", null, text);
@@ -20578,10 +20784,13 @@
       return defered.promise;
     };
 
-    RepositoryService.prototype.queryMany = function(name, params, options) {
+    RepositoryService.prototype.queryMany = function(name, params, options, headers) {
       var httpOptions, url;
       if (options == null) {
         options = {};
+      }
+      if (headers == null) {
+        headers = false;
       }
       url = this.urls.resolve(name);
       httpOptions = {
@@ -20592,9 +20801,14 @@
       }
       return this.http.get(url, params, httpOptions).then((function(_this) {
         return function(data) {
-          return _.map(data.data, function(x) {
+          var result;
+          result = _.map(data.data, function(x) {
             return _this.model.make_model(name, x);
           });
+          if (headers) {
+            return [result, data.headers];
+          }
+          return result;
         };
       })(this));
     };
@@ -22130,9 +22344,11 @@
         "project": projectId
       };
       params = _.extend({}, params, filters || {});
-      return $repo.queryMany("milestones", params).then((function(_this) {
-        return function(milestones) {
-          var i, len, m, uses;
+      return $repo.queryMany("milestones", params, {}, true).then((function(_this) {
+        return function(result) {
+          var headers, i, len, m, milestones, uses;
+          milestones = result[0];
+          headers = result[1];
           for (i = 0, len = milestones.length; i < len; i++) {
             m = milestones[i];
             uses = m.user_stories;
@@ -22141,7 +22357,11 @@
             });
             m._attrs.user_stories = uses;
           }
-          return milestones;
+          return {
+            milestones: milestones,
+            closed: parseInt(headers("Taiga-Info-Total-Closed-Milestones"), 10),
+            open: parseInt(headers("Taiga-Info-Total-Opened-Milestones"), 10)
+          };
         };
       })(this));
     };
