@@ -72,8 +72,7 @@
         requiresLogin: true
       },
       title: "HOME.PAGE_TITLE",
-      description: "HOME.PAGE_DESCRIPTION",
-      loader: true
+      description: "HOME.PAGE_DESCRIPTION"
     });
     $routeProvider.when("/projects/", {
       templateUrl: "projects/listing/projects-listing.html",
@@ -253,32 +252,50 @@
     $routeProvider.when("/login", {
       templateUrl: "auth/login.html",
       title: "LOGIN.PAGE_TITLE",
-      description: "LOGIN.PAGE_DESCRIPTION"
+      description: "LOGIN.PAGE_DESCRIPTION",
+      disableHeader: true
     });
     $routeProvider.when("/register", {
       templateUrl: "auth/register.html",
       title: "REGISTER.PAGE_TITLE",
-      description: "REGISTER.PAGE_DESCRIPTION"
+      description: "REGISTER.PAGE_DESCRIPTION",
+      disableHeader: true
     });
     $routeProvider.when("/forgot-password", {
       templateUrl: "auth/forgot-password.html",
       title: "FORGOT_PASSWORD.PAGE_TITLE",
-      description: "FORGOT_PASSWORD.PAGE_DESCRIPTION"
+      description: "FORGOT_PASSWORD.PAGE_DESCRIPTION",
+      disableHeader: true
     });
     $routeProvider.when("/change-password", {
       templateUrl: "auth/change-password-from-recovery.html",
       title: "CHANGE_PASSWORD.PAGE_TITLE",
-      description: "CHANGE_PASSWORD.PAGE_TITLE"
+      description: "CHANGE_PASSWORD.PAGE_TITLE",
+      disableHeader: true
     });
     $routeProvider.when("/change-password/:token", {
       templateUrl: "auth/change-password-from-recovery.html",
       title: "CHANGE_PASSWORD.PAGE_TITLE",
-      description: "CHANGE_PASSWORD.PAGE_TITLE"
+      description: "CHANGE_PASSWORD.PAGE_TITLE",
+      disableHeader: true
     });
     $routeProvider.when("/invitation/:token", {
       templateUrl: "auth/invitation.html",
       title: "INVITATION.PAGE_TITLE",
-      description: "INVITATION.PAGE_DESCRIPTION"
+      description: "INVITATION.PAGE_DESCRIPTION",
+      disableHeader: true,
+      access: {
+        requiresLogin: true
+      }
+    });
+    $routeProvider.when("/external-apps", {
+      templateUrl: "external-apps/external-app.html",
+      title: "EXTERNAL_APP.PAGE_TITLE",
+      description: "EXTERNAL_APP.PAGE_DESCRIPTION",
+      controller: "ExternalApp",
+      controllerAs: "vm",
+      disableHeader: true,
+      mobileViewport: true
     });
     $routeProvider.when("/error", {
       templateUrl: "error/error.html"
@@ -313,14 +330,14 @@
     authHttpIntercept = function($q, $location, $navUrls, $lightboxService) {
       var httpResponseError;
       httpResponseError = function(response) {
-        var nextPath;
+        var nextUrl;
         if (response.status === 0) {
           $lightboxService.closeAll();
           $location.path($navUrls.resolve("error"));
           $location.replace();
         } else if (response.status === 401) {
-          nextPath = $location.path();
-          $location.url($navUrls.resolve("login")).search("next=" + nextPath);
+          nextUrl = encodeURIComponent($location.url());
+          $location.url($navUrls.resolve("login")).search("next=" + nextUrl);
         }
         return $q.reject(response);
       };
@@ -431,7 +448,7 @@
     return checksley.updateMessages('default', messages);
   };
 
-  init = function($log, $rootscope, $auth, $events, $analytics, $translate, $location, $navUrls, appMetaService, projectService, loaderService) {
+  init = function($log, $rootscope, $auth, $events, $analytics, $translate, $location, $navUrls, appMetaService, projectService, loaderService, navigationBarService) {
     var un, user;
     $log.debug("Initialize application");
     $rootscope.contribPlugins = this.taigaContribPlugins;
@@ -476,12 +493,22 @@
       if (next.title || next.description) {
         title = $translate.instant(next.title || "");
         description = $translate.instant(next.description || "");
-        return appMetaService.setAll(title, description);
+        appMetaService.setAll(title, description);
+      }
+      if (next.mobileViewport) {
+        appMetaService.addMobileViewport();
+      } else {
+        appMetaService.removeMobileViewport();
+      }
+      if (next.disableHeader) {
+        return navigationBarService.disableHeader();
+      } else {
+        return navigationBarService.enableHeader();
       }
     });
   };
 
-  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaResources2", "taigaAuth", "taigaEvents", "taigaHome", "taigaNavigationBar", "taigaProjects", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "taigaProfile", "taigaHome", "taigaUserTimeline", "templates", "ngRoute", "ngAnimate", "pascalprecht.translate", "infinite-scroll", "tgRepeat"].concat(_.map(this.taigaContribPlugins, function(plugin) {
+  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaResources2", "taigaAuth", "taigaEvents", "taigaHome", "taigaNavigationBar", "taigaProjects", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "taigaProfile", "taigaHome", "taigaUserTimeline", "taigaExternalApps", "templates", "ngRoute", "ngAnimate", "pascalprecht.translate", "infinite-scroll", "tgRepeat"].concat(_.map(this.taigaContribPlugins, function(plugin) {
     return plugin.module;
   }));
 
@@ -489,7 +516,7 @@
 
   module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "$compileProvider", "$translateProvider", "$animateProvider", configure]);
 
-  module.run(["$log", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "tgProjectService", "tgLoader", init]);
+  module.run(["$log", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "tgProjectService", "tgLoader", "tgNavigationBarService", init]);
 
 }).call(this);
 
@@ -1323,12 +1350,12 @@
       onSuccess = function(response) {
         var nextUrl;
         if ($routeParams['next'] && $routeParams['next'] !== $navUrls.resolve("login")) {
-          nextUrl = $routeParams['next'];
+          nextUrl = decodeURIComponent($routeParams['next']);
         } else {
           nextUrl = $navUrls.resolve("home");
         }
         $events.setupConnection();
-        return $location.path(nextUrl);
+        return $location.url(nextUrl);
       };
       onError = function(response) {
         return $confirm.notify("light-error", $translate.instant("LOGIN_FORM.ERROR_AUTH_INCORRECT"));
@@ -1861,12 +1888,33 @@
  */
 
 (function() {
-  var AnimationFrame, Capslock, CheckPermissionDirective, ClassPermissionDirective, LimitLineLengthDirective, ProjectUrl, Qqueue, SelectedText, Template, ToggleCommentDirective, module, taiga,
+  var AnimationFrame, Capslock, CheckPermissionDirective, ClassPermissionDirective, DataPickerConfig, LimitLineLengthDirective, ProjectUrl, Qqueue, SelectedText, Template, ToggleCommentDirective, module, taiga,
     slice = [].slice;
 
   taiga = this.taiga;
 
   module = angular.module("taigaCommon", []);
+
+  DataPickerConfig = function($translate) {
+    return {
+      get: function() {
+        return {
+          i18n: {
+            previousMonth: $translate.instant("COMMON.PICKERDATE.PREV_MONTH"),
+            nextMonth: $translate.instant("COMMON.PICKERDATE.NEXT_MONTH"),
+            months: [$translate.instant("COMMON.PICKERDATE.MONTHS.JAN"), $translate.instant("COMMON.PICKERDATE.MONTHS.FEB"), $translate.instant("COMMON.PICKERDATE.MONTHS.MAR"), $translate.instant("COMMON.PICKERDATE.MONTHS.APR"), $translate.instant("COMMON.PICKERDATE.MONTHS.MAY"), $translate.instant("COMMON.PICKERDATE.MONTHS.JUN"), $translate.instant("COMMON.PICKERDATE.MONTHS.JUL"), $translate.instant("COMMON.PICKERDATE.MONTHS.AUG"), $translate.instant("COMMON.PICKERDATE.MONTHS.SEP"), $translate.instant("COMMON.PICKERDATE.MONTHS.OCT"), $translate.instant("COMMON.PICKERDATE.MONTHS.NOV"), $translate.instant("COMMON.PICKERDATE.MONTHS.DEC")],
+            weekdays: [$translate.instant("COMMON.PICKERDATE.WEEK_DAYS.SUN"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.MON"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.TUE"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.WED"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.THU"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.FRI"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.SAT")],
+            weekdaysShort: [$translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.SUN"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.MON"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.TUE"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.WED"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.THU"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.FRI"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.SAT")]
+          },
+          isRTL: $translate.instant("COMMON.PICKERDATE.IS_RTL") === "true",
+          firstDay: parseInt($translate.instant("COMMON.PICKERDATE.FIRST_DAY_OF_WEEK"), 10),
+          format: $translate.instant("COMMON.PICKERDATE.FORMAT")
+        };
+      }
+    };
+  };
+
+  module.factory("tgDatePickerConfigService", ["$translate", DataPickerConfig]);
 
   SelectedText = function($window, $document) {
     var get;
@@ -3042,7 +3090,9 @@
     "exporter": "/exporter",
     "importer": "/importer/load_dump",
     "feedback": "/feedback",
-    "locales": "/locales"
+    "locales": "/locales",
+    "applications": "/applications",
+    "application-tokens": "/application-tokens"
   };
 
   initUrls = function($log, $urls) {
@@ -4218,13 +4268,15 @@
 
   module.directive("tgDateRange", ["$translate", DateRangeDirective]);
 
-  DateSelectorDirective = function($rootscope, $translate) {
+  DateSelectorDirective = function($rootscope, datePickerConfigService) {
     var link;
     link = function($scope, $el, $attrs, $model) {
       var initialize, selectedDate, unbind;
       selectedDate = null;
       initialize = function() {
-        return $el.picker = new Pikaday({
+        var datePickerConfig;
+        datePickerConfig = datePickerConfigService.get();
+        _.merge(datePickerConfig, {
           field: $el[0],
           onSelect: (function(_this) {
             return function(date) {
@@ -4237,18 +4289,9 @@
                 return $el.picker.setDate(selectedDate);
               }
             };
-          })(this),
-          i18n: {
-            previousMonth: $translate.instant("COMMON.PICKERDATE.PREV_MONTH"),
-            nextMonth: $translate.instant("COMMON.PICKERDATE.NEXT_MONTH"),
-            months: [$translate.instant("COMMON.PICKERDATE.MONTHS.JAN"), $translate.instant("COMMON.PICKERDATE.MONTHS.FEB"), $translate.instant("COMMON.PICKERDATE.MONTHS.MAR"), $translate.instant("COMMON.PICKERDATE.MONTHS.APR"), $translate.instant("COMMON.PICKERDATE.MONTHS.MAY"), $translate.instant("COMMON.PICKERDATE.MONTHS.JUN"), $translate.instant("COMMON.PICKERDATE.MONTHS.JUL"), $translate.instant("COMMON.PICKERDATE.MONTHS.AUG"), $translate.instant("COMMON.PICKERDATE.MONTHS.SEP"), $translate.instant("COMMON.PICKERDATE.MONTHS.OCT"), $translate.instant("COMMON.PICKERDATE.MONTHS.NOV"), $translate.instant("COMMON.PICKERDATE.MONTHS.DEC")],
-            weekdays: [$translate.instant("COMMON.PICKERDATE.WEEK_DAYS.SUN"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.MON"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.TUE"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.WED"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.THU"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.FRI"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS.SAT")],
-            weekdaysShort: [$translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.SUN"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.MON"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.TUE"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.WED"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.THU"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.FRI"), $translate.instant("COMMON.PICKERDATE.WEEK_DAYS_SHORT.SAT")]
-          },
-          isRTL: $translate.instant("COMMON.PICKERDATE.IS_RTL") === "true",
-          firstDay: parseInt($translate.instant("COMMON.PICKERDATE.FIRST_DAY_OF_WEEK"), 10),
-          format: $translate.instant("COMMON.PICKERDATE.FORMAT")
+          })(this)
         });
+        return $el.picker = new Pikaday(datePickerConfig);
       };
       unbind = $rootscope.$on("$translateChangeEnd", (function(_this) {
         return function(ctx) {
@@ -4274,7 +4317,7 @@
     };
   };
 
-  module.directive("tgDateSelector", ["$rootScope", "$translate", DateSelectorDirective]);
+  module.directive("tgDateSelector", ["$rootScope", "tgDatePickerConfigService", DateSelectorDirective]);
 
   SprintProgressBarDirective = function() {
     var link, renderProgress;
@@ -5519,16 +5562,17 @@
     };
   };
 
-  module.directive("tgCustomAttributesValues", ["$tgTemplate", "$tgStorage", CustomAttributesValuesDirective]);
+  module.directive("tgCustomAttributesValues", ["$tgTemplate", "$tgStorage", "$translate", CustomAttributesValuesDirective]);
 
-  CustomAttributeValueDirective = function($template, $selectedText, $compile) {
+  CustomAttributeValueDirective = function($template, $selectedText, $compile, $translate, datePickerConfigService) {
     var link, template, templateEdit;
     template = $template.get("custom-attributes/custom-attribute-value.html", true);
     templateEdit = $template.get("custom-attributes/custom-attribute-value-edit.html", true);
     link = function($scope, $el, $attrs, $ctrl) {
-      var attributeValue, isEditable, render, saveAttributeValue, submit;
+      var attributeValue, isEditable, prettyDate, render, saveAttributeValue, submit;
+      prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
       render = function(attributeValue, edit) {
-        var ctx, editable, html, innerText, value;
+        var ctx, datePickerConfig, editable, html, innerText, selectedDate, value;
         if (edit == null) {
           edit = false;
         }
@@ -5550,7 +5594,28 @@
           html = template(ctx);
           html = $compile(html)($scope);
         }
-        return $el.html(html);
+        $el.html(html);
+        if (attributeValue.field_type === "DATE") {
+          datePickerConfig = datePickerConfigService.get();
+          _.merge(datePickerConfig, {
+            field: $el.find('input')[0],
+            onSelect: (function(_this) {
+              return function(date) {
+                var selectedDate;
+                return selectedDate = date;
+              };
+            })(this),
+            onOpen: (function(_this) {
+              return function() {
+                if (typeof selectedDate !== "undefined" && selectedDate !== null) {
+                  return $el.picker.setDate(selectedDate);
+                }
+              };
+            })(this)
+          });
+          selectedDate = null;
+          return $el.picker = new Pikaday(datePickerConfig);
+        }
       };
       isEditable = function() {
         var permissions, requiredEditionPerm;
@@ -5560,8 +5625,19 @@
       };
       saveAttributeValue = function() {
         attributeValue.value = $el.find("input, textarea").val();
+        if (attributeValue.field_type === "DATE") {
+          if (attributeValue.value) {
+            if (moment(attributeValue.value).isValid() !== true) {
+              return;
+            }
+            attributeValue.value = moment(attributeValue.value, prettyDate).format("YYYY-MM-DD");
+          }
+        }
         return $scope.$apply(function() {
           return $ctrl.updateAttributeValue(attributeValue).then(function() {
+            if (attributeValue.field_type === "DATE" && attributeValue.value) {
+              attributeValue.value = moment(attributeValue.value, "YYYY-MM-DD").format(prettyDate);
+            }
             return render(attributeValue, false);
           });
         });
@@ -5570,6 +5646,9 @@
         if (event.keyCode === 13 && event.currentTarget.type !== "textarea") {
           return submit(event);
         } else if (event.keyCode === 27) {
+          if (attributeValue.field_type === "DATE" && moment(attributeValue.value).isValid() !== true) {
+            return;
+          }
           return render(attributeValue, false);
         }
       });
@@ -5600,6 +5679,9 @@
         return $el.off();
       });
       attributeValue = $scope.$eval($attrs.tgCustomAttributeValue);
+      if (attributeValue.field_type === "DATE" && attributeValue.value) {
+        attributeValue.value = moment(attributeValue.value, "YYYY-MM-DD").format(prettyDate);
+      }
       return render(attributeValue);
     };
     return {
@@ -5609,7 +5691,7 @@
     };
   };
 
-  module.directive("tgCustomAttributeValue", ["$tgTemplate", "$selectedText", "$compile", CustomAttributeValueDirective]);
+  module.directive("tgCustomAttributeValue", ["$tgTemplate", "$selectedText", "$compile", "$translate", "tgDatePickerConfigService", CustomAttributeValueDirective]);
 
 }).call(this);
 
@@ -12864,18 +12946,7 @@
     IssueDetailController.prototype.initializeEventHandlers = function() {
       this.scope.$on("attachment:create", (function(_this) {
         return function() {
-          _this.rootscope.$broadcast("object:updated");
           return _this.analytics.trackEvent("attachment", "create", "create attachment on issue", 1);
-        };
-      })(this));
-      this.scope.$on("attachment:edit", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("attachment:delete", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
         };
       })(this));
       this.scope.$on("promote-issue-to-us:success", (function(_this) {
@@ -15115,18 +15186,7 @@
     TaskDetailController.prototype.initializeEventHandlers = function() {
       this.scope.$on("attachment:create", (function(_this) {
         return function() {
-          _this.analytics.trackEvent("attachment", "create", "create attachment on task", 1);
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("attachment:edit", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
-        };
-      })(this));
-      this.scope.$on("attachment:delete", (function(_this) {
-        return function() {
-          return _this.rootscope.$broadcast("object:updated");
+          return _this.analytics.trackEvent("attachment", "create", "create attachment on task", 1);
         };
       })(this));
       this.scope.$on("custom-attributes-values:edit", (function(_this) {
@@ -23519,6 +23579,13 @@
 (function() {
   var module;
 
+  module = angular.module("taigaExternalApps", []);
+
+}).call(this);
+
+(function() {
+  var module;
+
   module = angular.module("taigaHome", []);
 
 }).call(this);
@@ -23699,6 +23766,131 @@
   ProjectMenuDirective.$inject = ["tgProjectService", "tgLightboxFactory"];
 
   angular.module("taigaComponents").directive("tgProjectMenu", ProjectMenuDirective);
+
+}).call(this);
+
+(function() {
+  var ExternalAppController, taiga,
+    bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  ExternalAppController = (function(superClass) {
+    extend(ExternalAppController, superClass);
+
+    ExternalAppController.$inject = ["$routeParams", "tgExternalAppsService", "$window", "tgCurrentUserService", "$location", "$tgNavUrls", "tgXhrErrorService", "tgLoader"];
+
+    function ExternalAppController(routeParams, externalAppsService, window, currentUserService, location, navUrls, xhrError, loader) {
+      var loginUrl, nextUrl;
+      this.routeParams = routeParams;
+      this.externalAppsService = externalAppsService;
+      this.window = window;
+      this.currentUserService = currentUserService;
+      this.location = location;
+      this.navUrls = navUrls;
+      this.xhrError = xhrError;
+      this.loader = loader;
+      this.createApplicationToken = bind(this.createApplicationToken, this);
+      this._getApplicationToken = bind(this._getApplicationToken, this);
+      this._redirect = bind(this._redirect, this);
+      this.loader.start(false);
+      this._applicationId = this.routeParams.application;
+      this._state = this.routeParams.state;
+      this._getApplicationToken();
+      this._user = this.currentUserService.getUser();
+      this._application = null;
+      nextUrl = encodeURIComponent(this.location.url());
+      loginUrl = this.navUrls.resolve("login");
+      this.loginWithAnotherUserUrl = loginUrl + "?next=" + nextUrl;
+      taiga.defineImmutableProperty(this, "user", (function(_this) {
+        return function() {
+          return _this._user;
+        };
+      })(this));
+      taiga.defineImmutableProperty(this, "application", (function(_this) {
+        return function() {
+          return _this._application;
+        };
+      })(this));
+    }
+
+    ExternalAppController.prototype._redirect = function(applicationToken) {
+      var nextUrl;
+      nextUrl = applicationToken.get("next_url");
+      return this.window.open(nextUrl, "_self");
+    };
+
+    ExternalAppController.prototype._getApplicationToken = function() {
+      return this.externalAppsService.getApplicationToken(this._applicationId, this._state).then((function(_this) {
+        return function(data) {
+          _this._application = data.get("application");
+          if (data.get("auth_code")) {
+            return _this._redirect(data);
+          } else {
+            return _this.loader.pageLoaded();
+          }
+        };
+      })(this))["catch"]((function(_this) {
+        return function(xhr) {
+          _this.loader.pageLoaded();
+          return _this.xhrError.response(xhr);
+        };
+      })(this));
+    };
+
+    ExternalAppController.prototype.cancel = function() {
+      return this.window.history.back();
+    };
+
+    ExternalAppController.prototype.createApplicationToken = function() {
+      return this.externalAppsService.authorizeApplicationToken(this._applicationId, this._state).then((function(_this) {
+        return function(data) {
+          return _this._redirect(data);
+        };
+      })(this))["catch"]((function(_this) {
+        return function(xhr) {
+          return _this.xhrError.response(xhr);
+        };
+      })(this));
+    };
+
+    return ExternalAppController;
+
+  })(taiga.Controller);
+
+  angular.module("taigaExternalApps").controller("ExternalApp", ExternalAppController);
+
+}).call(this);
+
+(function() {
+  var ExternalAppsService,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  ExternalAppsService = (function(superClass) {
+    extend(ExternalAppsService, superClass);
+
+    ExternalAppsService.$inject = ["tgResources"];
+
+    function ExternalAppsService(rs) {
+      this.rs = rs;
+    }
+
+    ExternalAppsService.prototype.getApplicationToken = function(applicationId, state) {
+      return this.rs.externalapps.getApplicationToken(applicationId, state);
+    };
+
+    ExternalAppsService.prototype.authorizeApplicationToken = function(applicationId, state) {
+      return this.rs.externalapps.authorizeApplicationToken(applicationId, state);
+    };
+
+    return ExternalAppsService;
+
+  })(taiga.Service);
+
+  angular.module("taigaExternalApps").service("tgExternalAppsService", ExternalAppsService);
 
 }).call(this);
 
@@ -24082,7 +24274,7 @@
 (function() {
   var NavigationBarDirective;
 
-  NavigationBarDirective = function(currentUserService, $location) {
+  NavigationBarDirective = function(currentUserService, navigationBarService, $location) {
     var directive, link;
     link = function(scope, el, attrs, ctrl) {
       scope.vm = {};
@@ -24096,8 +24288,11 @@
       taiga.defineImmutableProperty(scope.vm, "projects", function() {
         return currentUserService.projects.get("recents");
       });
-      return taiga.defineImmutableProperty(scope.vm, "isAuthenticated", function() {
+      taiga.defineImmutableProperty(scope.vm, "isAuthenticated", function() {
         return currentUserService.isAuthenticated();
+      });
+      return taiga.defineImmutableProperty(scope.vm, "isEnabledHeader", function() {
+        return navigationBarService.isEnabledHeader();
       });
     };
     directive = {
@@ -24108,9 +24303,41 @@
     return directive;
   };
 
-  NavigationBarDirective.$inject = ["tgCurrentUserService", "$location"];
+  NavigationBarDirective.$inject = ["tgCurrentUserService", "tgNavigationBarService", "$location"];
 
   angular.module("taigaNavigationBar").directive("tgNavigationBar", NavigationBarDirective);
+
+}).call(this);
+
+(function() {
+  var NavigationBarService,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  NavigationBarService = (function(superClass) {
+    extend(NavigationBarService, superClass);
+
+    function NavigationBarService() {
+      this.disableHeader();
+    }
+
+    NavigationBarService.prototype.enableHeader = function() {
+      return this.enabledHeader = true;
+    };
+
+    NavigationBarService.prototype.disableHeader = function() {
+      return this.enabledHeader = false;
+    };
+
+    NavigationBarService.prototype.isEnabledHeader = function() {
+      return this.enabledHeader;
+    };
+
+    return NavigationBarService;
+
+  })(taiga.Service);
+
+  angular.module("taigaNavigationBar").service("tgNavigationBarService", NavigationBarService);
 
 }).call(this);
 
@@ -24666,6 +24893,47 @@
   Resource = function(urlsService, http) {
     var service;
     service = {};
+    service.getApplicationToken = function(applicationId, state) {
+      var url;
+      url = urlsService.resolve("applications");
+      url = url + "/" + applicationId + "/token?state=" + state;
+      return http.get(url).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    service.authorizeApplicationToken = function(applicationId, state) {
+      var data, url;
+      url = urlsService.resolve("application-tokens");
+      url = url + "/authorize";
+      data = {
+        "state": state,
+        "application": applicationId
+      };
+      return http.post(url, data).then(function(result) {
+        return Immutable.fromJS(result.data);
+      });
+    };
+    return function() {
+      return {
+        "externalapps": service
+      };
+    };
+  };
+
+  Resource.$inject = ["$tgUrls", "$tgHttp"];
+
+  module = angular.module("taigaResources2");
+
+  module.factory("tgExternalAppsResource", Resource);
+
+}).call(this);
+
+(function() {
+  var Resource, module;
+
+  Resource = function(urlsService, http) {
+    var service;
+    service = {};
     service.listInAllProjects = function(params) {
       var httpOptions, url;
       url = urlsService.resolve("issues");
@@ -24772,7 +25040,7 @@
 (function() {
   var Resources, services;
 
-  services = ["tgProjectsResources", "tgUsersResources", "tgUserstoriesResource", "tgTasksResource", "tgIssuesResource"];
+  services = ["tgProjectsResources", "tgUsersResources", "tgUserstoriesResource", "tgTasksResource", "tgIssuesResource", "tgExternalAppsResource"];
 
   Resources = function($injector) {
     var i, j, len, len1, ref, service, serviceFn, serviceName, serviceProperty;
@@ -25022,6 +25290,12 @@
         this.setDescription(description);
         this.setTwitterMetas(title, description);
         return this.setOpenGraphMetas(title, description);
+      },
+      addMobileViewport: function() {
+        return $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">');
+      },
+      removeMobileViewport: function() {
+        return $('meta[name="viewport"]').remove();
       }
     };
   });
