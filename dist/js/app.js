@@ -1,27 +1,27 @@
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: app.coffee
  */
 
 (function() {
-  var configure, i18nInit, init, module, modules, taiga;
+  var configure, i18nInit, init, module, modules, pluginsWithModule, taiga;
 
   this.taiga = taiga = {};
 
@@ -47,7 +47,7 @@
   taiga.sessionId = taiga.generateUniqueSessionIdentifier();
 
   configure = function($routeProvider, $locationProvider, $httpProvider, $provide, $tgEventsProvider, $compileProvider, $translateProvider, $animateProvider) {
-    var authHttpIntercept, defaultHeaders, loaderIntercept, originalWhen, preferedLangCode, userInfo, versionCheckHttpIntercept;
+    var authHttpIntercept, decorators, defaultHeaders, loaderIntercept, originalWhen, preferedLangCode, userInfo, versionCheckHttpIntercept;
     $animateProvider.classNameFilter(/^(?:(?!ng-animate-disabled).)*$/);
     originalWhen = $routeProvider.when;
     $routeProvider.when = function(path, route) {
@@ -71,8 +71,11 @@
       access: {
         requiresLogin: true
       },
+      loader: true,
       title: "HOME.PAGE_TITLE",
-      description: "HOME.PAGE_DESCRIPTION"
+      loader: true,
+      description: "HOME.PAGE_DESCRIPTION",
+      joyride: "dashboard"
     });
     $routeProvider.when("/projects/", {
       templateUrl: "projects/listing/projects-listing.html",
@@ -101,12 +104,14 @@
     $routeProvider.when("/project/:pslug/backlog", {
       templateUrl: "backlog/backlog.html",
       loader: true,
-      section: "backlog"
+      section: "backlog",
+      joyride: "backlog"
     });
     $routeProvider.when("/project/:pslug/kanban", {
       templateUrl: "kanban/kanban.html",
       loader: true,
-      section: "kanban"
+      section: "kanban",
+      joyride: "kanban"
     });
     $routeProvider.when("/project/:pslug/taskboard/:sslug", {
       templateUrl: "taskboard/taskboard.html",
@@ -267,12 +272,6 @@
       description: "FORGOT_PASSWORD.PAGE_DESCRIPTION",
       disableHeader: true
     });
-    $routeProvider.when("/change-password", {
-      templateUrl: "auth/change-password-from-recovery.html",
-      title: "CHANGE_PASSWORD.PAGE_TITLE",
-      description: "CHANGE_PASSWORD.PAGE_TITLE",
-      disableHeader: true
-    });
     $routeProvider.when("/change-password/:token", {
       templateUrl: "auth/change-password-from-recovery.html",
       title: "CHANGE_PASSWORD.PAGE_TITLE",
@@ -283,10 +282,7 @@
       templateUrl: "auth/invitation.html",
       title: "INVITATION.PAGE_TITLE",
       description: "INVITATION.PAGE_DESCRIPTION",
-      disableHeader: true,
-      access: {
-        requiresLogin: true
-      }
+      disableHeader: true
     });
     $routeProvider.when("/external-apps", {
       templateUrl: "external-apps/external-app.html",
@@ -331,11 +327,11 @@
       var httpResponseError;
       httpResponseError = function(response) {
         var nextUrl;
-        if (response.status === 0) {
+        if (response.status === 0 || response.status === -1) {
           $lightboxService.closeAll();
           $location.path($navUrls.resolve("error"));
           $location.replace();
-        } else if (response.status === 401) {
+        } else if (response.status === 401 && $location.url().indexOf('/login') === -1) {
           nextUrl = encodeURIComponent($location.url());
           $location.url($navUrls.resolve("login")).search("next=" + nextUrl);
         }
@@ -412,7 +408,19 @@
       prefix: "/locales/locale-",
       suffix: ".json"
     }).addInterpolation('$translateMessageFormatInterpolation').preferredLanguage(preferedLangCode);
-    return $translateProvider.fallbackLanguage(preferedLangCode);
+    $translateProvider.fallbackLanguage(preferedLangCode);
+    decorators = _.where(this.taigaContribPlugins, {
+      "type": "decorator"
+    });
+    _.each(decorators, function(decorator) {
+      return $provide.decorator(decorator.provider, decorator.decorator);
+    });
+    decorators = _.where(this.taigaContribPlugins, {
+      "type": "decorator"
+    });
+    return _.each(decorators, function(decorator) {
+      return $provide.decorator(decorator.provider, decorator.decorator);
+    });
   };
 
   i18nInit = function(lang, $translate) {
@@ -486,7 +494,7 @@
       }
       projectService.setSection(next.section);
       if (next.params.pslug) {
-        projectService.setProject(next.params.pslug);
+        projectService.setProjectBySlug(next.params.pslug);
       } else {
         projectService.cleanProject();
       }
@@ -508,7 +516,15 @@
     });
   };
 
-  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaResources2", "taigaAuth", "taigaEvents", "taigaHome", "taigaNavigationBar", "taigaProjects", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "taigaProfile", "taigaHome", "taigaUserTimeline", "taigaExternalApps", "templates", "ngRoute", "ngAnimate", "pascalprecht.translate", "infinite-scroll", "tgRepeat"].concat(_.map(this.taigaContribPlugins, function(plugin) {
+  pluginsWithModule = _.filter(this.taigaContribPlugins, function(plugin) {
+    return plugin.module;
+  });
+
+  pluginsWithModule = _.filter(this.taigaContribPlugins, function(plugin) {
+    return plugin.module;
+  });
+
+  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaResources2", "taigaAuth", "taigaEvents", "taigaHome", "taigaNavigationBar", "taigaProjects", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "taigaProfile", "taigaHome", "taigaUserTimeline", "taigaExternalApps", "templates", "ngRoute", "ngAnimate", "ngAria", "pascalprecht.translate", "infinite-scroll", "tgRepeat"].concat(_.map(pluginsWithModule, function(plugin) {
     return plugin.module;
   }));
 
@@ -516,29 +532,29 @@
 
   module.config(["$routeProvider", "$locationProvider", "$httpProvider", "$provide", "$tgEventsProvider", "$compileProvider", "$translateProvider", "$animateProvider", configure]);
 
-  module.run(["$log", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "tgProjectService", "tgLoader", "tgNavigationBarService", init]);
+  module.run(["$log", "$rootScope", "$tgAuth", "$tgEvents", "$tgAnalytics", "$translate", "$tgLocation", "$tgNavUrls", "tgAppMetaService", "tgProjectService", "tgLoader", "tgNavigationBarService", "$route", init]);
 
 }).call(this);
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: classes.coffee
  */
 
@@ -601,23 +617,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: utils.coffee
  */
 
@@ -857,6 +873,15 @@
     };
   })(this);
 
+  _.mixin({
+    removeKeys: function(obj, keys) {
+      return _.chain([keys]).flatten().reduce(function(obj, key) {
+        delete obj[key];
+        return obj;
+      }, obj).value();
+    }
+  });
+
   taiga = this.taiga;
 
   taiga.nl2br = nl2br;
@@ -907,23 +932,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/controllerMixins.coffee
  */
 
@@ -1065,23 +1090,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin.coffee
  */
 
@@ -1094,23 +1119,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/auth.coffee
  */
 
@@ -1485,26 +1510,24 @@
   ChangePasswordFromRecoveryDirective = function($auth, $confirm, $location, $params, $navUrls, $translate) {
     var link;
     link = function($scope, $el, $attrs) {
-      var form, onErrorSubmit, onSuccessSubmit, submit;
+      var form, onErrorSubmit, onSuccessSubmit, submit, text;
       $scope.data = {};
       if ($params.token != null) {
         $scope.tokenInParams = true;
         $scope.data.token = $params.token;
       } else {
-        $scope.tokenInParams = false;
+        $location.path($navUrls.resolve("login"));
+        text = $translate.instant("CHANGE_PASSWORD_RECOVERY_FORM.ERROR");
+        $confirm.notify("light-error", text);
       }
       form = $el.find("form").checksley();
       onSuccessSubmit = function(response) {
-        var text;
         $location.path($navUrls.resolve("login"));
         text = $translate.instant("CHANGE_PASSWORD_RECOVERY_FORM.SUCCESS");
         return $confirm.success(text);
       };
       onErrorSubmit = function(response) {
-        var text;
-        text = $translate.instant("COMMON.GENERIC_ERROR", {
-          error: response.data._error_message
-        });
+        text = $translate.instant("CHANGE_PASSWORD_RECOVERY_FORM.ERROR");
         return $confirm.notify("light-error", text);
       };
       submit = debounce(2000, (function(_this) {
@@ -1543,7 +1566,7 @@
         var text;
         $location.path($navUrls.resolve("login"));
         text = $translate.instant("INVITATION_LOGIN_FORM.NOT_FOUND");
-        return $confirm.success(text);
+        return $confirm.notify("light-error", text);
       });
       $scope.dataLogin = {
         token: token
@@ -1729,23 +1752,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/backlog.coffee
  */
 
@@ -1758,23 +1781,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base.coffee
  */
 
@@ -1867,23 +1890,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common.coffee
  */
 
@@ -2166,29 +2189,24 @@
           return $(this).remove();
         });
       };
-      showIcon = function() {
-        var left, top;
+      showIcon = function(e) {
+        var element;
         if (open) {
           return;
         }
-        top = $el.position().top;
-        left = $el.position().left + $el.outerWidth(true);
-        warningIcon.css({
-          display: 'none',
-          position: 'absolute',
-          top: top,
-          left: left - 25,
-          lineHeight: $el.outerHeight() + 'px',
-          marginLeft: 0
-        });
-        warningIcon.insertAfter($el).fadeIn();
+        element = e.currentTarget;
+        $(element).parent().append(warningIcon);
+        $('.icon-capslock').fadeIn();
         return open = true;
       };
-      $el.on('keyup.capslock', function(e) {
+      $el.on('blur', function(e) {
+        return hideIcon();
+      });
+      $el.on('keyup.capslock, focus', function(e) {
         if ($el.val() === $el.val().toLowerCase()) {
-          return hideIcon();
+          return hideIcon(e);
         } else {
-          return showIcon();
+          return showIcon(e);
         }
       });
       return $scope.$on("$destroy", function() {
@@ -2206,23 +2224,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/events.coffee
  */
 
@@ -2421,23 +2439,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/feedback.coffee
  */
 
@@ -2509,23 +2527,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/integrations.coffee
  */
 
@@ -2538,23 +2556,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/issues.coffee
  */
 
@@ -2567,23 +2585,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/kanban.coffee
  */
 
@@ -2596,23 +2614,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/projects.coffee
  */
 
@@ -2625,23 +2643,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/related-tasks.coffee
  */
 
@@ -2725,15 +2743,16 @@
           title = $translate.instant("TASK.TITLE_DELETE_ACTION");
           task = $model.$modelValue;
           message = task.subject;
-          return $confirm.askOnDelete(title, message).then(function(finish) {
+          return $confirm.askOnDelete(title, message).then(function(askResponse) {
             var promise;
             promise = $repo.remove(task);
             promise.then(function() {
-              finish();
+              askResponse.finish();
               $confirm.notify("success");
               return $scope.$emit("related-tasks:delete");
             });
             return promise.then(null, function() {
+              askResponse.finish(false);
               return $confirm.notify("error");
             });
           });
@@ -2976,23 +2995,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources.coffee
  */
 
@@ -3025,8 +3044,11 @@
     "users-change-password": "/users/change_password",
     "users-change-email": "/users/change_email",
     "users-cancel-account": "/users/cancel",
-    "contacts": "/users/%s/contacts",
-    "stats": "/users/%s/stats",
+    "user-stats": "/users/%s/stats",
+    "user-liked": "/users/%s/liked",
+    "user-voted": "/users/%s/voted",
+    "user-watched": "/users/%s/watched",
+    "user-contacts": "/users/%s/contacts",
     "permissions": "/permissions",
     "notify-policies": "/notify-policies",
     "user-storage": "/user-storage",
@@ -3039,6 +3061,10 @@
     "project-templates": "/project-templates",
     "project-modules": "/projects/%s/modules",
     "bulk-update-projects-order": "/projects/bulk_update_order",
+    "project-like": "/projects/%s/like",
+    "project-unlike": "/projects/%s/unlike",
+    "project-watch": "/projects/%s/watch",
+    "project-unwatch": "/projects/%s/unwatch",
     "userstory-statuses": "/userstory-statuses",
     "points": "/points",
     "task-statuses": "/task-statuses",
@@ -3053,12 +3079,24 @@
     "bulk-update-us-sprint-order": "/userstories/bulk_update_sprint_order",
     "bulk-update-us-kanban-order": "/userstories/bulk_update_kanban_order",
     "userstories-filters": "/userstories/filters_data",
+    "userstory-upvote": "/userstories/%s/upvote",
+    "userstory-downvote": "/userstories/%s/downvote",
+    "userstory-watch": "/userstories/%s/watch",
+    "userstory-unwatch": "/userstories/%s/unwatch",
     "tasks": "/tasks",
     "bulk-create-tasks": "/tasks/bulk_create",
     "bulk-update-task-taskboard-order": "/tasks/bulk_update_taskboard_order",
+    "task-upvote": "/tasks/%s/upvote",
+    "task-downvote": "/tasks/%s/downvote",
+    "task-watch": "/tasks/%s/watch",
+    "task-unwatch": "/tasks/%s/unwatch",
     "issues": "/issues",
     "bulk-create-issues": "/issues/bulk_create",
     "issues-filters": "/issues/filters_data",
+    "issue-upvote": "/issues/%s/upvote",
+    "issue-downvote": "/issues/%s/downvote",
+    "issue-watch": "/issues/%s/watch",
+    "issue-unwatch": "/issues/%s/unwatch",
     "wiki": "/wiki",
     "wiki-restore": "/wiki/%s/restore",
     "wiki-links": "/wiki-links",
@@ -3124,23 +3162,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/search.coffee
  */
 
@@ -3197,19 +3235,23 @@
         };
       })(this));
       promise.then(null, this.onInitialDataError.bind(this));
-      this.scope.searchTerm = "";
+      this.scope.searchTerm = null;
       loadSearchData = debounceLeading(100, (function(_this) {
         return function(t) {
           return _this.loadSearchData(t);
         };
       })(this));
+      bindOnce(this.scope, "projectId", (function(_this) {
+        return function(projectId) {
+          if (!_this.scope.searchResults && _this.scope.searchTerm) {
+            return _this.loadSearchData();
+          }
+        };
+      })(this));
       this.scope.$watch("searchTerm", (function(_this) {
         return function(term) {
-          if (term) {
-            _this.scope.loading = true;
-            return _this.loadSearchData(term).then(function() {
-              return _this.scope.loading = false;
-            });
+          if (term !== void 0 && _this.scope.projectId) {
+            return _this.loadSearchData(term);
           }
         };
       })(this));
@@ -3248,14 +3290,34 @@
     };
 
     SearchController.prototype.loadSearchData = function(term) {
-      var promise;
-      promise = this.rs.search["do"](this.scope.projectId, term).then((function(_this) {
+      if (term == null) {
+        term = "";
+      }
+      this.scope.loading = true;
+      return this._loadSearchData(term).then((function(_this) {
         return function(data) {
-          _this.scope.searchResults = data;
-          return data;
+          if (data) {
+            _this.scope.searchResults = data;
+            return _this.scope.loading = false;
+          }
         };
       })(this));
-      return promise;
+    };
+
+    SearchController.prototype._loadSearchData = function(term) {
+      if (term == null) {
+        term = "";
+      }
+      if (this.deferredAbort) {
+        this.deferredAbort.resolve();
+      }
+      this.deferredAbort = this.q.defer();
+      this.rs.search["do"](this.scope.projectId, term).then((function(_this) {
+        return function(data) {
+          return _this.deferredAbort.resolve(data);
+        };
+      })(this));
+      return this.deferredAbort.promise;
     };
 
     SearchController.prototype.loadInitialData = function() {
@@ -3320,11 +3382,11 @@
   SearchDirective = function($log, $compile, $templatecache, $routeparams, $location) {
     var link, linkTable;
     linkTable = function($scope, $el, $attrs, $ctrl) {
-      var activeSectionName, applyAutoTab, getActiveSection, lastSeatchResults, markSectionTabActive, renderFilterTabs, renderTableContent, tabsDom, templates;
+      var activeSectionName, applyAutoTab, getActiveSection, lastSearchResults, markSectionTabActive, renderFilterTabs, renderTableContent, tabsDom, templates;
       applyAutoTab = true;
       activeSectionName = "userstories";
       tabsDom = $el.find("section.search-filter");
-      lastSeatchResults = null;
+      lastSearchResults = null;
       getActiveSection = function(data) {
         var i, len, maxVal, name, ref, selectedSection, value;
         maxVal = 0;
@@ -3394,8 +3456,8 @@
       };
       $scope.$watch("searchResults", function(data) {
         var activeSection;
-        lastSeatchResults = data;
-        if (!lastSeatchResults) {
+        lastSearchResults = data;
+        if (!lastSearchResults) {
           return;
         }
         activeSection = getActiveSection(data);
@@ -3404,7 +3466,7 @@
         return markSectionTabActive(activeSection);
       });
       $scope.$watch("searchTerm", function(searchTerm) {
-        if (searchTerm) {
+        if (searchTerm !== void 0) {
           return $location.search("text", searchTerm);
         }
       });
@@ -3413,7 +3475,7 @@
         event.preventDefault();
         target = angular.element(event.currentTarget);
         sectionName = target.parent().data("name");
-        sectionData = lastSeatchResults[sectionName];
+        sectionData = !lastSearchResults ? [] : lastSearchResults[sectionName];
         section = {
           name: sectionName,
           value: sectionData
@@ -3446,23 +3508,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/taskboard.coffee
  */
 
@@ -3475,23 +3537,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/tasks.coffee
  */
 
@@ -3504,23 +3566,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/team.coffee
  */
 
@@ -3533,23 +3595,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/user-settings.coffee
  */
 
@@ -3562,23 +3624,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/userstories.coffee
  */
 
@@ -3591,23 +3653,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/wiki.coffee
  */
 
@@ -3620,23 +3682,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/analytics.coffee
  */
 
@@ -3737,23 +3799,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/attachments.coffee
  */
 
@@ -3929,18 +3991,18 @@
         fileName: attachment.name
       });
       return this.confirm.askOnDelete(title, message).then((function(_this) {
-        return function(finish) {
+        return function(askResponse) {
           var onError, onSuccess;
           onSuccess = function() {
             var index;
-            finish();
+            askResponse.finish();
             index = _this.attachments.indexOf(attachment);
             _this.attachments.splice(index, 1);
             _this.updateCounters();
             return _this.rootscope.$broadcast("attachment:delete");
           };
           onError = function() {
-            finish(false);
+            askResponse.finish(false);
             message = _this.translate.instant("ATTACHMENT.ERROR_DELETE_ATTACHMENT", {
               errorMessage: message
             });
@@ -4164,6 +4226,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: bind-scope.coffee
+ */
+
 (function() {
   var BindScope, module;
 
@@ -4190,6 +4272,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: compile-html.directive.coffee
+ */
+
 (function() {
   var CompileHtmlDirective;
 
@@ -4214,23 +4316,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/components.coffee
  */
 
@@ -4452,13 +4554,9 @@
           isEditable: isEditable()
         };
         html = $compile(template(ctx))($scope);
-        $el.html(html);
-        if (isEditable() && watchers.length === 0) {
-          $el.find(".title").text("Add watchers");
-          return $el.find(".watchers-header").addClass("no-watchers");
-        }
+        return $el.html(html);
       };
-      $el.on("click", ".icon-delete", function(event) {
+      $el.on("click", ".js-delete-watcher", function(event) {
         var message, target, title, watcherId;
         event.preventDefault();
         if (!isEditable()) {
@@ -4469,16 +4567,16 @@
         title = $translate.instant("COMMON.WATCHERS.TITLE_LIGHTBOX_DELETE_WARTCHER");
         message = $scope.usersById[watcherId].full_name_display;
         return $confirm.askOnDelete(title, message).then((function(_this) {
-          return function(finish) {
+          return function(askResponse) {
             var watcherIds;
-            finish();
+            askResponse.finish();
             watcherIds = _.clone($model.$modelValue.watchers, false);
             watcherIds = _.pull(watcherIds, watcherId);
             return deleteWatcher(watcherIds);
           };
         })(this));
       });
-      $el.on("click", ".add-watcher", function(event) {
+      $el.on("click", ".js-add-watcher", function(event) {
         event.preventDefault();
         if (!isEditable()) {
           return;
@@ -4573,8 +4671,8 @@
         }
         title = $translate.instant("COMMON.ASSIGNED_TO.CONFIRM_UNASSIGNED");
         return $confirm.ask(title).then((function(_this) {
-          return function(finish) {
-            finish();
+          return function(response) {
+            response.finish();
             $model.$modelValue.assigned_to = null;
             return save(null);
           };
@@ -4661,22 +4759,22 @@
       if (!$attrs.onDeleteTitle) {
         return $log.error("DeleteButtonDirective requires on-delete-title set in scope.");
       }
-      $el.on("click", ".button", function(event) {
+      $el.on("click", ".button-delete", function(event) {
         var subtitle, title;
         title = $attrs.onDeleteTitle;
         subtitle = $model.$modelValue.subject;
         return $confirm.askOnDelete(title, subtitle).then((function(_this) {
-          return function(finish) {
+          return function(askResponse) {
             var promise;
             promise = $repo.remove($model.$modelValue);
             promise.then(function() {
               var url;
-              finish();
+              askResponse.finish();
               url = $scope.$eval($attrs.onDeleteGoToUrl);
               return $location.path(url);
             });
             return promise.then(null, function() {
-              finish(false);
+              askResponse.finish(false);
               return $confirm.notify("error");
             });
           };
@@ -5098,23 +5196,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/confirm.coffee
  */
 
@@ -5184,13 +5282,15 @@
           event.preventDefault();
           target = angular.element(event.currentTarget);
           currentLoading = _this.loading().target(target).start();
-          return defered.resolve(function(ok) {
-            if (ok == null) {
-              ok = true;
-            }
-            currentLoading.finish();
-            if (ok) {
-              return _this.hide(el);
+          return defered.resolve({
+            finish: function(ok) {
+              if (ok == null) {
+                ok = true;
+              }
+              currentLoading.finish();
+              if (ok) {
+                return _this.hide(el);
+              }
             }
           });
         };
@@ -5242,9 +5342,14 @@
           currentLoading = _this.loading().target(target).start();
           return defered.resolve({
             selected: choicesField.val(),
-            finish: function() {
+            finish: function(ok) {
+              if (ok == null) {
+                ok = true;
+              }
               currentLoading.finish();
-              return _this.hide(el);
+              if (ok) {
+                return _this.hide(el);
+              }
             }
           });
         };
@@ -5385,7 +5490,7 @@
           return delete _this.tsem;
         };
       })(this));
-      return el.on("click", ".icon-delete", (function(_this) {
+      return el.on("click", ".icon-delete, .close", (function(_this) {
         return function(event) {
           return body.find(selector).removeClass('active').addClass('inactive');
         };
@@ -5404,28 +5509,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/custom-field-values.coffee
  */
 
 (function() {
-  var CustomAttributeValueDirective, CustomAttributesValuesController, CustomAttributesValuesDirective, bindMethods, bindOnce, debounce, generateHash, module, taiga,
+  var CustomAttributeValueDirective, CustomAttributesValuesController, CustomAttributesValuesDirective, DATE_TYPE, MULTILINE_TYPE, TEXT_TYPE, TYPE_CHOICES, bindMethods, bindOnce, debounce, generateHash, module, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -5440,6 +5545,25 @@
   generateHash = taiga.generateHash;
 
   module = angular.module("taigaCommon");
+
+  TEXT_TYPE = "text";
+
+  MULTILINE_TYPE = "multiline";
+
+  DATE_TYPE = "date";
+
+  TYPE_CHOICES = [
+    {
+      key: TEXT_TYPE,
+      name: "ADMIN.CUSTOM_FIELDS.FIELD_TYPE_TEXT"
+    }, {
+      key: MULTILINE_TYPE,
+      name: "ADMIN.CUSTOM_FIELDS.FIELD_TYPE_MULTI"
+    }, {
+      key: DATE_TYPE,
+      name: "ADMIN.CUSTOM_FIELDS.FIELD_TYPE_DATE"
+    }
+  ];
 
   CustomAttributesValuesController = (function(superClass) {
     extend(CustomAttributesValuesController, superClass);
@@ -5569,15 +5693,18 @@
     template = $template.get("custom-attributes/custom-attribute-value.html", true);
     templateEdit = $template.get("custom-attributes/custom-attribute-value-edit.html", true);
     link = function($scope, $el, $attrs, $ctrl) {
-      var attributeValue, isEditable, prettyDate, render, saveAttributeValue, submit;
+      var attributeValue, isEditable, prettyDate, render, setFocusAndSelectOnInputField, submit;
       prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
       render = function(attributeValue, edit) {
-        var ctx, datePickerConfig, editable, html, innerText, selectedDate, value;
+        var ctx, datePickerConfig, editable, html, value;
         if (edit == null) {
           edit = false;
         }
-        value = attributeValue.value;
-        innerText = attributeValue.value;
+        if (attributeValue.type === DATE_TYPE && attributeValue.value) {
+          value = moment(attributeValue.value, "YYYY-MM-DD").format(prettyDate);
+        } else {
+          value = attributeValue.value;
+        }
         editable = isEditable();
         ctx = {
           id: attributeValue.id,
@@ -5585,36 +5712,36 @@
           description: attributeValue.description,
           value: value,
           isEditable: editable,
-          field_type: attributeValue.field_type
+          type: attributeValue.type
         };
         if (editable && (edit || !value)) {
           html = templateEdit(ctx);
           html = $compile(html)($scope);
+          $el.html(html);
+          if (attributeValue.type === DATE_TYPE) {
+            datePickerConfig = datePickerConfigService.get();
+            _.merge(datePickerConfig, {
+              field: $el.find("input[name=value]")[0],
+              onSelect: (function(_this) {
+                return function(date) {
+                  var selectedDate;
+                  return selectedDate = date;
+                };
+              })(this),
+              onOpen: (function(_this) {
+                return function() {
+                  if (typeof selectedDate !== "undefined" && selectedDate !== null) {
+                    return $el.picker.setDate(selectedDate);
+                  }
+                };
+              })(this)
+            });
+            return $el.picker = new Pikaday(datePickerConfig);
+          }
         } else {
           html = template(ctx);
           html = $compile(html)($scope);
-        }
-        $el.html(html);
-        if (attributeValue.field_type === "DATE") {
-          datePickerConfig = datePickerConfigService.get();
-          _.merge(datePickerConfig, {
-            field: $el.find('input')[0],
-            onSelect: (function(_this) {
-              return function(date) {
-                var selectedDate;
-                return selectedDate = date;
-              };
-            })(this),
-            onOpen: (function(_this) {
-              return function() {
-                if (typeof selectedDate !== "undefined" && selectedDate !== null) {
-                  return $el.picker.setDate(selectedDate);
-                }
-              };
-            })(this)
-          });
-          selectedDate = null;
-          return $el.picker = new Pikaday(datePickerConfig);
+          return $el.html(html);
         }
       };
       isEditable = function() {
@@ -5623,36 +5750,30 @@
         requiredEditionPerm = $attrs.requiredEditionPerm;
         return permissions.indexOf(requiredEditionPerm) > -1;
       };
-      saveAttributeValue = function() {
-        attributeValue.value = $el.find("input, textarea").val();
-        if (attributeValue.field_type === "DATE") {
-          if (attributeValue.value) {
-            if (moment(attributeValue.value).isValid() !== true) {
-              return;
+      submit = debounce(2000, (function(_this) {
+        return function(event) {
+          event.preventDefault();
+          attributeValue.value = $el.find("input[name=value], textarea[name='value']").val();
+          if (attributeValue.type === DATE_TYPE) {
+            if (moment(attributeValue.value, prettyDate).isValid()) {
+              attributeValue.value = moment(attributeValue.value, prettyDate).format("YYYY-MM-DD");
+            } else {
+              attributeValue.value = "";
             }
-            attributeValue.value = moment(attributeValue.value, prettyDate).format("YYYY-MM-DD");
           }
-        }
-        return $scope.$apply(function() {
-          return $ctrl.updateAttributeValue(attributeValue).then(function() {
-            if (attributeValue.field_type === "DATE" && attributeValue.value) {
-              attributeValue.value = moment(attributeValue.value, "YYYY-MM-DD").format(prettyDate);
-            }
-            return render(attributeValue, false);
+          return $scope.$apply(function() {
+            return $ctrl.updateAttributeValue(attributeValue).then(function() {
+              return render(attributeValue, false);
+            });
           });
-        });
+        };
+      })(this));
+      setFocusAndSelectOnInputField = function() {
+        return $el.find("input[name='value'], textarea[name='value']").focus().select();
       };
-      $el.on("keyup", "input[name=description], textarea[name='description']", function(event) {
-        if (event.keyCode === 13 && event.currentTarget.type !== "textarea") {
-          return submit(event);
-        } else if (event.keyCode === 27) {
-          if (attributeValue.field_type === "DATE" && moment(attributeValue.value).isValid() !== true) {
-            return;
-          }
-          return render(attributeValue, false);
-        }
-      });
-      $el.on("click", ".custom-field-value.read-mode", function() {
+      attributeValue = $scope.$eval($attrs.tgCustomAttributeValue);
+      render(attributeValue);
+      $el.on("click", ".js-value-view-mode", function() {
         if (!isEditable()) {
           return;
         }
@@ -5660,29 +5781,25 @@
           return;
         }
         render(attributeValue, true);
-        return $el.find("input[name='description'], textarea[name='description']").focus().select();
+        return setFocusAndSelectOnInputField();
       });
       $el.on("click", "a.icon-edit", function(event) {
         event.preventDefault();
         render(attributeValue, true);
-        return $el.find("input[name='description'], textarea[name='description']").focus().select();
+        return setFocusAndSelectOnInputField();
       });
-      submit = debounce(2000, (function(_this) {
-        return function(event) {
-          event.preventDefault();
-          return saveAttributeValue();
-        };
-      })(this));
+      $el.on("keyup", "input[name=value], textarea[name='value']", function(event) {
+        if (event.keyCode === 13 && event.currentTarget.type !== "textarea") {
+          return submit(event);
+        } else if (event.keyCode === 27) {
+          return render(attributeValue, false);
+        }
+      });
       $el.on("submit", "form", submit);
       $el.on("click", "a.icon-floppy", submit);
-      $scope.$on("$destroy", function() {
+      return $scope.$on("$destroy", function() {
         return $el.off();
       });
-      attributeValue = $scope.$eval($attrs.tgCustomAttributeValue);
-      if (attributeValue.field_type === "DATE" && attributeValue.value) {
-        attributeValue.value = moment(attributeValue.value, "YYYY-MM-DD").format(prettyDate);
-      }
-      return render(attributeValue);
     };
     return {
       link: link,
@@ -5697,23 +5814,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/estimation.coffee
  */
 
@@ -5979,23 +6096,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/filters.coffee
  */
 
@@ -6060,28 +6177,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/history.coffee
  */
 
 (function() {
-  var HistoryController, HistoryDirective, bindOnce, debounce, module, taiga, trim,
+  var HistoryController, HistoryDirective, IGNORED_FIELDS, bindOnce, debounce, module, taiga, trim,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -6094,6 +6211,11 @@
   debounce = this.taiga.debounce;
 
   module = angular.module("taigaCommon");
+
+  IGNORED_FIELDS = {
+    "userstories.userstory": ["watchers", "kanban_order", "backlog_order", "sprint_order", "finish_date"],
+    "tasks.task": ["watchers", "us_order", "taskboard_order"]
+  };
 
   HistoryController = (function(superClass) {
     extend(HistoryController, superClass);
@@ -6371,6 +6493,11 @@
         }
       };
       renderChangeEntries = function(change) {
+        var changeModel;
+        changeModel = change.key.split(":")[0];
+        if (IGNORED_FIELDS[changeModel] != null) {
+          change.values_diff = _.removeKeys(change.values_diff, IGNORED_FIELDS[changeModel]);
+        }
         return _.map(change.values_diff, function(value, field) {
           return renderChangeEntry(field, value);
         });
@@ -6598,23 +6725,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/importer.coffee
  */
 
@@ -6683,23 +6810,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/lightboxes.coffee
  */
 
@@ -7192,7 +7319,7 @@
         };
         html = usersTemplate(ctx);
         html = $compile(html)($scope);
-        return $el.find("div.watchers").html(html);
+        return $el.find(".assigned-to-list").html(html);
       };
       closeLightbox = function() {
         lightboxKeyboardNavigationService.stop();
@@ -7215,7 +7342,7 @@
           return $el.find('input').focus();
         }
       });
-      $el.on("click", ".watcher-single", function(event) {
+      $el.on("click", ".user-list-single", function(event) {
         var target;
         event.preventDefault();
         target = angular.element(event.currentTarget);
@@ -7288,7 +7415,7 @@
         };
         html = usersTemplate(ctx);
         html = $compile(html)($scope);
-        return $el.find("div.watchers").html(html);
+        return $el.find(".ticket-watchers").html(html);
       };
       closeLightbox = function() {
         lightboxKeyboardNavigationService.stop();
@@ -7313,7 +7440,7 @@
         render(users);
         return $el.find("input").focus();
       });
-      $el.on("click", ".watcher-single", debounce(2000, function(event) {
+      $el.on("click", ".user-list-single", debounce(2000, function(event) {
         var target;
         closeLightbox();
         event.preventDefault();
@@ -7377,25 +7504,25 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
- * Copyright (C) 2014 Juan Francisco Alcántara <juanfran.alcantara@kaleidos.net>
- * Copyright (C) 2014 Alejandro Alonso <alejandro.alonso@kaleidos.net>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ * Copyright (C) 2014-2015 Juan Francisco Alcántara <juanfran.alcantara@kaleidos.net>
+ * Copyright (C) 2014-2015 Alejandro Alonso <alejandro.alonso@kaleidos.net>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/loader.coffee
  */
 
@@ -7513,23 +7640,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/lightboxes.coffee
  */
 
@@ -7539,7 +7666,7 @@
 
   module = angular.module("taigaCommon");
 
-  TgLoadingService = function() {
+  TgLoadingService = function($compile) {
     var spinner;
     spinner = "<img class='loading-spinner' src='/svg/spinner-circle.svg' alt='loading...' />";
     return function() {
@@ -7547,11 +7674,21 @@
       service = {
         settings: {
           target: null,
+          scope: null,
           classes: [],
-          timeout: 0
+          timeout: 0,
+          template: null
         },
         target: function(target) {
           service.settings.target = target;
+          return service;
+        },
+        scope: function(scope) {
+          service.settings.scope = scope;
+          return service;
+        },
+        template: function(template) {
+          service.settings.template = template;
           return service;
         },
         removeClasses: function() {
@@ -7572,7 +7709,9 @@
           });
           timeoutId = setTimeout((function() {
             if (!target.hasClass('loading')) {
-              service.settings.oldContent = target.html();
+              if (!service.settings.template) {
+                service.settings.template = target.html();
+              }
               target.addClass('loading');
               return target.html(spinner);
             }
@@ -7590,8 +7729,11 @@
             removeClasses.map(function(className) {
               return service.settings.target.addClass(className);
             });
-            target.html(service.settings.oldContent);
+            target.html(service.settings.template);
             target.removeClass('loading');
+            if (service.settings.scope) {
+              $compile(target.contents())(service.settings.scope);
+            }
           }
           return service;
         }
@@ -7600,18 +7742,21 @@
     };
   };
 
+  TgLoadingService.$inject = ["$compile"];
+
   module.factory("$tgLoading", TgLoadingService);
 
   LoadingDirective = function($loading) {
     var link;
     link = function($scope, $el, attr) {
-      var currentLoading;
+      var currentLoading, template;
       currentLoading = null;
+      template = $el.html();
       return $scope.$watch(attr.tgLoading, (function(_this) {
         return function(showLoading) {
           if (showLoading) {
-            return currentLoading = $loading().target($el).start();
-          } else {
+            return currentLoading = $loading().target($el).timeout(50).template(template).scope($scope).start();
+          } else if (currentLoading) {
             return currentLoading.finish();
           }
         };
@@ -7628,23 +7773,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/popovers.coffee
  */
 
@@ -7892,23 +8037,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/raven-logger.coffee
  */
 
@@ -7944,23 +8089,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/tags.coffee
  */
 
@@ -8425,23 +8570,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/wisiwyg.coffee
  */
 
@@ -8558,6 +8703,9 @@
             startIndex = result.index;
             break;
           }
+        }
+        if (!result) {
+          return;
         }
         regex = />>>/gi;
         endIndex = 0;
@@ -8889,23 +9037,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/backlog/main.coffee
  */
 
@@ -9099,23 +9247,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/backlog/lightboxes.coffee
  */
 
@@ -9133,14 +9281,16 @@
   CreateEditSprint = function($repo, $confirm, $rs, $rootscope, lightboxService, $loading, $translate) {
     var link;
     link = function($scope, $el, attrs) {
-      var createSprint, getLastSprint, hasErrors, remove, submit;
+      var createSprint, getLastSprint, hasErrors, remove, resetSprint, submit;
       hasErrors = false;
       createSprint = true;
-      $scope.sprint = {
-        project: null,
-        name: null,
-        estimated_start: null,
-        estimated_finish: null
+      resetSprint = function() {
+        return $scope.sprint = {
+          project: null,
+          name: null,
+          estimated_start: null,
+          estimated_finish: null
+        };
       };
       submit = debounce(2000, (function(_this) {
         return function(event) {
@@ -9194,16 +9344,16 @@
         title = $translate.instant("LIGHTBOX.DELETE_SPRINT.TITLE");
         message = $scope.sprint.name;
         return $confirm.askOnDelete(title, message).then((function(_this) {
-          return function(finish) {
+          return function(askResponse) {
             var onError, onSuccess;
             onSuccess = function() {
-              finish();
+              askResponse.finish();
               $scope.milestonesCounter -= 1;
               lightboxService.close($el);
               return $rootscope.$broadcast("sprintform:remove:success", $scope.sprint);
             };
             onError = function() {
-              finish(false);
+              askResponse.finish(false);
               return $confirm.notify("error");
             };
             return $repo.remove($scope.sprint).then(onSuccess, onError);
@@ -9222,6 +9372,7 @@
       };
       $scope.$on("sprintform:create", function(event, projectId) {
         var estimatedFinish, estimatedStart, form, lastSprint, lastSprintNameDom, prettyDate, text;
+        resetSprint();
         form = $el.find("form").checksley();
         form.reset();
         createSprint = true;
@@ -9262,6 +9413,7 @@
       });
       $scope.$on("sprintform:edit", function(ctx, sprint) {
         var editSprint, prettyDate, save;
+        resetSprint();
         createSprint = false;
         prettyDate = $translate.instant("COMMON.PICKERDATE.FORMAT");
         $scope.$apply(function() {
@@ -9290,9 +9442,10 @@
         event.preventDefault();
         return remove();
       });
-      return $scope.$on("$destroy", function() {
+      $scope.$on("$destroy", function() {
         return $el.off();
       });
+      return resetSprint();
     };
     return {
       link: link
@@ -9305,23 +9458,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/backlog/main.coffee
  */
 
@@ -9375,6 +9528,7 @@
       this.scope.sectionName = this.translate.instant("BACKLOG.SECTION_NAME");
       this.showTags = false;
       this.activeFilters = false;
+      this.scope.showGraphPlaceholder = null;
       this.initializeEventHandlers();
       promise = this.loadInitialData();
       promise.then((function(_this) {
@@ -9482,12 +9636,15 @@
     BacklogController.prototype.loadProjectStats = function() {
       return this.rs.projects.stats(this.scope.projectId).then((function(_this) {
         return function(stats) {
+          var totalPoints;
           _this.scope.stats = stats;
-          if (stats.total_points) {
-            _this.scope.stats.completedPercentage = Math.round(100 * stats.closed_points / stats.total_points);
+          totalPoints = stats.total_points ? stats.total_points : stats.defined_points;
+          if (totalPoints) {
+            _this.scope.stats.completedPercentage = Math.round(100 * stats.closed_points / totalPoints);
           } else {
             _this.scope.stats.completedPercentage = 0;
           }
+          _this.scope.showGraphPlaceholder = !((stats.total_points != null) && (stats.total_milestones != null));
           return stats;
         };
       })(this));
@@ -9535,7 +9692,10 @@
         return function(result) {
           var j, len, sprint, sprints;
           sprints = result.milestones;
+          _this.scope.totalMilestones = sprints;
           _this.scope.totalClosedMilestones = result.closed;
+          _this.scope.totalOpenMilestones = result.open;
+          _this.scope.totalMilestones = _this.scope.totalOpenMilestones + _this.scope.totalClosedMilestones;
           for (j = 0, len = sprints.length; j < len; j++) {
             sprint = sprints[j];
             sprint.user_stories = _.sortBy(sprint.user_stories, "sprint_order");
@@ -9689,7 +9849,7 @@
         }
       }
       newSprint = this.scope.sprintsById[newSprintId];
-      if (!newSprint) {
+      if (!newSprint && newSprintId) {
         newSprint = this.scope.closedSprintsById[newSprintId];
         if (newSprint) {
           movedToClosedSprint = true;
@@ -9997,16 +10157,16 @@
       title = this.translate.instant("US.TITLE_DELETE_ACTION");
       message = us.subject;
       return this.confirm.askOnDelete(title, message).then((function(_this) {
-        return function(finish) {
+        return function(askResponse) {
           var promise;
           _this.scope.userstories = _.without(_this.scope.userstories, us);
           promise = _this.repo.remove(us);
           promise.then(function() {
-            finish();
+            askResponse.finish();
             return _this.loadBacklog();
           });
           return promise.then(null, function() {
-            finish(false);
+            askResponse.finish(false);
             return _this.confirm.notify("error");
           });
         };
@@ -10039,7 +10199,7 @@
       var addDoomLineDom, getUsItems, reloadDoomLine, removeDoomlineDom;
       reloadDoomLine = function() {
         var current_sum, domElement, i, j, len, ref1, results, stats, total_points, us;
-        if ($scope.stats != null) {
+        if (($scope.stats != null) && ($scope.stats.total_points != null) && $scope.stats.total_points !== 0) {
           removeDoomlineDom();
           stats = $scope.stats;
           total_points = stats.total_points;
@@ -10108,7 +10268,7 @@
         var moveToCurrentSprintDom, selectedUsDom;
         lastChecked = target.closest(".us-item-row");
         moveToCurrentSprintDom = $el.find("#move-to-current-sprint");
-        selectedUsDom = $el.find(".backlog-table-body .user-stories input:checkbox:checked");
+        selectedUsDom = $el.find(".backlog-table-body input:checkbox:checked");
         if (selectedUsDom.length > 0 && $scope.sprints.length > 0) {
           moveToCurrentSprintDom.show();
         } else {
@@ -10120,7 +10280,7 @@
         shiftPressed = !!event.shiftKey;
         return true;
       });
-      $el.on("change", ".backlog-table-body .user-stories input:checkbox", function(event) {
+      $el.on("change", ".backlog-table-body input:checkbox", function(event) {
         var current, elements, nextAll, prevAll, target;
         if (lastChecked && shiftPressed) {
           elements = [];
@@ -10144,12 +10304,13 @@
           });
         }
         target = angular.element(event.currentTarget);
+        target.closest(".us-item-row").toggleClass('is-checked');
         return checkSelected(target);
       });
       $el.on("click", "#move-to-current-sprint", (function(_this) {
         return function(event) {
           var ussDom, ussToMove;
-          ussDom = $el.find(".backlog-table-body .user-stories input:checkbox:checked");
+          ussDom = $el.find(".backlog-table-body input:checkbox:checked");
           ussToMove = _.map(ussDom, function(item) {
             var itemScope;
             item = $(item).closest('.tg-scope');
@@ -10172,11 +10333,11 @@
       if ($ctrl.showTags) {
         elm.addClass("active");
         text = $translate.instant("BACKLOG.TAGS.HIDE");
-        return elm.find(".text").text(text);
+        return elm.text(text);
       } else {
         elm.removeClass("active");
         text = $translate.instant("BACKLOG.TAGS.SHOW");
-        return elm.find(".text").text(text);
+        return elm.text(text);
       }
     };
     showHideFilter = function($scope, $el, $ctrl) {
@@ -10411,21 +10572,39 @@
   module.directive("tgBacklogUsPoints", ["$tgEstimationsService", "$tgRepo", "$tgTemplate", UsPointsDirective]);
 
   ToggleBurndownVisibility = function($storage) {
-    var link;
+    var hide, link, show;
+    hide = function() {
+      $(".js-burndown-graph").removeClass("shown");
+      $(".js-toggle-burndown-visibility-button").removeClass("active");
+      return $(".js-burndown-graph").removeClass("open");
+    };
+    show = function(firstLoad) {
+      $(".js-toggle-burndown-visibility-button").addClass("active");
+      if (firstLoad) {
+        return $(".js-burndown-graph").addClass("shown");
+      } else {
+        return $(".js-burndown-graph").addClass("open");
+      }
+    };
     link = function($scope, $el, $attrs) {
-      var hash, toggleGraph;
+      var firstLoad, hash, toggleGraph;
+      firstLoad = true;
       hash = generateHash(["is-burndown-grpahs-collapsed"]);
+      $scope.isBurndownGraphCollapsed = $storage.get(hash) || false;
       toggleGraph = function() {
         if ($scope.isBurndownGraphCollapsed) {
-          $(".js-toggle-burndown-visibility-button").removeClass("active");
-          return $(".js-burndown-graph").removeClass("open");
+          hide(firstLoad);
         } else {
-          $(".js-toggle-burndown-visibility-button").addClass("active");
-          return $(".js-burndown-graph").addClass("open");
+          show(firstLoad);
         }
+        return firstLoad = false;
       };
-      $scope.isBurndownGraphCollapsed = $storage.get(hash) || false;
-      toggleGraph();
+      $scope.$watch("showGraphPlaceholder", function() {
+        if ($scope.showGraphPlaceholder != null) {
+          $scope.isBurndownGraphCollapsed = $scope.isBurndownGraphCollapsed || $scope.showGraphPlaceholder;
+          return toggleGraph();
+        }
+      });
       $el.on("click", ".js-toggle-burndown-visibility-button", function() {
         $scope.isBurndownGraphCollapsed = !$scope.isBurndownGraphCollapsed;
         $storage.set(hash, $scope.isBurndownGraphCollapsed);
@@ -10436,7 +10615,6 @@
       });
     };
     return {
-      scope: {},
       link: link
     };
   };
@@ -10630,7 +10808,7 @@
       $scope.$watch($attrs.tgBacklogProgressBar, function(stats) {
         var closedPoints, closedPointsPercentaje, definedPoints, projectPointsPercentaje, totalPoints;
         if (stats != null) {
-          totalPoints = stats.total_points;
+          totalPoints = stats.total_points ? stats.total_points : stats.defined_points;
           definedPoints = stats.defined_points;
           closedPoints = stats.closed_points;
           if (definedPoints > totalPoints) {
@@ -10660,23 +10838,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/backlog/sortable.coffee
  */
 
@@ -10802,6 +10980,7 @@
       bindOnce($scope, "project", function(project) {
         if (project.my_permissions.indexOf("modify_us") > -1) {
           $el.sortable({
+            items: ".us-item-row",
             dropOnEmpty: true
           });
           return $el.on("sortreceive", function(event, ui) {
@@ -10889,23 +11068,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/backlog/sprints.coffee
  */
 
@@ -10917,29 +11096,19 @@
   module = angular.module("taigaBacklog");
 
   BacklogSprintDirective = function($repo, $rootscope) {
-    var link, refreshSprintTableHeight, slideOptions, sprintTableMinHeight, toggleSprint;
+    var link, slideOptions, sprintTableMinHeight, toggleSprint;
     sprintTableMinHeight = 50;
     slideOptions = {
       duration: 500,
       easing: 'linear'
     };
-    refreshSprintTableHeight = (function(_this) {
-      return function(sprintTable) {
-        if (!sprintTable.find(".row").length) {
-          return sprintTable.css("height", sprintTableMinHeight);
-        } else {
-          return sprintTable.css("height", "auto");
-        }
-      };
-    })(this);
     toggleSprint = (function(_this) {
       return function($el) {
         var sprintArrow, sprintTable;
         sprintTable = $el.find(".sprint-table");
         sprintArrow = $el.find(".icon-arrow-up");
         sprintArrow.toggleClass('active');
-        sprintTable.toggleClass('open');
-        return refreshSprintTableHeight(sprintTable);
+        return sprintTable.toggleClass('open');
       };
     })(this);
     link = function($scope, $el, $attrs) {
@@ -11073,23 +11242,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/taskboard/charts.coffee
  */
 
@@ -11243,23 +11412,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/taskboard/lightboxes.coffee
  */
 
@@ -11403,23 +11572,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/taskboard.coffee
  */
 
@@ -11623,7 +11792,7 @@
     TaskboardController.prototype.loadTasks = function() {
       return this.rs.tasks.list(this.scope.projectId, this.scope.sprintId).then((function(_this) {
         return function(tasks) {
-          var i, j, k, len, len1, len2, ref, ref1, ref2, status, task, us;
+          var i, j, k, len, len1, len2, ref, ref1, ref2, status, task, us, usId;
           _this.scope.tasks = _.sortBy(tasks, 'taskboard_order');
           _this.scope.usTasks = {};
           ref = _.union(_this.scope.userstories, [
@@ -11646,6 +11815,16 @@
             if ((_this.scope.usTasks[task.user_story] != null) && (_this.scope.usTasks[task.user_story][task.status] != null)) {
               _this.scope.usTasks[task.user_story][task.status].push(task);
             }
+          }
+          if (tasks.length === 0) {
+            if (_this.scope.userstories.length > 0) {
+              usId = _this.scope.userstories[0].id;
+            } else {
+              usId = null;
+            }
+            _this.scope.usTasks[usId][_this.scope.taskStatusList[0].id].push({
+              isPlaceholder: true
+            });
           }
           return tasks;
         };
@@ -11993,23 +12172,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/taskboard/sortable.coffee
  */
 
@@ -12092,28 +12271,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/kanban/main.coffee
  */
 
 (function() {
-  var KanbanArchivedStatusHeaderDirective, KanbanArchivedStatusIntroDirective, KanbanController, KanbanDirective, KanbanSquishColumnDirective, KanbanUserDirective, KanbanUserstoryDirective, KanbanWipLimitDirective, bindMethods, bindOnce, defaultViewMode, defaultViewModes, groupBy, mixOf, module, scopeDefer, taiga, timeout, toggleText,
+  var KanbanArchivedStatusHeaderDirective, KanbanArchivedStatusIntroDirective, KanbanController, KanbanDirective, KanbanSquishColumnDirective, KanbanUserDirective, KanbanUserstoryDirective, KanbanWipLimitDirective, bindMethods, bindOnce, defaultViewMode, groupBy, mixOf, module, scopeDefer, taiga, timeout, toggleText, viewModes,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -12137,14 +12316,7 @@
 
   defaultViewMode = "maximized";
 
-  defaultViewModes = {
-    maximized: {
-      cardClass: "kanban-task-maximized"
-    },
-    minimized: {
-      cardClass: "kanban-task-minimized"
-    }
-  };
+  viewModes = ["maximized", "minimized"];
 
   KanbanController = (function(superClass) {
     extend(KanbanController, superClass);
@@ -12280,6 +12452,12 @@
             }
             usByStatus[status.id] = _.sortBy(usByStatus[status.id], "kanban_order");
           }
+          if (userstories.length === 0) {
+            status = _this.scope.usStatusList[0];
+            usByStatus[status.id].push({
+              isPlaceholder: true
+            });
+          }
           _this.scope.usByStatus = usByStatus;
           scopeDefer(_this.scope, function() {
             return _this.scope.$broadcast("userstories:loaded", userstories);
@@ -12367,8 +12545,8 @@
       ref = this.scope.usStatusList;
       for (i = 0, len = ref.length; i < len; i++) {
         status = ref[i];
-        mode = storedStatusViewModes[status.id];
-        this.scope.statusViewModes[status.id] = _.has(defaultViewModes, mode) ? mode : defaultViewMode;
+        mode = storedStatusViewModes[status.id] || defaultViewMode;
+        this.scope.statusViewModes[status.id] = mode;
       }
       return this.storeStatusViewModes();
     };
@@ -12382,10 +12560,16 @@
       return this.storeStatusViewModes();
     };
 
-    KanbanController.prototype.getCardClass = function(statusId) {
+    KanbanController.prototype.isMaximized = function(statusId) {
       var mode;
       mode = this.scope.statusViewModes[statusId] || defaultViewMode;
-      return defaultViewModes[mode].cardClass || defaultViewModes[defaultViewMode].cardClass;
+      return mode === 'maximized';
+    };
+
+    KanbanController.prototype.isMinimized = function(statusId) {
+      var mode;
+      mode = this.scope.statusViewModes[statusId] || defaultViewMode;
+      return mode === 'minimized';
     };
 
     KanbanController.prototype.prepareBulkUpdateData = function(uses, field) {
@@ -12479,17 +12663,17 @@
       var hidden, status;
       status = $scope.$eval($attrs.tgKanbanArchivedStatusHeader);
       hidden = true;
-      $scope["class"] = "icon icon-open-eye";
+      $scope["class"] = "icon-open-eye";
       $scope.title = showArchivedText;
       $el.on("click", function(event) {
         hidden = !hidden;
         return $scope.$apply(function() {
           if (hidden) {
-            $scope["class"] = "icon icon-open-eye";
+            $scope["class"] = "icon-open-eye";
             $scope.title = showArchivedText;
             return $rootscope.$broadcast("kanban:hide-userstories-for-status", status.id);
           } else {
-            $scope["class"] = "icon icon-closed-eye";
+            $scope["class"] = "icon-closed-eye";
             $scope.title = hideArchivedText;
             return $rootscope.$broadcast("kanban:show-userstories-for-status", status.id);
           }
@@ -12575,7 +12759,7 @@
           return $el.removeClass("blocked");
         }
       });
-      $el.find(".icon-edit").on("click", function(event) {
+      $el.on('click', '.icon-edit', function(event) {
         var currentLoading, target, us;
         if ($el.find(".icon-edit").hasClass("noclick")) {
           return;
@@ -12590,12 +12774,19 @@
           };
         })(this));
       });
+      $scope.getTemplateUrl = function() {
+        if ($scope.us.isPlaceholder) {
+          return "common/components/kanban-placeholder.html";
+        } else {
+          return "kanban/kanban-task.html";
+        }
+      };
       return $scope.$on("$destroy", function() {
         return $el.off();
       });
     };
     return {
-      templateUrl: "kanban/kanban-task.html",
+      template: '<ng-include src="getTemplateUrl()"/>',
       link: link,
       require: "ngModel"
     };
@@ -12755,23 +12946,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/kanban/sortable.coffee
  */
 
@@ -12854,28 +13045,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/issues/detail.coffee
  */
 
 (function() {
-  var IssueDetailController, IssuePriorityButtonDirective, IssueSeverityButtonDirective, IssueStatusButtonDirective, IssueStatusDisplayDirective, IssueTypeButtonDirective, PromoteIssueToUsButtonDirective, bindOnce, groupBy, joinStr, mixOf, module, taiga, toString,
+  var IssueDetailController, IssuePriorityButtonDirective, IssueSeverityButtonDirective, IssueStatusButtonDirective, IssueStatusDisplayDirective, IssueTypeButtonDirective, PromoteIssueToUsButtonDirective, bindMethods, bindOnce, groupBy, joinStr, mixOf, module, taiga, toString,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -12890,6 +13081,8 @@
   groupBy = this.taiga.groupBy;
 
   bindOnce = this.taiga.bindOnce;
+
+  bindMethods = this.taiga.bindMethods;
 
   module = angular.module("taigaIssues");
 
@@ -12913,6 +13106,7 @@
       this.analytics = analytics;
       this.navUrls = navUrls;
       this.translate = translate;
+      bindMethods(this);
       this.scope.issueRef = this.params.issueref;
       this.scope.sectionName = this.translate.instant("ISSUES.SECTION_NAME");
       this.initializeEventHandlers();
@@ -13041,6 +13235,82 @@
           return _this.loadIssue();
         };
       })(this));
+    };
+
+
+    /*
+     * Note: This methods (onUpvote() and onDownvote()) are related to tg-vote-button.
+     *       See app/modules/components/vote-button for more info
+     */
+
+    IssueDetailController.prototype.onUpvote = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadIssue();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.issues.upvote(this.scope.issueId).then(onSuccess, onError);
+    };
+
+    IssueDetailController.prototype.onDownvote = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadIssue();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.issues.downvote(this.scope.issueId).then(onSuccess, onError);
+    };
+
+
+    /*
+     * Note: This methods (onWatch() and onUnwatch()) are related to tg-watch-button.
+     *       See app/modules/components/watch-button for more info
+     */
+
+    IssueDetailController.prototype.onWatch = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadIssue();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.issues.watch(this.scope.issueId).then(onSuccess, onError);
+    };
+
+    IssueDetailController.prototype.onUnwatch = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadIssue();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.issues.unwatch(this.scope.issueId).then(onSuccess, onError);
     };
 
     return IssueDetailController;
@@ -13406,7 +13676,7 @@
     link = function($scope, $el, $attrs, $model) {
       var save;
       save = $qqueue.bindAdd((function(_this) {
-        return function(issue, finish) {
+        return function(issue, askResponse) {
           var data, onError, onSuccess;
           data = {
             generated_from_issue: issue.id,
@@ -13418,12 +13688,12 @@
             blocked_note: issue.blocked_note
           };
           onSuccess = function() {
-            finish();
+            askResponse.finish();
             $confirm.notify("success");
             return $rootScope.$broadcast("promote-issue-to-us:success");
           };
           onError = function() {
-            finish(false);
+            askResponse.finish();
             return $confirm.notify("error");
           };
           return $repo.create("userstories", data).then(onSuccess, onError);
@@ -13437,8 +13707,8 @@
         message = $translate.instant("ISSUES.CONFIRM_PROMOTE.MESSAGE");
         subtitle = issue.subject;
         return $confirm.ask(title, subtitle, message).then((function(_this) {
-          return function(finish) {
-            return save(issue, finish);
+          return function(response) {
+            return save(issue, response);
           };
         })(this));
       });
@@ -13460,23 +13730,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/issues/lightboxes.coffee
  */
 
@@ -13596,23 +13866,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/issues/list.coffee
  */
 
@@ -13960,7 +14230,7 @@
       promise = this.loadProject();
       return promise.then((function(_this) {
         return function(project) {
-          _this.fillUsersAndRoles(project.users, project.roles);
+          _this.fillUsersAndRoles(project.members, project.roles);
           _this.initializeSubscription();
           _this.loadFilters();
           return _this.loadIssues();
@@ -14112,7 +14382,7 @@
       var colHeadElement, currentOrder, icon;
       currentOrder = $ctrl.getUrlFilter("orderBy") || "created_date";
       if (currentOrder) {
-        icon = startswith(currentOrder, "-") ? "icon-caret-up" : "icon-caret-down";
+        icon = startswith(currentOrder, "-") ? "icon-arrow-up" : "icon-arrow-bottom";
         colHeadElement = $el.find(".row.title > div[data-fieldname='" + (trim(currentOrder, "-")) + "']");
         colHeadElement.html((colHeadElement.html()) + "<span class='icon " + icon + "'></span>");
       }
@@ -14127,7 +14397,7 @@
           $ctrl.storeFilters();
           return $ctrl.loadIssues().then(function() {
             $el.find(".row.title > div > span.icon").remove();
-            icon = startswith(finalOrder, "-") ? "icon-caret-up" : "icon-caret-down";
+            icon = startswith(finalOrder, "-") ? "icon-arrow-up" : "icon-arrow-bottom";
             return target.html((target.html()) + "<span class='icon " + icon + "'></span>");
           });
         });
@@ -14343,22 +14613,22 @@
         message = $translate.instant("ISSUES.FILTERS.CONFIRM_DELETE.MESSAGE", {
           customFilterName: customFilterName
         });
-        return $confirm.askOnDelete(title, message).then(function(finish) {
+        return $confirm.askOnDelete(title, message).then(function(askResponse) {
           var promise;
           promise = $ctrl.deleteMyFilter(customFilterName);
           promise.then(function() {
             promise = $ctrl.loadMyFilters();
             promise.then(function(filters) {
-              finish();
+              askResponse.finish();
               $scope.filters.myFilters = filters;
               return renderFilters($scope.filters.myFilters);
             });
             return promise.then(null, function() {
-              return finish();
+              return askResponse.finish();
             });
           });
           return promise.then(null, function() {
-            finish(false);
+            askResponse.finish(false);
             return $confirm.notify("error");
           });
         });
@@ -14471,16 +14741,7 @@
         return $scope.$apply(function() {
           var k, len1, ref1;
           $repo.save(issue).then(function() {
-            var k, len1, ref1;
-            $ctrl.loadIssues();
-            ref1 = $scope.filters.status;
-            for (k = 0, len1 = ref1.length; k < len1; k++) {
-              filter = ref1[k];
-              if (filter.id === issue.status) {
-                filter.count++;
-              }
-            }
-            return $rootscope.$broadcast("filters:issueupdate", $scope.filters);
+            return $ctrl.loadIssues();
           });
           ref1 = $scope.filters.status;
           for (k = 0, len1 = ref1.length; k < len1; k++) {
@@ -14578,28 +14839,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/userstories/detail.coffee
  */
 
 (function() {
-  var UsClientRequirementButtonDirective, UsStatusButtonDirective, UsStatusDisplayDirective, UsTasksProgressDisplayDirective, UsTeamRequirementButtonDirective, UserStoryDetailController, bindOnce, groupBy, mixOf, module, taiga,
+  var UsClientRequirementButtonDirective, UsStatusButtonDirective, UsStatusDisplayDirective, UsTasksProgressDisplayDirective, UsTeamRequirementButtonDirective, UserStoryDetailController, bindMethods, bindOnce, groupBy, mixOf, module, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -14610,6 +14871,8 @@
   groupBy = this.taiga.groupBy;
 
   bindOnce = this.taiga.bindOnce;
+
+  bindMethods = this.taiga.bindMethods;
 
   module = angular.module("taigaUserStories");
 
@@ -14633,6 +14896,7 @@
       this.navUrls = navUrls;
       this.analytics = analytics;
       this.translate = translate;
+      bindMethods(this);
       this.scope.usRef = this.params.usref;
       this.scope.sectionName = this.translate.instant("US.SECTION_NAME");
       this.initializeEventHandlers();
@@ -14809,6 +15073,82 @@
           });
         };
       })(this));
+    };
+
+
+    /*
+     * Note: This methods (onUpvote() and onDownvote()) are related to tg-vote-button.
+     *       See app/modules/components/vote-button for more info
+     */
+
+    UserStoryDetailController.prototype.onUpvote = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadUs();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.userstories.upvote(this.scope.usId).then(onSuccess, onError);
+    };
+
+    UserStoryDetailController.prototype.onDownvote = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadUs();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.userstories.downvote(this.scope.usId).then(onSuccess, onError);
+    };
+
+
+    /*
+     * Note: This methods (onWatch() and onUnwatch()) are related to tg-watch-button.
+     *       See app/modules/components/watch-button for more info
+     */
+
+    UserStoryDetailController.prototype.onWatch = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadUs();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.userstories.watch(this.scope.usId).then(onSuccess, onError);
+    };
+
+    UserStoryDetailController.prototype.onUnwatch = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadUs();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.userstories.unwatch(this.scope.usId).then(onSuccess, onError);
     };
 
     return UserStoryDetailController;
@@ -15103,28 +15443,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/tasks/detail.coffee
  */
 
 (function() {
-  var TaskDetailController, TaskIsIocaineButtonDirective, TaskStatusButtonDirective, TaskStatusDisplayDirective, groupBy, mixOf, module, taiga,
+  var TaskDetailController, TaskIsIocaineButtonDirective, TaskStatusButtonDirective, TaskStatusDisplayDirective, bindMethods, groupBy, mixOf, module, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -15133,6 +15473,8 @@
   mixOf = this.taiga.mixOf;
 
   groupBy = this.taiga.groupBy;
+
+  bindMethods = this.taiga.bindMethods;
 
   module = angular.module("taigaTasks");
 
@@ -15156,6 +15498,7 @@
       this.navUrls = navUrls;
       this.analytics = analytics;
       this.translate = translate;
+      bindMethods(this);
       this.scope.taskRef = this.params.taskref;
       this.scope.sectionName = this.translate.instant("TASK.SECTION_NAME");
       this.initializeEventHandlers();
@@ -15299,6 +15642,82 @@
       })(this));
     };
 
+
+    /*
+     * Note: This methods (onUpvote() and onDownvote()) are related to tg-vote-button.
+     *       See app/modules/components/vote-button for more info
+     */
+
+    TaskDetailController.prototype.onUpvote = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadTask();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.tasks.upvote(this.scope.taskId).then(onSuccess, onError);
+    };
+
+    TaskDetailController.prototype.onDownvote = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadTask();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.tasks.downvote(this.scope.taskId).then(onSuccess, onError);
+    };
+
+
+    /*
+     * Note: This methods (onWatch() and onUnwatch()) are related to tg-watch-button.
+     *       See app/modules/components/watch-button for more info
+     */
+
+    TaskDetailController.prototype.onWatch = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadTask();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.tasks.watch(this.scope.taskId).then(onSuccess, onError);
+    };
+
+    TaskDetailController.prototype.onUnwatch = function() {
+      var onError, onSuccess;
+      onSuccess = (function(_this) {
+        return function() {
+          _this.loadTask();
+          return _this.rootscope.$broadcast("object:updated");
+        };
+      })(this);
+      onError = (function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this);
+      return this.rs.tasks.unwatch(this.scope.taskId).then(onSuccess, onError);
+    };
+
     return TaskDetailController;
 
   })(mixOf(taiga.Controller, taiga.PageMixin));
@@ -15338,9 +15757,9 @@
 
   module.directive("tgTaskStatusDisplay", ["$tgTemplate", "$compile", TaskStatusDisplayDirective]);
 
-  TaskStatusButtonDirective = function($rootScope, $repo, $confirm, $loading, $qqueue, $compile, $translate) {
+  TaskStatusButtonDirective = function($rootScope, $repo, $confirm, $loading, $qqueue, $compile, $translate, $template) {
     var link, template;
-    template = _.template("<div class=\"status-data <% if(editable){ %>clickable<% }%>\">\n    <span class=\"level\" style=\"background-color:<%- status.color %>\"></span>\n    <span class=\"status-status\"><%- status.name %></span>\n    <% if(editable){ %><span class=\"icon icon-arrow-bottom\"></span><% }%>\n    <span class=\"level-name\" translate=\"COMMON.FIELDS.STATUS\"></span>\n\n    <ul class=\"popover pop-status\">\n        <% _.each(statuses, function(st) { %>\n        <li><a href=\"\" class=\"status\" title=\"<%- st.name %>\"\n               data-status-id=\"<%- st.id %>\"><%- st.name %></a></li>\n        <% }); %>\n    </ul>\n</div>");
+    template = $template.get("us/us-status-button.html", true);
     link = function($scope, $el, $attrs, $model) {
       var isEditable, render, save;
       isEditable = function() {
@@ -15412,7 +15831,7 @@
     };
   };
 
-  module.directive("tgTaskStatusButton", ["$rootScope", "$tgRepo", "$tgConfirm", "$tgLoading", "$tgQqueue", "$compile", "$translate", TaskStatusButtonDirective]);
+  module.directive("tgTaskStatusButton", ["$rootScope", "$tgRepo", "$tgConfirm", "$tgLoading", "$tgQqueue", "$compile", "$translate", "$tgTemplate", TaskStatusButtonDirective]);
 
   TaskIsIocaineButtonDirective = function($rootscope, $tgrepo, $confirm, $loading, $qqueue, $compile) {
     var link, template;
@@ -15485,23 +15904,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/team/main.coffee
  */
 
@@ -15723,16 +16142,16 @@
         leave_project_text = $translate.instant("TEAM.ACTION_LEAVE_PROJECT");
         confirm_leave_project_text = $translate.instant("TEAM.CONFIRM_LEAVE_PROJECT");
         return $confirm.ask(leave_project_text, confirm_leave_project_text).then((function(_this) {
-          return function(finish) {
+          return function(response) {
             var promise;
             promise = $rs.projects.leave($attrs.projectid);
             promise.then(function() {
-              finish();
+              response.finish();
               $confirm.notify("success");
               return $location.path($navurls.resolve("home"));
             });
             return promise.then(null, function(response) {
-              finish();
+              response.finish();
               return $confirm.notify('error', response.data._error_message);
             });
           };
@@ -15762,28 +16181,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/wiki/detail.coffee
  */
 
 (function() {
-  var EditableWikiContentDirective, WikiDetailController, WikiSummaryDirective, bindOnce, debounce, groupBy, mixOf, module, taiga, unslugify,
+  var EditableWikiContentDirective, WikiDetailController, WikiSummaryDirective, bindOnce, debounce, groupBy, mixOf, module, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -15794,8 +16213,6 @@
   groupBy = this.taiga.groupBy;
 
   bindOnce = this.taiga.bindOnce;
-
-  unslugify = this.taiga.unslugify;
 
   debounce = this.taiga.debounce;
 
@@ -15825,6 +16242,7 @@
       this.translate = translate;
       this.scope.projectSlug = this.params.pslug;
       this.scope.wikiSlug = this.params.slug;
+      this.scope.wikiTitle = this.scope.wikiSlug;
       this.scope.sectionName = "Wiki";
       promise = this.loadInitialData();
       promise.then((function(_this) {
@@ -15838,7 +16256,7 @@
     WikiDetailController.prototype._setMeta = function() {
       var description, title;
       title = this.translate.instant("WIKI.PAGE_TITLE", {
-        wikiPageName: unslugify(this.scope.wiki.slug),
+        wikiPageName: this.scope.wikiTitle,
         projectName: this.scope.project.name
       });
       description = this.translate.instant("WIKI.PAGE_DESCRIPTION", {
@@ -15894,7 +16312,14 @@
     WikiDetailController.prototype.loadWikiLinks = function() {
       return this.rs.wiki.listLinks(this.scope.projectId).then((function(_this) {
         return function(wikiLinks) {
-          return _this.scope.wikiLinks = wikiLinks;
+          var selectedWikiLink;
+          _this.scope.wikiLinks = wikiLinks;
+          selectedWikiLink = _.find(wikiLinks, {
+            href: _this.scope.wikiSlug
+          });
+          if (selectedWikiLink != null) {
+            return _this.scope.wikiTitle = selectedWikiLink.title;
+          }
         };
       })(this));
     };
@@ -15913,13 +16338,13 @@
     WikiDetailController.prototype["delete"] = function() {
       var message, title;
       title = this.translate.instant("WIKI.DELETE_LIGHTBOX_TITLE");
-      message = unslugify(this.scope.wiki.slug);
+      message = this.scope.wikiTitle;
       return this.confirm.askOnDelete(title, message).then((function(_this) {
-        return function(finish) {
+        return function(askResponse) {
           var onError, onSuccess;
           onSuccess = function() {
             var ctx;
-            finish();
+            askResponse.finish();
             ctx = {
               project: _this.scope.projectSlug
             };
@@ -15927,7 +16352,7 @@
             return _this.confirm.notify("success");
           };
           onError = function() {
-            finish(false);
+            askResponse.finish(false);
             return _this.confirm.notify("error");
           };
           return _this.repo.remove(_this.scope.wiki).then(onSuccess, onError);
@@ -16044,7 +16469,6 @@
         onError = function() {
           return $confirm.notify("error");
         };
-        console.log($el.find('.save-container'));
         currentLoading = $loading().removeClasses("icon-floppy").target($el.find('.icon-floppy')).start();
         if (wiki.id != null) {
           promise = $repo.save(wiki).then(onSuccess, onError);
@@ -16133,28 +16557,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/wiki/detail.coffee
  */
 
 (function() {
-  var WikiNavDirective, bindOnce, groupBy, mixOf, module, slugify, taiga, unslugify;
+  var WikiNavDirective, bindOnce, groupBy, mixOf, module, taiga;
 
   taiga = this.taiga;
 
@@ -16163,10 +16587,6 @@
   groupBy = this.taiga.groupBy;
 
   bindOnce = this.taiga.bindOnce;
-
-  slugify = this.taiga.slugify;
-
-  unslugify = this.taiga.slugify;
 
   module = angular.module("taigaWiki");
 
@@ -16222,21 +16642,21 @@
           title = $translate.instant("WIKI.DELETE_LIGHTBOX_TITLE");
           message = $scope.wikiLinks[linkId].title;
           return $confirm.askOnDelete(title, message).then((function(_this) {
-            return function(finish) {
+            return function(askResponse) {
               var promise;
               promise = $tgrepo.remove($scope.wikiLinks[linkId]);
               promise.then(function() {
                 promise = $ctrl.loadWikiLinks();
                 promise.then(function() {
-                  finish();
+                  askResponse.finish();
                   return render($scope.wikiLinks);
                 });
                 return promise.then(null, function() {
-                  return finish();
+                  return askResponse.finish();
                 });
               });
               return promise.then(null, function() {
-                finish(false);
+                askResponse.finish(false);
                 return $confirm.notify("error");
               });
             };
@@ -16251,8 +16671,7 @@
             currentLoading = $loading().target($el.find(".new")).start();
             promise = $tgrepo.create("wiki-links", {
               project: $scope.projectId,
-              title: newLink,
-              href: slugify(newLink)
+              title: newLink
             });
             promise.then(function() {
               var loadPromise;
@@ -16305,23 +16724,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin/lightboxes.coffee
  */
 
@@ -16451,23 +16870,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin/memberships.coffee
  */
 
@@ -16699,17 +17118,19 @@
 
   module.directive("tgMemberships", ["$tgTemplate", "$compile", MembershipsDirective]);
 
-  MembershipsRowAvatarDirective = function($log, $template) {
+  MembershipsRowAvatarDirective = function($log, $template, $translate) {
     var link, template;
     template = $template.get("admin/memberships-row-avatar.html", true);
     link = function($scope, $el, $attrs) {
-      var member, render;
+      var member, pending, render;
+      pending = $translate.instant("ADMIN.MEMBERSHIP.STATUS_PENDING");
       render = function(member) {
         var ctx, html;
         ctx = {
           full_name: member.full_name ? member.full_name : "",
           email: member.user_email ? member.user_email : member.email,
-          imgurl: member.photo ? member.photo : "/images/unnamed.png"
+          imgurl: member.photo ? member.photo : "/images/unnamed.png",
+          pending: !member.is_user_active ? pending : ""
         };
         html = template(ctx);
         return $el.html(html);
@@ -16728,7 +17149,7 @@
     };
   };
 
-  module.directive("tgMembershipsRowAvatar", ["$log", "$tgTemplate", MembershipsRowAvatarDirective]);
+  module.directive("tgMembershipsRowAvatar", ["$log", "$tgTemplate", '$translate', MembershipsRowAvatarDirective]);
 
   MembershipsRowAdminCheckboxDirective = function($log, $repo, $confirm, $template, $compile) {
     var link, template;
@@ -16830,7 +17251,7 @@
   MembershipsRowActionsDirective = function($log, $repo, $rs, $confirm, $compile, $translate) {
     var activedTemplate, link, pendingTemplate;
     activedTemplate = "<div class=\"active\", translate=\"ADMIN.MEMBERSHIP.STATUS_ACTIVE\">\n</div>\n<a class=\"delete\" href=\"\">\n    <span class=\"icon icon-delete\"></span>\n</a>";
-    pendingTemplate = "<a class=\"pending\" href=\"\">\n    {{'ADMIN.MEMBERSHIP.STATUS_PENDING' | translate}}\n    <span class=\"icon icon-reload\"></span>\n</a>\n<a class=\"delete\" href=\"\">\n    <span class=\"icon icon-delete\"></span>\n</a>";
+    pendingTemplate = "<a class=\"resend\" href=\"\">\n    {{'ADMIN.MEMBERSHIP.RESEND' | translate}}\n</a>\n<a class=\"delete\" href=\"\">\n    <span class=\"icon icon-delete\"></span>\n</a>";
     link = function($scope, $el, $attrs) {
       var $ctrl, member, render;
       render = function(member) {
@@ -16873,26 +17294,30 @@
           email: member.email
         });
         message = member.user ? member.full_name : defaultMsg;
-        return $confirm.askOnDelete(title, message).then(function(finish) {
+        return $confirm.askOnDelete(title, message).then(function(askResponse) {
           var onError, onSuccess;
-          onSuccess = function() {
-            var text;
-            finish();
-            if ($scope.page > 1 && ($scope.count - 1) <= $scope.paginatedBy) {
-              $ctrl.selectFilter("page", $scope.page - 1);
-            }
-            $ctrl.loadMembers();
-            text = $translate.instant("ADMIN.MEMBERSHIP.SUCCESS_DELETE");
-            return $confirm.notify("success", null, text);
-          };
-          onError = function() {
-            var text;
-            finish(false);
-            text = $translate.instant("ADMIN.MEMBERSHIP.ERROR_DELETE", {
-              message: message
-            });
-            return $confirm.notify("error", null, text);
-          };
+          onSuccess = (function(_this) {
+            return function() {
+              var text;
+              askResponse.finish();
+              if ($scope.page > 1 && ($scope.count - 1) <= $scope.paginatedBy) {
+                $ctrl.selectFilter("page", $scope.page - 1);
+              }
+              $ctrl.loadMembers();
+              text = $translate.instant("ADMIN.MEMBERSHIP.SUCCESS_DELETE");
+              return $confirm.notify("success", null, text);
+            };
+          })(this);
+          onError = (function(_this) {
+            return function() {
+              var text;
+              askResponse.finish(false);
+              text = $translate.instant("ADMIN.MEMBERSHIP.ERROR_DELETE", {
+                message: message
+              });
+              return $confirm.notify("error", null, text);
+            };
+          })(this);
           return $repo.remove(member).then(onSuccess, onError);
         });
       });
@@ -16911,23 +17336,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin/nav.coffee
  */
 
@@ -16958,23 +17383,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin/project-profile.coffee
  */
 
@@ -17383,8 +17808,11 @@
       return this.scope.csvUuid = this.scope.project[this.type + "_csv_uuid"];
     };
 
-    CsvExporterController.prototype._generateUuid = function(finish) {
+    CsvExporterController.prototype._generateUuid = function(response) {
       var promise;
+      if (response == null) {
+        response = null;
+      }
       promise = this.rs.projects["regenerate_" + this.type + "_csv_uuid"](this.scope.projectId);
       promise.then((function(_this) {
         return function(data) {
@@ -17398,7 +17826,9 @@
         };
       })(this));
       promise["finally"](function() {
-        return finish();
+        if (response) {
+          return response.finish();
+        }
       });
       return promise;
     };
@@ -17410,7 +17840,7 @@
         subtitle = this.translate.instant("ADMIN.REPORTS.REGENERATE_SUBTITLE");
         return this.confirm.ask(title, subtitle).then(this._generateUuid);
       } else {
-        return this._generateUuid(_.identity);
+        return this._generateUuid();
       }
     };
 
@@ -17515,28 +17945,28 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin/project-profile.coffee
  */
 
 (function() {
-  var ColorSelectionDirective, ProjectCustomAttributesController, ProjectCustomAttributesDirective, ProjectValuesController, ProjectValuesDirective, ProjectValuesSectionController, bindOnce, debounce, groupBy, joinStr, mixOf, module, taiga, toString, trim,
+  var ColorSelectionDirective, DATE_TYPE, MULTILINE_TYPE, ProjectCustomAttributesController, ProjectCustomAttributesDirective, ProjectValuesController, ProjectValuesDirective, ProjectValuesSectionController, TEXT_TYPE, TYPE_CHOICES, bindOnce, debounce, groupBy, joinStr, mixOf, module, taiga, toString, trim,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty,
     bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
@@ -17850,7 +18280,7 @@
         });
         subtitle = value.name;
         if (_.keys(choices).length === 0) {
-          return $confirm.error("ADMIN.PROJECT_VALUES.ERROR_DELETE_ALL");
+          return $confirm.error($translate.instant("ADMIN.PROJECT_VALUES.ERROR_DELETE_ALL"));
         }
         title = $translate.instant("ADMIN.COMMON.TITLE_ACTION_DELETE_VALUE");
         text = $translate.instant("ADMIN.PROJECT_VALUES.REPLACEMENT");
@@ -17937,6 +18367,25 @@
 
   module.directive("tgColorSelection", ColorSelectionDirective);
 
+  TEXT_TYPE = "text";
+
+  MULTILINE_TYPE = "multiline";
+
+  DATE_TYPE = "date";
+
+  TYPE_CHOICES = [
+    {
+      key: TEXT_TYPE,
+      name: "ADMIN.CUSTOM_FIELDS.FIELD_TYPE_TEXT"
+    }, {
+      key: MULTILINE_TYPE,
+      name: "ADMIN.CUSTOM_FIELDS.FIELD_TYPE_MULTI"
+    }, {
+      key: DATE_TYPE,
+      name: "ADMIN.CUSTOM_FIELDS.FIELD_TYPE_DATE"
+    }
+  ];
+
   ProjectCustomAttributesController = (function(superClass) {
     extend(ProjectCustomAttributesController, superClass);
 
@@ -17958,6 +18407,7 @@
       this.saveCustomAttribute = bind(this.saveCustomAttribute, this);
       this.createCustomAttribute = bind(this.createCustomAttribute, this);
       this.loadCustomAttributes = bind(this.loadCustomAttributes, this);
+      this.scope.TYPE_CHOICES = TYPE_CHOICES;
       this.scope.project = {};
       this.rootscope.$on("project:loaded", (function(_this) {
         return function() {
@@ -18203,15 +18653,14 @@
         message = attr.name;
         title = $translate.instant("COMMON.CUSTOM_ATTRIBUTES.DELETE");
         text = $translate.instant("COMMON.CUSTOM_ATTRIBUTES.CONFIRM_DELETE");
-        return $confirm.ask(title, text, message).then(function(finish) {
+        return $confirm.ask(title, text, message).then(function(response) {
           var onError, onSucces;
           onSucces = function() {
             return $ctrl.loadCustomAttributes()["finally"](function() {
-              return finish();
+              return response.finish();
             });
           };
           onError = function() {
-            finish(false);
             return $confirm.notify("error", null, "We have not been able to delete '" + message + "'.");
           };
           return $ctrl.deleteCustomAttribute(attr).then(onSucces, onError);
@@ -18236,28 +18685,29 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin/memberships.coffee
  */
 
 (function() {
   var EditRoleDirective, NewRoleDirective, RolePermissionsDirective, RolesController, RolesDirective, bindMethods, bindOnce, debounce, mixOf, module, taiga,
+    bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty,
     indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
@@ -18292,6 +18742,8 @@
       this.navUrls = navUrls;
       this.appMetaService = appMetaService;
       this.translate = translate;
+      this._disableComputable = bind(this._disableComputable, this);
+      this._enableComputable = bind(this._enableComputable, this);
       bindMethods(this);
       this.scope.sectionName = "ADMIN.MENU.PERMISSIONS";
       this.scope.project = {};
@@ -18400,7 +18852,7 @@
       })(this));
     };
 
-    RolesController.prototype.setComputable = debounce(2000, function() {
+    RolesController.prototype._enableComputable = function() {
       var onError, onSuccess;
       onSuccess = (function(_this) {
         return function() {
@@ -18415,6 +18867,45 @@
         };
       })(this);
       return this.repo.save(this.scope.role).then(onSuccess, onError);
+    };
+
+    RolesController.prototype._disableComputable = function() {
+      var askOnError, askOnSuccess, message, subtitle, title;
+      askOnSuccess = (function(_this) {
+        return function(response) {
+          var onError, onSuccess;
+          onSuccess = function() {
+            response.finish();
+            _this.confirm.notify("success");
+            return _this.loadProject();
+          };
+          onError = function() {
+            response.finish();
+            _this.confirm.notify("error");
+            return _this.scope.role.revert();
+          };
+          return _this.repo.save(_this.scope.role).then(onSuccess, onError);
+        };
+      })(this);
+      askOnError = (function(_this) {
+        return function(response) {
+          return _this.scope.role.revert();
+        };
+      })(this);
+      title = this.translate.instant("ADMIN.ROLES.DISABLE_COMPUTABLE_ALERT_TITLE");
+      subtitle = this.translate.instant("ADMIN.ROLES.DISABLE_COMPUTABLE_ALERT_SUBTITLE", {
+        roleName: this.scope.role.name
+      });
+      message = this.translate.instant("ADMIN.ROLES.DISABLE_COMPUTABLE_ALERT_MESSAGE");
+      return this.confirm.ask(title, subtitle, message).then(askOnSuccess, askOnError);
+    };
+
+    RolesController.prototype.toggleComputable = debounce(2000, function() {
+      if (!this.scope.role.computable) {
+        return this._disableComputable();
+      } else {
+        return this._enableComputable();
+      }
     });
 
     return RolesController;
@@ -18780,23 +19271,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/admin/third-parties.coffee
  */
 
@@ -19002,14 +19493,14 @@
           name: webhook.name
         });
         return $confirm.askOnDelete(title, message).then((function(_this) {
-          return function(finish) {
+          return function(askResponse) {
             var onError, onSucces;
             onSucces = function() {
-              finish();
+              askResponse.finish();
               return $scope.$emit("webhooks:reload");
             };
             onError = function() {
-              finish(false);
+              askResponse.finish(false);
               return $confirm.notify("error");
             };
             return $repo.remove(webhook).then(onSucces, onError);
@@ -19495,23 +19986,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/common/attachments.coffee
  */
 
@@ -19575,10 +20066,7 @@
         };
       })(this);
       openLightbox = function() {
-        $scope.data = {
-          total_story_points: 100,
-          total_milestones: 5
-        };
+        $scope.data = {};
         if (!$scope.templates.length) {
           $rs.projects.templates().then((function(_this) {
             return function(result) {
@@ -19701,23 +20189,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/bind.coffee
  */
 
@@ -19862,23 +20350,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/conf.coffee
  */
 
@@ -19912,23 +20400,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/contrib.coffee
  */
 
@@ -19996,23 +20484,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/filters.coffee
  */
 
@@ -20051,23 +20539,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/http.coffee
  */
 
@@ -20200,23 +20688,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/location.coffee
  */
 
@@ -20249,23 +20737,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/model.coffee
  */
 
@@ -20470,23 +20958,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/navurl.coffee
  */
 
@@ -20656,23 +21144,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/repository.coffee
  */
 
@@ -21029,23 +21517,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/storage.coffee
  */
 
@@ -21112,23 +21600,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/base/http.coffee
  */
 
@@ -21196,23 +21684,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/attachments.coffee
  */
 
@@ -21265,12 +21753,12 @@
       uploadComplete = (function(_this) {
         return function(evt) {
           return $rootScope.$apply(function() {
-            var data, model, ref, status;
+            var data, error, model, ref, status;
             file.status = "done";
             status = evt.target.status;
             try {
               data = JSON.parse(evt.target.responseText);
-            } catch (_error) {
+            } catch (error) {
               data = {};
             }
             if (status >= 200 && status < 400) {
@@ -21323,23 +21811,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/custom-field-values.coffee
  */
 
@@ -21383,23 +21871,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/projects.coffee
  */
 
@@ -21447,23 +21935,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/history.coffee
  */
 
@@ -21517,23 +22005,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/projects.coffee
  */
 
@@ -21561,23 +22049,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/issues.coffee
  */
 
@@ -21627,6 +22115,26 @@
         bulk_issues: data
       };
       return $http.post(url, params);
+    };
+    service.upvote = function(issueId) {
+      var url;
+      url = $urls.resolve("issue-upvote", issueId);
+      return $http.post(url);
+    };
+    service.downvote = function(issueId) {
+      var url;
+      url = $urls.resolve("issue-downvote", issueId);
+      return $http.post(url);
+    };
+    service.watch = function(issueId) {
+      var url;
+      url = $urls.resolve("issue-watch", issueId);
+      return $http.post(url);
+    };
+    service.unwatch = function(issueId) {
+      var url;
+      url = $urls.resolve("issue-unwatch", issueId);
+      return $http.post(url);
     };
     service.stats = function(projectId) {
       return $repo.queryOneRaw("projects", projectId + "/issues_stats");
@@ -21735,23 +22243,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/kanban.coffee
  */
 
@@ -21807,20 +22315,20 @@
  * Copyright (C) 2015 Andrey Antukh <niwi@niwi.be>
  * Copyright (C) 2015 Jesús Espino Garcia <jespinog@gmail.com>
  * Copyright (C) 2015 David Barragán Merino <bameda@dbarragan.com>
-#
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/locales.coffee
  */
 
@@ -21851,23 +22359,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/mdrender.coffee
  */
 
@@ -21908,23 +22416,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/memberships.coffee
  */
 
@@ -21989,6 +22497,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: modules.coffee
+ */
+
 (function() {
   var module, resourceProvider;
 
@@ -22011,23 +22539,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/memberships.coffee
  */
 
@@ -22060,23 +22588,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/projects.coffee
  */
 
@@ -22205,11 +22733,11 @@
       })(this);
       complete = (function(_this) {
         return function(evt) {
-          var ref;
+          var error, ref;
           response = {};
           try {
             response.data = JSON.parse(evt.target.responseText);
-          } catch (_error) {
+          } catch (error) {
             response.data = {};
           }
           response.status = evt.target.status;
@@ -22252,23 +22780,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/memberships.coffee
  */
 
@@ -22301,23 +22829,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/search.coffee
  */
 
@@ -22354,23 +22882,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/sprints.coffee
  */
 
@@ -22438,23 +22966,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/tasks.coffee
  */
 
@@ -22519,6 +23047,26 @@
       return $http.post(url, params).then(function(result) {
         return result.data;
       });
+    };
+    service.upvote = function(taskId) {
+      var url;
+      url = $urls.resolve("task-upvote", taskId);
+      return $http.post(url);
+    };
+    service.downvote = function(taskId) {
+      var url;
+      url = $urls.resolve("task-downvote", taskId);
+      return $http.post(url);
+    };
+    service.watch = function(taskId) {
+      var url;
+      url = $urls.resolve("task-watch", taskId);
+      return $http.post(url);
+    };
+    service.unwatch = function(taskId) {
+      var url;
+      url = $urls.resolve("task-unwatch", taskId);
+      return $http.post(url);
     };
     service.bulkUpdateTaskTaskboardOrder = function(projectId, data) {
       var params, url;
@@ -22585,23 +23133,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/memberships.coffee
  */
 
@@ -22667,23 +23215,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/user.coffee
  */
 
@@ -22702,7 +23250,7 @@
       if (options == null) {
         options = {};
       }
-      url = $urls.resolve("contacts", userId);
+      url = $urls.resolve("user-contacts", userId);
       httpOptions = {
         headers: {}
       };
@@ -22726,23 +23274,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/userstories.coffee
  */
 
@@ -22804,6 +23352,26 @@
       };
       url = $urls.resolve("bulk-create-us");
       return $http.post(url, data);
+    };
+    service.upvote = function(userStoryId) {
+      var url;
+      url = $urls.resolve("userstory-upvote", userStoryId);
+      return $http.post(url);
+    };
+    service.downvote = function(userStoryId) {
+      var url;
+      url = $urls.resolve("userstory-downvote", userStoryId);
+      return $http.post(url);
+    };
+    service.watch = function(userStoryId) {
+      var url;
+      url = $urls.resolve("userstory-watch", userStoryId);
+      return $http.post(url);
+    };
+    service.unwatch = function(userStoryId) {
+      var url;
+      url = $urls.resolve("userstory-unwatch", userStoryId);
+      return $http.post(url);
     };
     service.bulkUpdateBacklogOrder = function(projectId, data) {
       var params, url;
@@ -22873,6 +23441,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: webhooklogs.coffee
+ */
+
 (function() {
   var module, resourceProvider;
 
@@ -22901,6 +23489,26 @@
   module.factory("$tgWebhookLogsResourcesProvider", ["$tgRepo", "$tgUrls", "$tgHttp", resourceProvider]);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: webhooks.coffee
+ */
 
 (function() {
   var module, resourceProvider;
@@ -22933,23 +23541,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/resources/wikis.coffee
  */
 
@@ -22985,23 +23593,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/user-settings/main.coffee
  */
 
@@ -23086,23 +23694,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/issues/lightboxes.coffee
  */
 
@@ -23160,23 +23768,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/user-settings/main.coffee
  */
 
@@ -23375,23 +23983,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/user-settings/nav.coffee
  */
 
@@ -23422,23 +24030,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/user-settings/notifications.coffee
  */
 
@@ -23554,20 +24162,20 @@
 
 /*
  * Copyright (C) 2015 Taiga Agile LLC
-#
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: components.module.coffee
  */
 
@@ -23576,12 +24184,52 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: external-apps.module.coffee
+ */
+
 (function() {
   var module;
 
   module = angular.module("taigaExternalApps", []);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: home.module.coffee
+ */
 
 (function() {
   var module;
@@ -23590,10 +24238,50 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: navigation-bar.module.coffee
+ */
+
 (function() {
   angular.module("taigaNavigationBar", []);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile.module.coffee
+ */
 
 (function() {
   var module;
@@ -23602,20 +24290,374 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: projects.module.coffee
+ */
+
 (function() {
   angular.module("taigaProjects", []);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: resources.module.coffee
+ */
 
 (function() {
   angular.module("taigaResources2", []);
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline.module.coffee
+ */
+
 (function() {
   angular.module("taigaUserTimeline", []);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: joy-ride.directive.coffee
+ */
+
+(function() {
+  var JoyRideDirective, taiga;
+
+  taiga = this.taiga;
+
+  JoyRideDirective = function($rootScope, currentUserService, joyRideService, $location) {
+    var link;
+    link = function(scope, el, attrs, ctrl) {
+      var initJoyrRide, intro, unsuscribe;
+      unsuscribe = null;
+      intro = introJs();
+      intro.setOptions({
+        exitOnEsc: false,
+        exitOnOverlayClick: false,
+        showStepNumbers: false,
+        nextLabel: 'Next &rarr;',
+        prevLabel: '&larr; Back',
+        skipLabel: 'Skip',
+        doneLabel: 'Done',
+        disableInteraction: true
+      });
+      intro.oncomplete(function() {
+        return $('html,body').scrollTop(0);
+      });
+      intro.onexit(function() {
+        return currentUserService.disableJoyRide();
+      });
+      initJoyrRide = function(next, config) {
+        if (!config[next.joyride]) {
+          return;
+        }
+        intro.setOption('steps', joyRideService.get(next.joyride));
+        return intro.start();
+      };
+      return $rootScope.$on('$routeChangeSuccess', function(event, next) {
+        if (!next.joyride || !currentUserService.isAuthenticated()) {
+          intro.exit();
+          if (unsuscribe) {
+            unsuscribe();
+          }
+          return;
+        }
+        intro.oncomplete(function() {
+          return currentUserService.disableJoyRide(next.joyride);
+        });
+        if (next.loader) {
+          return unsuscribe = $rootScope.$on('loader:end', function() {
+            currentUserService.loadJoyRideConfig().then(function(config) {
+              return initJoyrRide(next, config);
+            });
+            return unsuscribe();
+          });
+        } else {
+          return currentUserService.loadJoyRideConfig().then(function(config) {
+            return initJoyrRide(next, config);
+          });
+        }
+      });
+    };
+    return {
+      scope: {},
+      link: link
+    };
+  };
+
+  JoyRideDirective.$inject = ["$rootScope", "tgCurrentUserService", "tgJoyRideService", "$location"];
+
+  angular.module("taigaComponents").directive("tgJoyRide", JoyRideDirective);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: joy-ride.service.coffee
+ */
+
+(function() {
+  var JoyRideService,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  JoyRideService = (function(superClass) {
+    extend(JoyRideService, superClass);
+
+    JoyRideService.$inject = ['$translate', 'tgCheckPermissionsService'];
+
+    function JoyRideService(translate, checkPermissionsService) {
+      this.translate = translate;
+      this.checkPermissionsService = checkPermissionsService;
+    }
+
+    JoyRideService.prototype.getConfig = function() {
+      return {
+        dashboard: (function(_this) {
+          return function() {
+            var steps;
+            steps = [
+              {
+                element: '.project-list > section:not(.ng-hide)',
+                position: 'left',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.DASHBOARD.STEP1.TITLE'),
+                  text: _this.translate.instant('JOYRIDE.DASHBOARD.STEP1.TEXT')
+                }
+              }, {
+                element: '.working-on-container',
+                position: 'right',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.DASHBOARD.STEP2.TITLE'),
+                  text: _this.translate.instant('JOYRIDE.DASHBOARD.STEP2.TEXT')
+                }
+              }, {
+                element: '.watching-container',
+                position: 'right',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.DASHBOARD.STEP3.TITLE'),
+                  text: [_this.translate.instant('JOYRIDE.DASHBOARD.STEP3.TEXT1'), _this.translate.instant('JOYRIDE.DASHBOARD.STEP3.TEXT2')]
+                }
+              }
+            ];
+            if (!$('.project-list .create-project-button').is(':hidden')) {
+              steps.push({
+                element: '.project-list .create-project-button',
+                position: 'bottom',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.DASHBOARD.STEP4.TITLE'),
+                  text: [_this.translate.instant('JOYRIDE.DASHBOARD.STEP4.TEXT1'), _this.translate.instant('JOYRIDE.DASHBOARD.STEP4.TEXT2')]
+                }
+              });
+            }
+            return steps;
+          };
+        })(this),
+        backlog: (function(_this) {
+          return function() {
+            var steps;
+            steps = [
+              {
+                element: '.summary',
+                position: 'bottom',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.BACKLOG.STEP1.TITLE'),
+                  text: [_this.translate.instant('JOYRIDE.BACKLOG.STEP1.TEXT1'), _this.translate.instant('JOYRIDE.BACKLOG.STEP1.TEXT2')]
+                }
+              }, {
+                element: '.backlog-table-empty',
+                position: 'bottom',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.BACKLOG.STEP2.TITLE'),
+                  text: _this.translate.instant('JOYRIDE.BACKLOG.STEP2.TEXT')
+                }
+              }, {
+                element: '.sprints',
+                position: 'left',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.BACKLOG.STEP3.TITLE'),
+                  text: _this.translate.instant('JOYRIDE.BACKLOG.STEP3.TEXT')
+                }
+              }
+            ];
+            if (_this.checkPermissionsService.check('add_us')) {
+              steps.push({
+                element: '.new-us',
+                position: 'rigth',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.BACKLOG.STEP4.TITLE'),
+                  text: _this.translate.instant('JOYRIDE.BACKLOG.STEP4.TEXT')
+                }
+              });
+            }
+            return steps;
+          };
+        })(this),
+        kanban: (function(_this) {
+          return function() {
+            var steps;
+            steps = [
+              {
+                element: '.kanban-table-inner',
+                position: 'bottom',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.KANBAN.STEP1.TITLE'),
+                  text: _this.translate.instant('JOYRIDE.KANBAN.STEP1.TEXT')
+                }
+              }, {
+                element: '.card-placeholder',
+                position: 'right',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.KANBAN.STEP2.TITLE'),
+                  text: _this.translate.instant('JOYRIDE.KANBAN.STEP2.TEXT')
+                }
+              }
+            ];
+            if (_this.checkPermissionsService.check('add_us')) {
+              steps.push({
+                element: '.icon-plus',
+                position: 'bottom',
+                joyride: {
+                  title: _this.translate.instant('JOYRIDE.KANBAN.STEP3.TITLE'),
+                  text: [_this.translate.instant('JOYRIDE.KANBAN.STEP3.TEXT1'), _this.translate.instant('JOYRIDE.KANBAN.STEP3.TEXT2')]
+                }
+              });
+            }
+            return steps;
+          };
+        })(this)
+      };
+    };
+
+    JoyRideService.prototype.get = function(name) {
+      var joyRide, joyRides;
+      joyRides = this.getConfig();
+      joyRide = joyRides[name].call(this);
+      return _.map(joyRide, function(item) {
+        var html;
+        html = "";
+        if (item.joyride.title) {
+          html += "<h3>" + item.joyride.title + "</h3>";
+        }
+        if (_.isArray(item.joyride.text)) {
+          _.forEach(item.joyride.text, function(text) {
+            return html += "<p>" + text + "</p>";
+          });
+        } else {
+          html += "<p>" + item.joyride.text + "</p>";
+        }
+        item.intro = html;
+        return item;
+      });
+    };
+
+    return JoyRideService;
+
+  })(taiga.Service);
+
+  angular.module("taigaComponents").service("tgJoyRideService", JoyRideService);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: project-menu.controller.coffee
+ */
 
 (function() {
   var ProjectMenuController;
@@ -23734,6 +24776,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: project-menu.directive.coffee
+ */
+
 (function() {
   var ProjectMenuDirective, taiga;
 
@@ -23768,6 +24830,305 @@
   angular.module("taigaComponents").directive("tgProjectMenu", ProjectMenuDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: modules/components/terms-of-service-and-privacy-policy-notice/terms-of-service-and-privacy-policy-notice.directive.coffee
+ */
+
+(function() {
+  var TermsOfServiceAndPrivacyPolicyNoticeDirective;
+
+  TermsOfServiceAndPrivacyPolicyNoticeDirective = function($config) {
+    var link;
+    link = function(scope, el, attrs) {
+      scope.privacyPolicyUrl = $config.get("privacyPolicyUrl");
+      return scope.termsOfServiceUrl = $config.get("termsOfServiceUrl");
+    };
+    return {
+      restrict: "AE",
+      scope: {},
+      link: link,
+      templateUrl: "components/terms-of-service-and-privacy-policy-notice/terms-of-service-and-privacy-policy-notice.html"
+    };
+  };
+
+  angular.module("taigaComponents").directive("tgTermsOfServiceAndPrivacyPolicyNotice", ["$tgConfig", TermsOfServiceAndPrivacyPolicyNoticeDirective]);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: vote-button.controller.coffee
+ */
+
+(function() {
+  var VoteButtonController;
+
+  VoteButtonController = (function() {
+    VoteButtonController.$inject = ["tgCurrentUserService"];
+
+    function VoteButtonController(currentUserService) {
+      this.currentUserService = currentUserService;
+      this.user = this.currentUserService.getUser();
+      this.isMouseOver = false;
+      this.loading = false;
+    }
+
+    VoteButtonController.prototype.showTextWhenMouseIsOver = function() {
+      return this.isMouseOver = true;
+    };
+
+    VoteButtonController.prototype.showTextWhenMouseIsLeave = function() {
+      return this.isMouseOver = false;
+    };
+
+    VoteButtonController.prototype.toggleVote = function() {
+      var promise;
+      this.loading = true;
+      if (!this.item.is_voter) {
+        promise = this._upvote();
+      } else {
+        promise = this._downvote();
+      }
+      promise["finally"]((function(_this) {
+        return function() {
+          return _this.loading = false;
+        };
+      })(this));
+      return promise;
+    };
+
+    VoteButtonController.prototype._upvote = function() {
+      return this.onUpvote().then((function(_this) {
+        return function() {
+          return _this.showTextWhenMouseIsLeave();
+        };
+      })(this));
+    };
+
+    VoteButtonController.prototype._downvote = function() {
+      return this.onDownvote();
+    };
+
+    return VoteButtonController;
+
+  })();
+
+  angular.module("taigaComponents").controller("VoteButton", VoteButtonController);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: vote-button.directive.coffee
+ */
+
+(function() {
+  var VoteButtonDirective;
+
+  VoteButtonDirective = function() {
+    return {
+      scope: {},
+      controller: "VoteButton",
+      bindToController: {
+        item: "=",
+        onUpvote: "=",
+        onDownvote: "="
+      },
+      controllerAs: "vm",
+      templateUrl: "components/vote-button/vote-button.html"
+    };
+  };
+
+  angular.module("taigaComponents").directive("tgVoteButton", VoteButtonDirective);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: watch-button.controller.coffee
+ */
+
+(function() {
+  var WatchButtonController;
+
+  WatchButtonController = (function() {
+    WatchButtonController.$inject = ["tgCurrentUserService"];
+
+    function WatchButtonController(currentUserService) {
+      this.currentUserService = currentUserService;
+      this.user = this.currentUserService.getUser();
+      this.isMouseOver = false;
+      this.loading = false;
+    }
+
+    WatchButtonController.prototype.showTextWhenMouseIsOver = function() {
+      return this.isMouseOver = true;
+    };
+
+    WatchButtonController.prototype.showTextWhenMouseIsLeave = function() {
+      return this.isMouseOver = false;
+    };
+
+    WatchButtonController.prototype.toggleWatch = function() {
+      var promise;
+      this.loading = true;
+      if (!this.item.is_watcher) {
+        promise = this._watch();
+      } else {
+        promise = this._unwatch();
+      }
+      promise["finally"]((function(_this) {
+        return function() {
+          return _this.loading = false;
+        };
+      })(this));
+      return promise;
+    };
+
+    WatchButtonController.prototype._watch = function() {
+      return this.onWatch().then((function(_this) {
+        return function() {
+          return _this.showTextWhenMouseIsLeave();
+        };
+      })(this));
+    };
+
+    WatchButtonController.prototype._unwatch = function() {
+      return this.onUnwatch();
+    };
+
+    return WatchButtonController;
+
+  })();
+
+  angular.module("taigaComponents").controller("WatchButton", WatchButtonController);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: watch-button.directive.coffee
+ */
+
+(function() {
+  var WatchButtonDirective;
+
+  WatchButtonDirective = function() {
+    return {
+      scope: {},
+      controller: "WatchButton",
+      bindToController: {
+        item: "=",
+        onWatch: "=",
+        onUnwatch: "="
+      },
+      controllerAs: "vm",
+      templateUrl: "components/watch-button/watch-button.html"
+    };
+  };
+
+  angular.module("taigaComponents").directive("tgWatchButton", WatchButtonDirective);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: external-app.controller.coffee
+ */
 
 (function() {
   var ExternalAppController, taiga,
@@ -23864,6 +25225,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: external-app.service.coffee
+ */
+
 (function() {
   var ExternalAppsService,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
@@ -23894,6 +25275,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: feedback.service.coffee
+ */
+
 (function() {
   var FeedbackService,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
@@ -23921,6 +25322,26 @@
   angular.module("taigaFeedback").service("tgFeedbackService", FeedbackService);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: duty.directive.coffee
+ */
 
 (function() {
   var DutyDirective;
@@ -23958,6 +25379,26 @@
   angular.module("taigaHome").directive("tgDuty", DutyDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: home.service.coffee
+ */
 
 (function() {
   var HomeService, groupBy,
@@ -24099,6 +25540,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: home-project-list.directive.coffee
+ */
+
 (function() {
   var HomeProjectListDirective;
 
@@ -24126,6 +25587,26 @@
   angular.module("taigaHome").directive("tgHomeProjectList", HomeProjectListDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: working-on.controller.coffee
+ */
 
 (function() {
   var WorkingOnController;
@@ -24182,6 +25663,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: working-on.directive.coffee
+ */
+
 (function() {
   var WorkingOnDirective;
 
@@ -24210,6 +25711,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: dropdown-project-list.directive.coffee
+ */
+
 (function() {
   var DropdownProjectListDirective;
 
@@ -24237,6 +25758,26 @@
   angular.module("taigaNavigationBar").directive("tgDropdownProjectList", DropdownProjectListDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: dropdown-user.directive.coffee
+ */
 
 (function() {
   var DropdownUserDirective;
@@ -24270,6 +25811,26 @@
   angular.module("taigaNavigationBar").directive("tgDropdownUser", DropdownUserDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: navigation-bar.directive.coffee
+ */
 
 (function() {
   var NavigationBarDirective;
@@ -24309,6 +25870,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: navigation-bar.service.coffee
+ */
+
 (function() {
   var NavigationBarService,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
@@ -24341,6 +25922,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-bar.controller.coffee
+ */
+
 (function() {
   var ProfileBarController;
 
@@ -24368,6 +25969,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-bar.directive.coffee
+ */
+
 (function() {
   var ProfileBarDirective;
 
@@ -24387,6 +26008,26 @@
   angular.module("taigaProfile").directive("tgProfileBar", ProfileBarDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-contacts.controller.coffee
+ */
 
 (function() {
   var ProfileContactsController;
@@ -24420,6 +26061,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-contacts.directive.coffee
+ */
+
 (function() {
   var ProfileContactsDirective;
 
@@ -24443,6 +26104,352 @@
   angular.module("taigaProfile").directive("tgProfileContacts", ProfileContactsDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: items.directive.coffee
+ */
+
+(function() {
+  var FavItemDirective;
+
+  FavItemDirective = function() {
+    var link, templateUrl;
+    link = function(scope, el, attrs, ctrl) {
+      return scope.vm = {
+        item: scope.item
+      };
+    };
+    templateUrl = function(el, attrs) {
+      if (attrs.itemType === "project") {
+        return "profile/profile-favs/items/project.html";
+      } else {
+        return "profile/profile-favs/items/ticket.html";
+      }
+    };
+    return {
+      scope: {
+        "item": "=tgFavItem"
+      },
+      link: link,
+      templateUrl: templateUrl
+    };
+  };
+
+  angular.module("taigaProfile").directive("tgFavItem", FavItemDirective);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-favs.controller.coffee
+ */
+
+(function() {
+  var FavsBaseController, ProfileLikedController, ProfileVotedController, ProfileWatchedController, debounceLeading,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  debounceLeading = this.taiga.debounceLeading;
+
+  FavsBaseController = (function() {
+    function FavsBaseController() {
+      this._init();
+    }
+
+    FavsBaseController.prototype._init = function() {
+      this.enableFilterByAll = true;
+      this.enableFilterByProjects = true;
+      this.enableFilterByUserStories = true;
+      this.enableFilterByTasks = true;
+      this.enableFilterByIssues = true;
+      this.enableFilterByTextQuery = true;
+      this._resetList();
+      this.q = null;
+      return this.type = null;
+    };
+
+    FavsBaseController.prototype._resetList = function() {
+      this.items = Immutable.List();
+      this.scrollDisabled = false;
+      return this._page = 1;
+    };
+
+    FavsBaseController.prototype._enableLoadingSpinner = function() {
+      return this.isLoading = true;
+    };
+
+    FavsBaseController.prototype._disableLoadingSpinner = function() {
+      return this.isLoading = false;
+    };
+
+    FavsBaseController.prototype._enableScroll = function() {
+      return this.scrollDisabled = false;
+    };
+
+    FavsBaseController.prototype._disableScroll = function() {
+      return this.scrollDisabled = true;
+    };
+
+    FavsBaseController.prototype._checkIfHasMorePages = function(hasNext) {
+      if (hasNext) {
+        this._page += 1;
+        return this._enableScroll();
+      } else {
+        return this._disableScroll();
+      }
+    };
+
+    FavsBaseController.prototype._checkIfHasNoResults = function() {
+      return this.hasNoResults = this.items.size === 0;
+    };
+
+    FavsBaseController.prototype.loadItems = function() {
+      this._enableLoadingSpinner();
+      this._disableScroll();
+      return this._getItems(this.user.get("id"), this._page, this.type, this.q).then((function(_this) {
+        return function(response) {
+          _this.items = _this.items.concat(response.get("data"));
+          _this._checkIfHasMorePages(response.get("next"));
+          _this._checkIfHasNoResults();
+          _this._disableLoadingSpinner();
+          return _this.items;
+        };
+      })(this))["catch"]((function(_this) {
+        return function() {
+          _this._disableLoadingSpinner();
+          return _this.items;
+        };
+      })(this));
+    };
+
+    FavsBaseController.prototype.filterByTextQuery = debounceLeading(500, function() {
+      this._resetList();
+      return this.loadItems();
+    });
+
+    FavsBaseController.prototype.showAll = function() {
+      if (this.type !== null) {
+        this.type = null;
+        this._resetList();
+        return this.loadItems();
+      }
+    };
+
+    FavsBaseController.prototype.showProjectsOnly = function() {
+      if (this.type !== "project") {
+        this.type = "project";
+        this._resetList();
+        return this.loadItems();
+      }
+    };
+
+    FavsBaseController.prototype.showUserStoriesOnly = function() {
+      if (this.type !== "userstory") {
+        this.type = "userstory";
+        this._resetList();
+        return this.loadItems();
+      }
+    };
+
+    FavsBaseController.prototype.showTasksOnly = function() {
+      if (this.type !== "task") {
+        this.type = "task";
+        this._resetList();
+        return this.loadItems();
+      }
+    };
+
+    FavsBaseController.prototype.showIssuesOnly = function() {
+      if (this.type !== "issue") {
+        this.type = "issue";
+        this._resetList();
+        return this.loadItems();
+      }
+    };
+
+    return FavsBaseController;
+
+  })();
+
+  ProfileLikedController = (function(superClass) {
+    extend(ProfileLikedController, superClass);
+
+    ProfileLikedController.$inject = ["tgUserService"];
+
+    function ProfileLikedController(userService) {
+      this.userService = userService;
+      ProfileLikedController.__super__.constructor.call(this);
+      this.enableFilterByAll = false;
+      this.enableFilterByProjects = false;
+      this.enableFilterByUserStories = false;
+      this.enableFilterByTasks = false;
+      this.enableFilterByIssues = false;
+      this.enableFilterByTextQuery = true;
+      this._getItems = this.userService.getLiked;
+    }
+
+    return ProfileLikedController;
+
+  })(FavsBaseController);
+
+  angular.module("taigaProfile").controller("ProfileLiked", ProfileLikedController);
+
+  ProfileVotedController = (function(superClass) {
+    extend(ProfileVotedController, superClass);
+
+    ProfileVotedController.$inject = ["tgUserService"];
+
+    function ProfileVotedController(userService) {
+      this.userService = userService;
+      ProfileVotedController.__super__.constructor.call(this);
+      this.enableFilterByAll = true;
+      this.enableFilterByProjects = false;
+      this.enableFilterByUserStories = true;
+      this.enableFilterByTasks = true;
+      this.enableFilterByIssues = true;
+      this.enableFilterByTextQuery = true;
+      this._getItems = this.userService.getVoted;
+    }
+
+    return ProfileVotedController;
+
+  })(FavsBaseController);
+
+  angular.module("taigaProfile").controller("ProfileVoted", ProfileVotedController);
+
+  ProfileWatchedController = (function(superClass) {
+    extend(ProfileWatchedController, superClass);
+
+    ProfileWatchedController.$inject = ["tgUserService"];
+
+    function ProfileWatchedController(userService) {
+      this.userService = userService;
+      ProfileWatchedController.__super__.constructor.call(this);
+      this._getItems = this.userService.getWatched;
+    }
+
+    return ProfileWatchedController;
+
+  })(FavsBaseController);
+
+  angular.module("taigaProfile").controller("ProfileWatched", ProfileWatchedController);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-favs.directive.coffee
+ */
+
+(function() {
+  var ProfileLikedDirective, ProfileVotedDirective, ProfileWatchedDirective, base;
+
+  base = {
+    scope: {},
+    bindToController: {
+      user: "=",
+      type: "@",
+      q: "@",
+      scrollDisabled: "@",
+      isLoading: "@",
+      hasNoResults: "@"
+    },
+    controller: null,
+    controllerAs: "vm",
+    templateUrl: "profile/profile-favs/profile-favs.html"
+  };
+
+  ProfileLikedDirective = function() {
+    return _.extend({}, base, {
+      controller: "ProfileLiked"
+    });
+  };
+
+  angular.module("taigaProfile").directive("tgProfileLiked", ProfileLikedDirective);
+
+  ProfileVotedDirective = function() {
+    return _.extend({}, base, {
+      controller: "ProfileVoted"
+    });
+  };
+
+  angular.module("taigaProfile").directive("tgProfileVoted", ProfileVotedDirective);
+
+  ProfileWatchedDirective = function() {
+    return _.extend({}, base, {
+      controller: "ProfileWatched"
+    });
+  };
+
+  angular.module("taigaProfile").directive("tgProfileWatched", ProfileWatchedDirective);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-hints.controller.coffee
+ */
 
 (function() {
   var ProfileHints;
@@ -24476,6 +26483,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-hints.directive.coffee
+ */
+
 (function() {
   var ProfileHints;
 
@@ -24493,6 +26520,26 @@
   angular.module("taigaProfile").directive("tgProfileHints", ProfileHints);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-projects.controller.coffee
+ */
 
 (function() {
   var ProfileProjectsController;
@@ -24525,6 +26572,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-projects.directive.coffee
+ */
+
 (function() {
   var ProfileProjectsDirective;
 
@@ -24549,6 +26616,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-tab.directive.coffee
+ */
+
 (function() {
   var ProfileTabDirective;
 
@@ -24556,10 +26643,12 @@
     var link;
     link = function(scope, element, attrs, ctrl, transclude) {
       scope.tab = {};
+      attrs.$observe("tgProfileTab", function(name) {
+        return scope.tab.name = name;
+      });
       attrs.$observe("tabTitle", function(title) {
         return scope.tab.title = title;
       });
-      scope.tab.name = attrs.tgProfileTab;
       scope.tab.icon = attrs.tabIcon;
       scope.tab.active = !!attrs.tabActive;
       if (scope.$eval(attrs.tabDisabled) !== true) {
@@ -24578,6 +26667,26 @@
   angular.module("taigaProfile").directive("tgProfileTab", ProfileTabDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-tabs.controller.coffee
+ */
 
 (function() {
   var ProfileTabsController;
@@ -24606,6 +26715,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile-tabs.directive.coffee
+ */
+
 (function() {
   var ProfileTabsDirective;
 
@@ -24622,6 +26751,26 @@
   angular.module("taigaProfile").directive("tgProfileTabs", ProfileTabsDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: profile.controller.coffee
+ */
 
 (function() {
   var ProfileController;
@@ -24680,6 +26829,254 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: like-project-button.controller.coffee
+ */
+
+(function() {
+  var LikeProjectButtonController;
+
+  LikeProjectButtonController = (function() {
+    LikeProjectButtonController.$inject = ["$tgConfirm", "tgLikeProjectButtonService"];
+
+    function LikeProjectButtonController(confirm, likeButtonService) {
+      this.confirm = confirm;
+      this.likeButtonService = likeButtonService;
+      this.isMouseOver = false;
+      this.loading = false;
+    }
+
+    LikeProjectButtonController.prototype.showTextWhenMouseIsOver = function() {
+      return this.isMouseOver = true;
+    };
+
+    LikeProjectButtonController.prototype.showTextWhenMouseIsLeave = function() {
+      return this.isMouseOver = false;
+    };
+
+    LikeProjectButtonController.prototype.toggleLike = function() {
+      var promise;
+      this.loading = true;
+      if (!this.project.get("is_fan")) {
+        promise = this._like();
+      } else {
+        promise = this._unlike();
+      }
+      promise["finally"]((function(_this) {
+        return function() {
+          return _this.loading = false;
+        };
+      })(this));
+      return promise;
+    };
+
+    LikeProjectButtonController.prototype._like = function() {
+      return this.likeButtonService.like(this.project.get('id')).then((function(_this) {
+        return function() {
+          return _this.showTextWhenMouseIsLeave();
+        };
+      })(this))["catch"]((function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this));
+    };
+
+    LikeProjectButtonController.prototype._unlike = function() {
+      return this.likeButtonService.unlike(this.project.get('id'))["catch"]((function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this));
+    };
+
+    return LikeProjectButtonController;
+
+  })();
+
+  angular.module("taigaProjects").controller("LikeProjectButton", LikeProjectButtonController);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: like-project-button.directive.coffee
+ */
+
+(function() {
+  var LikeProjectButtonDirective;
+
+  LikeProjectButtonDirective = function() {
+    return {
+      scope: {},
+      controller: "LikeProjectButton",
+      bindToController: {
+        project: '='
+      },
+      controllerAs: "vm",
+      templateUrl: "projects/components/like-project-button/like-project-button.html"
+    };
+  };
+
+  angular.module("taigaProjects").directive("tgLikeProjectButton", LikeProjectButtonDirective);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: like-project-button.service.coffee
+ */
+
+(function() {
+  var LikeProjectButtonService, taiga,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  LikeProjectButtonService = (function(superClass) {
+    extend(LikeProjectButtonService, superClass);
+
+    LikeProjectButtonService.$inject = ["tgResources", "tgCurrentUserService", "tgProjectService"];
+
+    function LikeProjectButtonService(rs, currentUserService, projectService) {
+      this.rs = rs;
+      this.currentUserService = currentUserService;
+      this.projectService = projectService;
+    }
+
+    LikeProjectButtonService.prototype._getProjectIndex = function(projectId) {
+      return this.currentUserService.projects.get('all').findIndex(function(project) {
+        return project.get('id') === projectId;
+      });
+    };
+
+    LikeProjectButtonService.prototype._updateProjects = function(projectId, isFan) {
+      var projectIndex, projects;
+      projectIndex = this._getProjectIndex(projectId);
+      projects = this.currentUserService.projects.get('all').update(projectIndex, function(project) {
+        var totalFans;
+        totalFans = project.get("total_fans");
+        if (isFan) {
+          totalFans++;
+        } else {
+          totalFans--;
+        }
+        return project.merge({
+          is_fan: isFan,
+          total_fans: totalFans
+        });
+      });
+      return this.currentUserService.setProjects(projects);
+    };
+
+    LikeProjectButtonService.prototype._updateCurrentProject = function(isFan) {
+      var project, totalFans;
+      totalFans = this.projectService.project.get("total_fans");
+      if (isFan) {
+        totalFans++;
+      } else {
+        totalFans--;
+      }
+      project = this.projectService.project.merge({
+        is_fan: isFan,
+        total_fans: totalFans
+      });
+      return this.projectService.setProject(project);
+    };
+
+    LikeProjectButtonService.prototype.like = function(projectId) {
+      return this.rs.projects.likeProject(projectId).then((function(_this) {
+        return function() {
+          _this._updateProjects(projectId, true);
+          return _this._updateCurrentProject(true);
+        };
+      })(this));
+    };
+
+    LikeProjectButtonService.prototype.unlike = function(projectId) {
+      return this.rs.projects.unlikeProject(projectId).then((function(_this) {
+        return function() {
+          _this._updateProjects(projectId, false);
+          return _this._updateCurrentProject(false);
+        };
+      })(this));
+    };
+
+    return LikeProjectButtonService;
+
+  })(taiga.Service);
+
+  angular.module("taigaProjects").service("tgLikeProjectButtonService", LikeProjectButtonService);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: sort-projects.directive.coffee
+ */
+
 (function() {
   var SortProjectsDirective;
 
@@ -24730,6 +27127,250 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: watch-project-button.controller.coffee
+ */
+
+(function() {
+  var WatchProjectButtonController;
+
+  WatchProjectButtonController = (function() {
+    WatchProjectButtonController.$inject = ["$tgConfirm", "tgWatchProjectButtonService"];
+
+    function WatchProjectButtonController(confirm, watchButtonService) {
+      this.confirm = confirm;
+      this.watchButtonService = watchButtonService;
+      this.showWatchOptions = false;
+      this.loading = false;
+    }
+
+    WatchProjectButtonController.prototype.toggleWatcherOptions = function() {
+      return this.showWatchOptions = !this.showWatchOptions;
+    };
+
+    WatchProjectButtonController.prototype.closeWatcherOptions = function() {
+      return this.showWatchOptions = false;
+    };
+
+    WatchProjectButtonController.prototype.watch = function(notifyLevel) {
+      this.loading = true;
+      this.closeWatcherOptions();
+      return this.watchButtonService.watch(this.project.get('id'), notifyLevel)["catch"]((function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this))["finally"]((function(_this) {
+        return function() {
+          return _this.loading = false;
+        };
+      })(this));
+    };
+
+    WatchProjectButtonController.prototype.unwatch = function() {
+      this.loading = true;
+      this.closeWatcherOptions();
+      return this.watchButtonService.unwatch(this.project.get('id'))["catch"]((function(_this) {
+        return function() {
+          return _this.confirm.notify("error");
+        };
+      })(this))["finally"]((function(_this) {
+        return function() {
+          return _this.loading = false;
+        };
+      })(this));
+    };
+
+    return WatchProjectButtonController;
+
+  })();
+
+  angular.module("taigaProjects").controller("WatchProjectButton", WatchProjectButtonController);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: watch-project-button.directive.coffee
+ */
+
+(function() {
+  var WatchProjectButtonDirective;
+
+  WatchProjectButtonDirective = function() {
+    return {
+      scope: {},
+      controller: "WatchProjectButton",
+      bindToController: {
+        project: "="
+      },
+      controllerAs: "vm",
+      templateUrl: "projects/components/watch-project-button/watch-project-button.html"
+    };
+  };
+
+  angular.module("taigaProjects").directive("tgWatchProjectButton", WatchProjectButtonDirective);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: watch-project-button.service.coffee
+ */
+
+(function() {
+  var WatchProjectButtonService, taiga,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  WatchProjectButtonService = (function(superClass) {
+    extend(WatchProjectButtonService, superClass);
+
+    WatchProjectButtonService.$inject = ["tgResources", "tgCurrentUserService", "tgProjectService"];
+
+    function WatchProjectButtonService(rs, currentUserService, projectService) {
+      this.rs = rs;
+      this.currentUserService = currentUserService;
+      this.projectService = projectService;
+    }
+
+    WatchProjectButtonService.prototype._getProjectIndex = function(projectId) {
+      return this.currentUserService.projects.get('all').findIndex(function(project) {
+        return project.get('id') === projectId;
+      });
+    };
+
+    WatchProjectButtonService.prototype._updateProjects = function(projectId, notifyLevel, isWatcher) {
+      var projectIndex, projects;
+      projectIndex = this._getProjectIndex(projectId);
+      projects = this.currentUserService.projects.get('all').update(projectIndex, (function(_this) {
+        return function(project) {
+          var totalWatchers;
+          totalWatchers = project.get('total_watchers');
+          if (isWatcher) {
+            totalWatchers++;
+          } else {
+            totalWatchers--;
+          }
+          return project.merge({
+            is_watcher: isWatcher,
+            total_watchers: totalWatchers,
+            notify_level: notifyLevel
+          });
+        };
+      })(this));
+      return this.currentUserService.setProjects(projects);
+    };
+
+    WatchProjectButtonService.prototype._updateCurrentProject = function(notifyLevel, isWatcher) {
+      var project, totalWatchers;
+      totalWatchers = this.projectService.project.get("total_watchers");
+      if (isWatcher) {
+        totalWatchers++;
+      } else {
+        totalWatchers--;
+      }
+      project = this.projectService.project.merge({
+        is_watcher: isWatcher,
+        total_watchers: totalWatchers,
+        notify_level: notifyLevel
+      });
+      return this.projectService.setProject(project);
+    };
+
+    WatchProjectButtonService.prototype.watch = function(projectId, notifyLevel) {
+      return this.rs.projects.watchProject(projectId, notifyLevel).then((function(_this) {
+        return function() {
+          _this._updateProjects(projectId, notifyLevel, true);
+          return _this._updateCurrentProject(notifyLevel, true);
+        };
+      })(this));
+    };
+
+    WatchProjectButtonService.prototype.unwatch = function(projectId) {
+      return this.rs.projects.unwatchProject(projectId).then((function(_this) {
+        return function() {
+          _this._updateProjects(projectId, null, false);
+          return _this._updateCurrentProject(null, false);
+        };
+      })(this));
+    };
+
+    return WatchProjectButtonService;
+
+  })(taiga.Service);
+
+  angular.module("taigaProjects").service("tgWatchProjectButtonService", WatchProjectButtonService);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: projects-listing.controller.coffee
+ */
+
 (function() {
   var ProjectsListingController;
 
@@ -24758,47 +27399,66 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: project.controller.coffee
+ */
+
 (function() {
   var ProjectController;
 
   ProjectController = (function() {
-    ProjectController.$inject = ["tgProjectsService", "$routeParams", "tgAppMetaService", "$tgAuth", "tgXhrErrorService", "$translate"];
+    ProjectController.$inject = ["$routeParams", "tgAppMetaService", "$tgAuth", "$translate", "tgProjectService"];
 
-    function ProjectController(projectsService, routeParams, appMetaService, auth, xhrError, translate) {
+    function ProjectController(routeParams, appMetaService, auth, translate, projectService) {
       var projectSlug;
-      this.projectsService = projectsService;
       this.routeParams = routeParams;
       this.appMetaService = appMetaService;
       this.auth = auth;
-      this.xhrError = xhrError;
       this.translate = translate;
+      this.projectService = projectService;
       projectSlug = this.routeParams.pslug;
       this.user = this.auth.userData;
-      this.projectsService.getProjectBySlug(projectSlug).then((function(_this) {
-        return function(project) {
-          var members;
-          _this.project = project;
-          members = _this.project.get('members').filter(function(member) {
-            return member.get('is_active');
-          });
-          _this.project = _this.project.set('members', members);
-          return _this._setMeta(_this.project);
-        };
-      })(this))["catch"]((function(_this) {
-        return function(xhr) {
-          return _this.xhrError.response(xhr);
+      taiga.defineImmutableProperty(this, "project", (function(_this) {
+        return function() {
+          return _this.projectService.project;
         };
       })(this));
+      taiga.defineImmutableProperty(this, "members", (function(_this) {
+        return function() {
+          return _this.projectService.activeMembers;
+        };
+      })(this));
+      this.appMetaService.setfn(this._setMeta.bind(this));
     }
 
     ProjectController.prototype._setMeta = function(project) {
-      var ctx, description, title;
+      var ctx, metas;
+      metas = {};
+      if (!this.project) {
+        return metas;
+      }
       ctx = {
-        projectName: project.get("name")
+        projectName: this.project.get("name")
       };
-      title = this.translate.instant("PROJECT.PAGE_TITLE", ctx);
-      description = project.get("description");
-      return this.appMetaService.setAll(title, description);
+      metas.title = this.translate.instant("PROJECT.PAGE_TITLE", ctx);
+      metas.description = this.project.get("description");
+      return metas;
     };
 
     return ProjectController;
@@ -24808,6 +27468,26 @@
   angular.module("taigaProjects").controller("Project", ProjectController);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: projects.service.coffee
+ */
 
 (function() {
   var ProjectsService, groupBy, taiga,
@@ -24887,6 +27567,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: external-apps-resource.service.coffee
+ */
+
 (function() {
   var Resource, module;
 
@@ -24928,6 +27628,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: issues-resource.service.coffee
+ */
+
 (function() {
   var Resource, module;
 
@@ -24960,6 +27680,26 @@
   module.factory("tgIssuesResource", Resource);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: projects-resource.service.coffee
+ */
 
 (function() {
   var Resource, module, pagination;
@@ -25022,6 +27762,29 @@
         return paginateResponseService(result);
       });
     };
+    service.likeProject = function(projectId) {
+      var url;
+      url = urlsService.resolve("project-like", projectId);
+      return http.post(url);
+    };
+    service.unlikeProject = function(projectId) {
+      var url;
+      url = urlsService.resolve("project-unlike", projectId);
+      return http.post(url);
+    };
+    service.watchProject = function(projectId, notifyPolicy) {
+      var data, url;
+      data = {
+        notify_policy: notifyPolicy
+      };
+      url = urlsService.resolve("project-watch", projectId);
+      return http.post(url, data);
+    };
+    service.unwatchProject = function(projectId) {
+      var url;
+      url = urlsService.resolve("project-unwatch", projectId);
+      return http.post(url);
+    };
     return function() {
       return {
         "projects": service
@@ -25037,10 +27800,30 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: resources.coffee
+ */
+
 (function() {
   var Resources, services;
 
-  services = ["tgProjectsResources", "tgUsersResources", "tgUserstoriesResource", "tgTasksResource", "tgIssuesResource", "tgExternalAppsResource"];
+  services = ["tgProjectsResources", "tgUserResources", "tgUsersResources", "tgUserstoriesResource", "tgTasksResource", "tgIssuesResource", "tgExternalAppsResource"];
 
   Resources = function($injector) {
     var i, j, len, len1, ref, service, serviceFn, serviceName, serviceProperty;
@@ -25065,6 +27848,26 @@
   angular.module("taigaResources2").service("tgResources", Resources);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: tasks-resource.service.coffee
+ */
 
 (function() {
   var Resource, module;
@@ -25099,6 +27902,96 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-resource.service.coffee
+ */
+
+(function() {
+  var Resource, module;
+
+  Resource = function(urlsService, http, paginateResponseService) {
+    var service;
+    service = {};
+    service.getUserStorage = function(key) {
+      var httpOptions, url;
+      url = urlsService.resolve("user-storage");
+      if (key) {
+        url += '/' + key;
+      }
+      httpOptions = {};
+      return http.get(url, {}).then(function(response) {
+        return response.data.value;
+      });
+    };
+    service.setUserStorage = function(key, value) {
+      var params, url;
+      url = urlsService.resolve("user-storage") + '/' + key;
+      params = {
+        key: key,
+        value: value
+      };
+      return http.put(url, params);
+    };
+    service.createUserStorage = function(key, value) {
+      var params, url;
+      url = urlsService.resolve("user-storage");
+      params = {
+        key: key,
+        value: value
+      };
+      return http.post(url, params);
+    };
+    return function() {
+      return {
+        "user": service
+      };
+    };
+  };
+
+  Resource.$inject = ["$tgUrls", "$tgHttp"];
+
+  module = angular.module("taigaResources2");
+
+  module.factory("tgUserResources", Resource);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: users-resource.service.coffee
+ */
+
 (function() {
   var Resource, module;
 
@@ -25122,7 +28015,7 @@
     };
     service.getStats = function(userId) {
       var httpOptions, url;
-      url = urlsService.resolve("stats", userId);
+      url = urlsService.resolve("user-stats", userId);
       httpOptions = {
         headers: {
           "x-disable-pagination": "1"
@@ -25134,7 +28027,7 @@
     };
     service.getContacts = function(userId) {
       var httpOptions, url;
-      url = urlsService.resolve("contacts", userId);
+      url = urlsService.resolve("user-contacts", userId);
       httpOptions = {
         headers: {
           "x-disable-pagination": "1"
@@ -25142,6 +28035,60 @@
       };
       return http.get(url, {}, httpOptions).then(function(result) {
         return Immutable.fromJS(result.data);
+      });
+    };
+    service.getLiked = function(userId, page, type, q) {
+      var params, url;
+      url = urlsService.resolve("user-liked", userId);
+      params = {};
+      if (page != null) {
+        params.page = page;
+      }
+      if (type != null) {
+        params.type = type;
+      }
+      if (q != null) {
+        params.q = q;
+      }
+      return http.get(url, params).then(function(result) {
+        result = Immutable.fromJS(result);
+        return paginateResponseService(result);
+      });
+    };
+    service.getVoted = function(userId, page, type, q) {
+      var params, url;
+      url = urlsService.resolve("user-voted", userId);
+      params = {};
+      if (page != null) {
+        params.page = page;
+      }
+      if (type != null) {
+        params.type = type;
+      }
+      if (q != null) {
+        params.q = q;
+      }
+      return http.get(url, params).then(function(result) {
+        result = Immutable.fromJS(result);
+        return paginateResponseService(result);
+      });
+    };
+    service.getWatched = function(userId, page, type, q) {
+      var params, url;
+      url = urlsService.resolve("user-watched", userId);
+      params = {};
+      if (page != null) {
+        params.page = page;
+      }
+      if (type != null) {
+        params.type = type;
+      }
+      if (q != null) {
+        params.q = q;
+      }
+      return http.get(url, params).then(function(result) {
+        result = Immutable.fromJS(result);
+        return paginateResponseService(result);
       });
     };
     service.getProfileTimeline = function(userId, page) {
@@ -25183,6 +28130,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: userstories-resource.service.coffee
+ */
+
 (function() {
   var Resource, module;
 
@@ -25216,93 +28183,191 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: app-meta.service.coffee
+ */
+
 (function() {
-  var AppMetaService, taiga, truncate,
-    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
+  var AppMetaService, taiga, truncate;
 
   taiga = this.taiga;
 
   truncate = taiga.truncate;
 
-  AppMetaService = (function(superClass) {
-    extend(AppMetaService, superClass);
+  AppMetaService = (function() {
+    AppMetaService.$inject = ["$rootScope"];
 
-    function AppMetaService() {
-      return AppMetaService.__super__.constructor.apply(this, arguments);
+    function AppMetaService(rootScope) {
+      this.rootScope = rootScope;
     }
+
+    AppMetaService.prototype._set = function(key, value) {
+      var meta;
+      if (!key) {
+        return;
+      }
+      if (key === "title") {
+        meta = $("title");
+        if (meta.length === 0) {
+          meta = $("<title></title>");
+          $("head").append(meta);
+        }
+        return meta.text(value || "");
+      } else if (key.indexOf("og:") === 0) {
+        meta = $("meta[property='" + key + "']");
+        if (meta.length === 0) {
+          meta = $("<meta property='" + key + "'/>");
+          $("head").append(meta);
+        }
+        return meta.attr("content", value || "");
+      } else {
+        meta = $("meta[name='" + key + "']");
+        if (meta.length === 0) {
+          meta = $("<meta name='" + key + "'/>");
+          $("head").append(meta);
+        }
+        return meta.attr("content", value || "");
+      }
+    };
+
+    AppMetaService.prototype.setTitle = function(title) {
+      return this._set('title', title);
+    };
+
+    AppMetaService.prototype.setDescription = function(description) {
+      return this._set("description", truncate(description, 250));
+    };
+
+    AppMetaService.prototype.setTwitterMetas = function(title, description) {
+      this._set("twitter:card", "summary");
+      this._set("twitter:site", "@taigaio");
+      this._set("twitter:title", title);
+      this._set("twitter:description", truncate(description, 300));
+      return this._set("twitter:image", window.location.origin + "/images/logo-color.png");
+    };
+
+    AppMetaService.prototype.setOpenGraphMetas = function(title, description) {
+      this._set("og:type", "object");
+      this._set("og:site_name", "Taiga - Love your projects");
+      this._set("og:title", title);
+      this._set("og:description", truncate(description, 300));
+      this._set("og:image", window.location.origin + "/images/logo-color.png");
+      return this._set("og:url", window.location.href);
+    };
+
+    AppMetaService.prototype.setAll = function(title, description) {
+      this.setTitle(title);
+      this.setDescription(description);
+      this.setTwitterMetas(title, description);
+      return this.setOpenGraphMetas(title, description);
+    };
+
+    AppMetaService.prototype.addMobileViewport = function() {
+      return $("head").append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">");
+    };
+
+    AppMetaService.prototype.removeMobileViewport = function() {
+      return $("meta[name=\"viewport\"]").remove();
+    };
+
+    AppMetaService.prototype.setfn = function(fn) {
+      if (this.listener) {
+        this._listener();
+      }
+      return this._listener = this.rootScope.$watchCollection(fn, (function(_this) {
+        return function(metas) {
+          return _this.setAll(metas.title, metas.description);
+        };
+      })(this));
+    };
 
     return AppMetaService;
 
-  })(taiga.Service = function() {
-    return {
-      _set: function(key, value) {
-        var meta;
-        if (!key) {
-          return;
-        }
-        if (key === "title") {
-          meta = $("title");
-          if (meta.length === 0) {
-            meta = $("<title></title>");
-            $("head").append(meta);
-          }
-          return meta.text(value || "");
-        } else if (key.indexOf("og:") === 0) {
-          meta = $("meta[property='" + key + "']");
-          if (meta.length === 0) {
-            meta = $("<meta property='" + key + "'/>");
-            $("head").append(meta);
-          }
-          return meta.attr("content", value || "");
-        } else {
-          meta = $("meta[name='" + key + "']");
-          if (meta.length === 0) {
-            meta = $("<meta name='" + key + "'/>");
-            $("head").append(meta);
-          }
-          return meta.attr("content", value || "");
-        }
-      },
-      setTitle: function(title) {
-        return this._set('title', title);
-      },
-      setDescription: function(description) {
-        return this._set("description", truncate(description, 250));
-      },
-      setTwitterMetas: function(title, description) {
-        this._set("twitter:card", "summary");
-        this._set("twitter:site", "@taigaio");
-        this._set("twitter:title", title);
-        this._set("twitter:description", truncate(description, 300));
-        return this._set("twitter:image", window.location.origin + "/images/logo-color.png");
-      },
-      setOpenGraphMetas: function(title, description) {
-        this._set("og:type", "object");
-        this._set("og:site_name", "Taiga - Love your projects");
-        this._set("og:title", title);
-        this._set("og:description", truncate(description, 300));
-        this._set("og:image", window.location.origin + "/images/logo-color.png");
-        return this._set("og:url", window.location.href);
-      },
-      setAll: function(title, description) {
-        this.setTitle(title);
-        this.setDescription(description);
-        this.setTwitterMetas(title, description);
-        return this.setOpenGraphMetas(title, description);
-      },
-      addMobileViewport: function() {
-        return $('head').append('<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">');
-      },
-      removeMobileViewport: function() {
-        return $('meta[name="viewport"]').remove();
-      }
-    };
-  });
+  })();
 
   angular.module("taigaCommon").service("tgAppMetaService", AppMetaService);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: check-permissions.service.coffee
+ */
+
+(function() {
+  var ChekcPermissionsService, taiga;
+
+  taiga = this.taiga;
+
+  ChekcPermissionsService = (function() {
+    ChekcPermissionsService.$inject = ["tgProjectService"];
+
+    function ChekcPermissionsService(projectService) {
+      this.projectService = projectService;
+    }
+
+    ChekcPermissionsService.prototype.check = function(permission) {
+      return this.projectService.project.get('my_permissions').indexOf(permission) !== -1;
+    };
+
+    return ChekcPermissionsService;
+
+  })();
+
+  angular.module("taigaCommon").service("tgCheckPermissionsService", ChekcPermissionsService);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: current-user.service.coffee
+ */
 
 (function() {
   var CurrentUserService, groupBy, taiga;
@@ -25312,14 +28377,16 @@
   groupBy = this.taiga.groupBy;
 
   CurrentUserService = (function() {
-    CurrentUserService.$inject = ["tgProjectsService", "$tgStorage"];
+    CurrentUserService.$inject = ["tgProjectsService", "$tgStorage", "tgResources"];
 
-    function CurrentUserService(projectsService, storageService) {
+    function CurrentUserService(projectsService, storageService, rs) {
       this.projectsService = projectsService;
       this.storageService = storageService;
+      this.rs = rs;
       this._user = null;
       this._projects = Immutable.Map();
       this._projectsById = Immutable.Map();
+      this._joyride = null;
       taiga.defineImmutableProperty(this, "projects", (function(_this) {
         return function() {
           return _this._projects;
@@ -25354,7 +28421,8 @@
     CurrentUserService.prototype.removeUser = function() {
       this._user = null;
       this._projects = Immutable.Map();
-      return this._projectsById = Immutable.Map();
+      this._projectsById = Immutable.Map();
+      return this._joyride = null;
     };
 
     CurrentUserService.prototype.setUser = function(user) {
@@ -25373,18 +28441,58 @@
     CurrentUserService.prototype.loadProjects = function() {
       return this.projectsService.getProjectsByUserId(this._user.get("id")).then((function(_this) {
         return function(projects) {
-          _this._projects = _this._projects.set("all", projects);
-          _this._projects = _this._projects.set("recents", projects.slice(0, 10));
-          _this._projectsById = Immutable.fromJS(groupBy(projects.toJS(), function(p) {
-            return p.id;
-          }));
-          return _this.projects;
+          return _this.setProjects(projects);
+        };
+      })(this));
+    };
+
+    CurrentUserService.prototype.disableJoyRide = function(section) {
+      if (section) {
+        this._joyride[section] = false;
+      } else {
+        this._joyride = {
+          backlog: false,
+          kanban: false,
+          dashboard: false
+        };
+      }
+      return this.rs.user.setUserStorage('joyride', this._joyride);
+    };
+
+    CurrentUserService.prototype.loadJoyRideConfig = function() {
+      return new Promise((function(_this) {
+        return function(resolve) {
+          if (_this._joyride !== null) {
+            resolve(_this._joyride);
+            return;
+          }
+          return _this.rs.user.getUserStorage('joyride').then(function(config) {
+            _this._joyride = config;
+            return resolve(_this._joyride);
+          })["catch"](function() {
+            _this._joyride = {
+              backlog: true,
+              kanban: true,
+              dashboard: true
+            };
+            _this.rs.user.createUserStorage('joyride', _this._joyride);
+            return resolve(_this._joyride);
+          });
         };
       })(this));
     };
 
     CurrentUserService.prototype._loadUserInfo = function() {
-      return this.loadProjects();
+      return Promise.all([this.loadProjects()]);
+    };
+
+    CurrentUserService.prototype.setProjects = function(projects) {
+      this._projects = this._projects.set("all", projects);
+      this._projects = this._projects.set("recents", projects.slice(0, 10));
+      this._projectsById = Immutable.fromJS(groupBy(projects.toJS(), function(p) {
+        return p.id;
+      }));
+      return this.projects;
     };
 
     return CurrentUserService;
@@ -25394,6 +28502,26 @@
   angular.module("taigaCommon").service("tgCurrentUserService", CurrentUserService);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: lightbox-factory.service.coffee
+ */
 
 (function() {
   var LightboxFactory;
@@ -25426,6 +28554,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: paginate-response.service.coffee
+ */
+
 (function() {
   var PaginateResponse;
 
@@ -25447,19 +28595,41 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: project.service.coffee
+ */
+
 (function() {
   var ProjectService, taiga;
 
   taiga = this.taiga;
 
   ProjectService = (function() {
-    ProjectService.$inject = ["tgProjectsService"];
+    ProjectService.$inject = ["tgProjectsService", "tgXhrErrorService"];
 
-    function ProjectService(projectsService) {
+    function ProjectService(projectsService, xhrError) {
       this.projectsService = projectsService;
+      this.xhrError = xhrError;
       this._project = null;
       this._section = null;
       this._sectionsBreadcrumb = Immutable.List();
+      this._activeMembers = Immutable.List();
       taiga.defineImmutableProperty(this, "project", (function(_this) {
         return function() {
           return _this._project;
@@ -25475,6 +28645,11 @@
           return _this._sectionsBreadcrumb;
         };
       })(this));
+      taiga.defineImmutableProperty(this, "activeMembers", (function(_this) {
+        return function() {
+          return _this._activeMembers;
+        };
+      })(this));
     }
 
     ProjectService.prototype.setSection = function(section) {
@@ -25486,24 +28661,43 @@
       }
     };
 
-    ProjectService.prototype.setProject = function(pslug) {
-      if (this._pslug !== pslug) {
-        this._pslug = pslug;
-        return this.fetchProject();
-      }
+    ProjectService.prototype.setProjectBySlug = function(pslug) {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (!_this.project || _this.project.get('slug') !== pslug) {
+            return _this.projectsService.getProjectBySlug(pslug).then(function(project) {
+              _this.setProject(project);
+              return resolve();
+            })["catch"](function(xhr) {
+              return _this.xhrError.response(xhr);
+            });
+          } else {
+            return resolve();
+          }
+        };
+      })(this));
+    };
+
+    ProjectService.prototype.setProject = function(project) {
+      this._project = project;
+      return this._activeMembers = this._project.get('members').filter(function(member) {
+        return member.get('is_active');
+      });
     };
 
     ProjectService.prototype.cleanProject = function() {
-      this._pslug = null;
       this._project = null;
+      this._activeMembers = Immutable.List();
       this._section = null;
       return this._sectionsBreadcrumb = Immutable.List();
     };
 
     ProjectService.prototype.fetchProject = function() {
-      return this.projectsService.getProjectBySlug(this._pslug).then((function(_this) {
+      var pslug;
+      pslug = this.project.get('slug');
+      return this.projectsService.getProjectBySlug(pslug).then((function(_this) {
         return function(project) {
-          return _this._project = project;
+          return _this.setProject(project);
         };
       })(this));
     };
@@ -25515,6 +28709,26 @@
   angular.module("taigaCommon").service("tgProjectService", ProjectService);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: scope-event.service.coffee
+ */
 
 (function() {
   var ScopeEvent;
@@ -25571,6 +28785,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: theme.service.coffee
+ */
+
 (function() {
   var ThemeService, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
@@ -25605,12 +28839,34 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user.service.coffee
+ */
+
 (function() {
-  var UserService, taiga,
+  var UserService, bindMethods, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
   taiga = this.taiga;
+
+  bindMethods = taiga.bindMethods;
 
   UserService = (function(superClass) {
     extend(UserService, superClass);
@@ -25619,6 +28875,7 @@
 
     function UserService(rs) {
       this.rs = rs;
+      bindMethods(this);
     }
 
     UserService.prototype.getUserByUserName = function(username) {
@@ -25627,6 +28884,18 @@
 
     UserService.prototype.getContacts = function(userId) {
       return this.rs.users.getContacts(userId);
+    };
+
+    UserService.prototype.getLiked = function(userId, pageNumber, objectType, textQuery) {
+      return this.rs.users.getLiked(userId, pageNumber, objectType, textQuery);
+    };
+
+    UserService.prototype.getVoted = function(userId, pageNumber, objectType, textQuery) {
+      return this.rs.users.getVoted(userId, pageNumber, objectType, textQuery);
+    };
+
+    UserService.prototype.getWatched = function(userId, pageNumber, objectType, textQuery) {
+      return this.rs.users.getWatched(userId, pageNumber, objectType, textQuery);
     };
 
     UserService.prototype.getStats = function(userId) {
@@ -25656,6 +28925,26 @@
   angular.module("taigaCommon").service("tgUserService", UserService);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: xhrError.service.coffee
+ */
 
 (function() {
   var xhrError,
@@ -25702,6 +28991,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline-attachment.directive.coffee
+ */
+
 (function() {
   var UserTimelineAttachmentDirective;
 
@@ -25742,6 +29051,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline-item-title.service.coffee
+ */
+
 (function() {
   var UserTimelineItemTitle, unslugify;
 
@@ -25771,7 +29100,7 @@
           title_attr = this.translate.instant('COMMON.SEE_USER_PROFILE', {
             username: user.get('username')
           });
-          url = "user-profile:username=vm.timeline.getIn(['data', 'user', 'username'])";
+          url = "user-profile:username=timeline.getIn(['data', 'user', 'username'])";
           return this._getLink(url, user.get('name'), title_attr);
         } else {
           return this._getUsernameSpan(user.get('name'));
@@ -25784,7 +29113,7 @@
       },
       project_name: function(timeline, event) {
         var url;
-        url = "project:project=vm.timeline.getIn(['data', 'project', 'slug'])";
+        url = "project:project=timeline.getIn(['data', 'project', 'slug'])";
         return this._getLink(url, timeline.getIn(["data", "project", "name"]));
       },
       new_value: function(timeline, event) {
@@ -25801,7 +29130,7 @@
       },
       sprint_name: function(timeline, event) {
         var url;
-        url = "project-taskboard:project=vm.timeline.getIn(['data', 'project', 'slug']),sprint=vm.timeline.getIn(['data', 'milestone', 'slug'])";
+        url = "project-taskboard:project=timeline.getIn(['data', 'project', 'slug']),sprint=timeline.getIn(['data', 'milestone', 'slug'])";
         return this._getLink(url, timeline.getIn(['data', 'milestone', 'name']));
       },
       us_name: function(timeline, event) {
@@ -25847,12 +29176,12 @@
     UserTimelineItemTitle.prototype._getDetailObjUrl = function(event) {
       var url;
       url = {
-        "issue": ["project-issues-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"],
-        "wikipage": ["project-wiki-page", ":project=vm.timeline.getIn(['data', 'project', 'slug']),slug=vm.timeline.getIn(['obj', 'ref'])"],
-        "task": ["project-tasks-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"],
-        "userstory": ["project-userstories-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"],
-        "parent_userstory": ["project-userstories-detail", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'userstory', 'ref'])"],
-        "milestone": ["project-taskboard", ":project=vm.timeline.getIn(['data', 'project', 'slug']),ref=vm.timeline.getIn(['obj', 'ref'])"]
+        "issue": ["project-issues-detail", ":project=timeline.getIn(['data', 'project', 'slug']),ref=timeline.getIn(['obj', 'ref'])"],
+        "wikipage": ["project-wiki-page", ":project=timeline.getIn(['data', 'project', 'slug']),slug=timeline.getIn(['obj', 'slug'])"],
+        "task": ["project-tasks-detail", ":project=timeline.getIn(['data', 'project', 'slug']),ref=timeline.getIn(['obj', 'ref'])"],
+        "userstory": ["project-userstories-detail", ":project=timeline.getIn(['data', 'project', 'slug']),ref=timeline.getIn(['obj', 'ref'])"],
+        "parent_userstory": ["project-userstories-detail", ":project=timeline.getIn(['data', 'project', 'slug']),ref=timeline.getIn(['obj', 'userstory', 'ref'])"],
+        "milestone": ["project-taskboard", ":project=timeline.getIn(['data', 'project', 'slug']),sprint=timeline.getIn(['obj', 'slug'])"]
       };
       return url[event.obj][0] + url[event.obj][1];
     };
@@ -25890,6 +29219,26 @@
   angular.module("taigaUserTimeline").service("tgUserTimelineItemTitle", UserTimelineItemTitle);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline-item-type.service.coffee
+ */
 
 (function() {
   var UserTimelineType, timelineType;
@@ -26127,63 +29476,31 @@
 
 }).call(this);
 
-(function() {
-  var UserTimelineItemController;
 
-  UserTimelineItemController = (function() {
-    UserTimelineItemController.$inject = ["tgUserTimelineItemType", "tgUserTimelineItemTitle"];
-
-    function UserTimelineItemController(userTimelineItemType, userTimelineItemTitle) {
-      var event, title, type;
-      this.userTimelineItemType = userTimelineItemType;
-      this.userTimelineItemTitle = userTimelineItemTitle;
-      event = this.parseEventType(this.timeline.get('event_type'));
-      type = this.userTimelineItemType.getType(this.timeline, event);
-      title = this.userTimelineItemTitle.getTitle(this.timeline, event, type);
-      this.timeline = this.timeline.set('title_html', title);
-      this.timeline = this.timeline.set('obj', this.getObject(this.timeline, event));
-      if (type.description) {
-        this.timeline = this.timeline.set('description', type.description(this.timeline));
-      }
-      if (type.member) {
-        this.timeline = this.timeline.set('member', type.member(this.timeline));
-      }
-      if (this.timeline.getIn(['data', 'value_diff', 'key']) === 'attachments' && this.timeline.hasIn(['data', 'value_diff', 'value', 'new'])) {
-        this.timeline = this.timeline.set('attachments', this.timeline.getIn(['data', 'value_diff', 'value', 'new']));
-      }
-    }
-
-    UserTimelineItemController.prototype.getObject = function(timeline, event) {
-      if (timeline.get('data').get(event.obj)) {
-        return timeline.get('data').get(event.obj);
-      }
-    };
-
-    UserTimelineItemController.prototype.parseEventType = function(event_type) {
-      event_type = event_type.split(".");
-      return {
-        section: event_type[0],
-        obj: event_type[1],
-        type: event_type[2]
-      };
-    };
-
-    return UserTimelineItemController;
-
-  })();
-
-  angular.module("taigaUserTimeline").controller("UserTimelineItem", UserTimelineItemController);
-
-}).call(this);
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline-item.directive.coffee
+ */
 
 (function() {
   var UserTimelineItemDirective;
 
   UserTimelineItemDirective = function() {
     return {
-      controllerAs: "vm",
-      controller: "UserTimelineItem",
-      bindToController: true,
       templateUrl: "user-timeline/user-timeline-item/user-timeline-item.html",
       scope: {
         timeline: "=tgUserTimelineItem"
@@ -26194,6 +29511,26 @@
   angular.module("taigaUserTimeline").directive("tgUserTimelineItem", UserTimelineItemDirective);
 
 }).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline-pagination-sequence.service.coffee
+ */
 
 (function() {
   var UserTimelinePaginationSequence;
@@ -26216,7 +29553,10 @@
           page++;
           data = response.get("data");
           if (config.filter) {
-            data = config.filter(response.get("data"));
+            data = config.filter(data);
+          }
+          if (config.map) {
+            data = data.map(config.map);
           }
           items = items.concat(data);
           if (items.size < config.minItems && response.get("next")) {
@@ -26243,23 +29583,23 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+ *
  * File: modules/profile/profile-timeline/profile-timeline.controller.coffee
  */
 
@@ -26312,6 +29652,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline.directive.coffee
+ */
+
 (function() {
   var UserTimelineDirective;
 
@@ -26333,6 +29693,26 @@
 
 }).call(this);
 
+
+/*
+ * Copyright (C) 2014-2015 Taiga Agile LLC <taiga@taiga.io>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * File: user-timeline.service.coffee
+ */
+
 (function() {
   var UserTimelineService, taiga,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
@@ -26343,11 +29723,13 @@
   UserTimelineService = (function(superClass) {
     extend(UserTimelineService, superClass);
 
-    UserTimelineService.$inject = ["tgResources", "tgUserTimelinePaginationSequenceService"];
+    UserTimelineService.$inject = ["tgResources", "tgUserTimelinePaginationSequenceService", "tgUserTimelineItemType", "tgUserTimelineItemTitle"];
 
-    function UserTimelineService(rs, userTimelinePaginationSequenceService) {
+    function UserTimelineService(rs, userTimelinePaginationSequenceService, userTimelineItemType, userTimelineItemTitle) {
       this.rs = rs;
       this.userTimelinePaginationSequenceService = userTimelinePaginationSequenceService;
+      this.userTimelineItemType = userTimelineItemType;
+      this.userTimelineItemTitle = userTimelineItemTitle;
     }
 
     UserTimelineService.prototype._valid_fields = ['status', 'subject', 'description_diff', 'assigned_to', 'points', 'severity', 'priority', 'type', 'attachments', 'is_iocaine', 'content_diff', 'name', 'estimated_finish', 'estimated_start', 'blocked', 'moveInBacklog', 'milestone'];
@@ -26404,45 +29786,86 @@
       })(this));
     };
 
-    UserTimelineService.prototype._splitChanges = function(response) {
+    UserTimelineService.prototype._parseEventType = function(event_type) {
+      event_type = event_type.split(".");
+      return {
+        section: event_type[0],
+        obj: event_type[1],
+        type: event_type[2]
+      };
+    };
+
+    UserTimelineService.prototype._getTimelineObject = function(timeline, event) {
+      if (timeline.get('data').get(event.obj)) {
+        return timeline.get('data').get(event.obj);
+      }
+    };
+
+    UserTimelineService.prototype._attachExtraInfoToTimelineEntry = function(timeline, event, type) {
+      var title;
+      title = this.userTimelineItemTitle.getTitle(timeline, event, type);
+      timeline = timeline.set('title_html', title);
+      timeline = timeline.set('obj', this._getTimelineObject(timeline, event));
+      if (type.description) {
+        timeline = timeline.set('description', type.description(timeline));
+      }
+      if (type.member) {
+        timeline = timeline.set('member', type.member(timeline));
+      }
+      if (timeline.getIn(['data', 'value_diff', 'key']) === 'attachments' && timeline.hasIn(['data', 'value_diff', 'value', 'new'])) {
+        timeline = timeline.set('attachments', timeline.getIn(['data', 'value_diff', 'value', 'new']));
+      }
+      return timeline;
+    };
+
+    UserTimelineService.prototype._parseTimeline = function(response) {
       var newdata;
       newdata = Immutable.List();
-      response.get('data').forEach(function(item) {
-        var data, event_type, newItem, values_diff;
-        event_type = item.get('event_type').split(".");
-        data = item.get('data');
-        values_diff = data.get('values_diff');
-        if (values_diff && values_diff.count()) {
-          if (values_diff.has('is_blocked')) {
-            values_diff = Immutable.Map({
-              'blocked': values_diff
+      response.get('data').forEach((function(_this) {
+        return function(item) {
+          var data, event, newItem, values_diff;
+          event = _this._parseEventType(item.get('event_type'));
+          data = item.get('data');
+          values_diff = data.get('values_diff');
+          if (values_diff && values_diff.count()) {
+            if (values_diff.has('is_blocked')) {
+              values_diff = Immutable.Map({
+                'blocked': values_diff
+              });
+            }
+            if (values_diff.has('milestone')) {
+              values_diff = Immutable.Map({
+                'moveInBacklog': values_diff
+              });
+            } else if (event.obj === 'milestone') {
+              values_diff = Immutable.Map({
+                'milestone': values_diff
+              });
+            }
+            return values_diff.forEach(function(value, key) {
+              var newItem, obj;
+              obj = Immutable.Map({
+                key: key,
+                value: value
+              });
+              newItem = item.setIn(['data', 'value_diff'], obj);
+              newItem = newItem.deleteIn(['data', 'values_diff']);
+              return newdata = newdata.push(newItem);
             });
-          }
-          if (values_diff.has('milestone')) {
-            values_diff = Immutable.Map({
-              'moveInBacklog': values_diff
-            });
-          } else if (event_type[1] === 'milestone') {
-            values_diff = Immutable.Map({
-              'milestone': values_diff
-            });
-          }
-          return values_diff.forEach(function(value, key) {
-            var newItem, obj;
-            obj = Immutable.Map({
-              key: key,
-              value: value
-            });
-            newItem = item.setIn(['data', 'value_diff'], obj);
-            newItem = newItem.deleteIn(['data', 'values_diff']);
+          } else {
+            newItem = item.deleteIn(['data', 'values_diff']);
             return newdata = newdata.push(newItem);
-          });
-        } else {
-          newItem = item.deleteIn(['data', 'values_diff']);
-          return newdata = newdata.push(newItem);
-        }
-      });
+          }
+        };
+      })(this));
       return response.set('data', newdata);
+    };
+
+    UserTimelineService.prototype._addEntyAttributes = function(item) {
+      var event, type;
+      event = this._parseEventType(item.get('event_type'));
+      type = this.userTimelineItemType.getType(item, event);
+      return this._attachExtraInfoToTimelineEntry(item, event, type);
     };
 
     UserTimelineService.prototype.getProfileTimeline = function(userId) {
@@ -26451,8 +29874,13 @@
       config.fetch = (function(_this) {
         return function(page) {
           return _this.rs.users.getProfileTimeline(userId, page).then(function(response) {
-            return _this._splitChanges(response);
+            return _this._parseTimeline(response);
           });
+        };
+      })(this);
+      config.map = (function(_this) {
+        return function(obj) {
+          return _this._addEntyAttributes(obj);
         };
       })(this);
       config.filter = (function(_this) {
@@ -26471,8 +29899,13 @@
       config.fetch = (function(_this) {
         return function(page) {
           return _this.rs.users.getUserTimeline(userId, page).then(function(response) {
-            return _this._splitChanges(response);
+            return _this._parseTimeline(response);
           });
+        };
+      })(this);
+      config.map = (function(_this) {
+        return function(obj) {
+          return _this._addEntyAttributes(obj);
         };
       })(this);
       config.filter = (function(_this) {
@@ -26491,8 +29924,13 @@
       config.fetch = (function(_this) {
         return function(page) {
           return _this.rs.projects.getTimeline(projectId, page).then(function(response) {
-            return _this._splitChanges(response);
+            return _this._parseTimeline(response);
           });
+        };
+      })(this);
+      config.map = (function(_this) {
+        return function(obj) {
+          return _this._addEntyAttributes(obj);
         };
       })(this);
       config.filter = (function(_this) {
@@ -26515,520 +29953,30 @@
 
 
 /*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
-#
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
-#
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
- * File: pluggins/main.coffee
+ *
+ * File: modules/backlog.coffee
  */
 
 (function() {
   var module;
 
   module = angular.module("taigaPlugins", ["ngRoute"]);
-
-}).call(this);
-
-
-/*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
-#
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
-#
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
- * File: plugins/humanshtml/humanshtml.coffee
- */
-
-(function() {
-  var configure, module, taiga;
-
-  taiga = this.taiga;
-
-  module = angular.module("taigaPlugins");
-
-  configure = function($routeProvider) {
-    return $routeProvider.when("/humans.html", {
-      "templateUrl": "/plugins/humanshtml/templates/humans.html"
-    });
-  };
-
-  module.config(["$routeProvider", configure]);
-
-}).call(this);
-
-
-/*
- * Copyright (C) 2014 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014 David Barragán Merino <bameda@dbarragan.com>
-#
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
-#
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
-#
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
- * File: plugins/terms/terms.coffee
- */
-
-(function() {
-  var TermsNoticeDirective, module, taiga, template;
-
-  taiga = this.taiga;
-
-  module = angular.module("taigaPlugins");
-
-  template = _.template("<p class=\"register-text\">\n    <span>By clicking \"Sign up\", you agree to our <br /></span>\n    <a href=\"<%= termsUrl %>\" title=\"See terms of service\" target=\"_blank\"> terms of service</a>\n    <span> and</span>\n    <a href=\"<%= privacyUrl %>\" title=\"See privacy policy\" target=\"_blank\"> privacy policy.</a>\n</p>");
-
-  TermsNoticeDirective = function($config) {
-    var privacyPolicyUrl, templateFn, termsOfServiceUrl;
-    privacyPolicyUrl = $config.get("privacyPolicyUrl");
-    termsOfServiceUrl = $config.get("termsOfServiceUrl");
-    templateFn = function() {
-      var ctx;
-      if (!(privacyPolicyUrl && termsOfServiceUrl)) {
-        return "";
-      }
-      ctx = {
-        termsUrl: termsOfServiceUrl,
-        privacyUrl: privacyPolicyUrl
-      };
-      return template(ctx);
-    };
-    return {
-      scope: {},
-      restrict: "AE",
-      template: templateFn
-    };
-  };
-
-  module.directive("tgTermsNotice", ["$tgConfig", TermsNoticeDirective]);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "تنسيق الحقل غير صحيح",
-    type: {
-      email: "اكتب البريد الإلكتروني بالطريقة المطلوبة",
-      url: "اكتب الرابط بالطريقة المطلوبة",
-      urlstrict: "اكتب الرابط بالطريقة المطلوبة",
-      number: "اكتب أرقام ففط (عدد صحيح)",
-      digits: "اكتب أرقاما فقط",
-      dateIso: "اكتب التاريخ بهذه الصيغة (YYYY-MM-DD).",
-      alphanum: "اكتب حروف وأرقام فقط",
-      phone: "اكتب رقم هاتف بالطريقة المطلوبة"
-    },
-    notnull: "هذا الحقل مطلوب",
-    notblank: "هذا الحقل مطلوب",
-    required: "هذا الحقل مطلوب",
-    regexp: "تنسيق الحقل غير صحيح",
-    min: "الرقم يجب أن يكون أكبر من أو يساوي : %s.",
-    max: "الرقم يجب أن يكون أصغر من أو يساوي : %s.",
-    range: "الرقم يجب أن يكون بين %s و %s.",
-    minlength: "الحقل قصير. يجب أن يحتوي على %s حرف/أحرف أو أكثر",
-    maxlength: "الحقل طويل. يجب أن يحتوي على %s حرف/أحرف أو أقل",
-    rangelength: "طول الحقل غير مقبول. يجب أن يكون بين %s و %s حرف/أحرف",
-    mincheck: "يجب أن تختار %s (اختيار) على الأقل",
-    maxcheck: "يجب أن تختار %s (اختبار) أو أقل",
-    rangecheck: "يجب أن تختار بين %s و %s (اختبار).",
-    equalto: "يجب أن يتساوى الحقلان",
-    minwords: "يجب أن يحتوي الحقل على %s كلمة/كلمات على الأقل",
-    maxwords: "يجب أن يحتوي الحقل على %s كلمة/كلمات كحد أعلى",
-    rangewords: "عدد الكلمات المسوح بها مابين %s و %s كلمة/كلمات.",
-    greaterthan: "يجب أن تكون القيمة أكبر من %s.",
-    lessthan: "يجب أن تكون القيمة أقل من %s.",
-    beforedate: "التاريخ يجب أن يكون قبل  %s.",
-    afterdate: "التاريخ يجب أن يكون بعد  %s.",
-    americandate: "اكتب التاريخ بالطريقة المطلوبة (MM/DD/YYYY)."
-  };
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Aquest valor sembla ser invàlid.",
-    type: {
-      email: "Aquest valor ha de ser una adreça de correu electrònic vàlida.",
-      url: "Aquest valor ha de ser una URL vàlida.",
-      urlstrict: "Aquest valor ha de ser una URL vàlida.",
-      number: "Aquest valor ha de ser un nombre vàlid.",
-      digits: "Aquest valor ha només pot contenir dígits.",
-      dateIso: "Aquest valor ha de ser una data vàlida (YYYY-MM-DD).",
-      alphanum: "Aquest valor ha de ser alfanumèric."
-    },
-    notnull: "Aquest valor no pot ser nul.",
-    notblank: "Aquest valor no pot ser buit.",
-    required: "Aquest valor és requerit.",
-    regexp: "Aquest valor és incorrecte.",
-    min: "Aquest valor no pot ser menor que %s.",
-    max: "Aquest valor no pot ser major que %s.",
-    range: "Aquest valor ha d'estar entre %s i %s.",
-    minlength: "Aquest valor és massa curt. La longitud mínima és de %s caràcters.",
-    maxlength: "Aquest valor és massa llarg. La longitud màxima és de %s caràcters.",
-    rangelength: "La longitud d'aquest valor ha de ser d'entre %s i %s caràcters.",
-    equalto: "Aquest valor ha de ser idèntic.",
-    mincheck: "Has de marcar un mínim de %s opcions.",
-    maxcheck: "Has de marcar un màxim de %s opcions.",
-    rangecheck: "Has de marcar entre %s i %s opcions.",
-    minwords: "Aquest valor ha de tenir %s paraules com a mínim.",
-    maxwords: "Aquest valor no pot superar les %s paraules.",
-    rangewords: "Aquest valor ha de tenir entre %s i %s paraules.",
-    greaterthan: "Aquest valor no pot ser major que %s.",
-    lessthan: "Aquest valor no pot ser menor que %s."
-  };
-
-  this.checksley.updateMessages("ca", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Tato položka je neplatná.",
-    type: {
-      email: "Tato položka musí být e-mailová adresa.",
-      url: "Tato položka musí být url adresa.",
-      urlstrict: "Tato položka musí být url adresa.",
-      number: "Tato položka musí být platné číslo.",
-      digits: "Tato položka musí být číslice.",
-      dateIso: "Tato položka musí být datum ve formátu YYYY-MM-DD.",
-      alphanum: "Tato položka musí být alfanumerická."
-    },
-    notnull: "Tato položka nesmí být null.",
-    notblank: "Tato položka nesmí být prázdná.",
-    required: "Tato položka je povinná.",
-    regexp: "Tato položka je neplatná.",
-    min: "Tato položka musí být větší než %s.",
-    max: "Tato položka musí byt menší než %s.",
-    range: "Tato položka musí být v rozmezí %s a %s.",
-    minlength: "Tato položka je příliš krátká. Musí mít %s nebo více znaků.",
-    maxlength: "Tato položka je příliš dlouhá. Musí mít %s nebo méně znaků.",
-    rangelength: "Tato položka je mimo rozsah. Musí být rozmezí %s a %s znaků.",
-    equalto: "Tato položka by měla být stejná.",
-    minwords: "Tato položka musí obsahovat alespoň %s slov.",
-    maxwords: "Tato položka nesmí přesánout %s slov.",
-    rangewords: "Tato položka musí obsahovat %s až %s slov.",
-    greaterthan: "Tato položka musí být větší než %s.",
-    lessthan: "Tato položka musí být menší než %s."
-  };
-
-  this.checksley.updateMessages("cs", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Die Eingabe scheint nicht korrekt zu sein.",
-    type: {
-      email: "Die Eingabe muss eine gültige E-Mail-Adresse sein.",
-      url: "Die Eingabe muss eine gültige URL sein.",
-      urlstrict: "Die Eingabe muss eine gültige URL sein.",
-      number: "Die Eingabe muss eine Zahl sein.",
-      digits: "Die Eingabe darf nur Ziffern enthalten.",
-      dateIso: "Die Eingabe muss ein gültiges Datum im Format YYYY-MM-DD sein.",
-      alphanum: "Die Eingabe muss alphanumerisch sein.",
-      phone: "Die Eingabe muss eine gültige Telefonnummer sein."
-    },
-    notnull: "Die Eingabe darf nicht leer sein.",
-    notblank: "Die Eingabe darf nicht leer sein.",
-    required: "Dies ist ein Pflichtfeld.",
-    regexp: "Die Eingabe scheint ungültig zu sein.",
-    min: "Die Eingabe muss größer oder gleich %s sein.",
-    max: "Die Eingabe muss kleiner oder gleich %s sein.",
-    range: "Die Eingabe muss zwischen %s und %s liegen.",
-    minlength: "Die Eingabe ist zu kurz. Es müssen mindestens %s Zeichen eingegeben werden.",
-    maxlength: "Die Eingabe ist zu lang. Es dürfen höchstens %s Zeichen eingegeben werden.",
-    rangelength: "Die Länge der Eingabe ist ungültig. Es müssen zwischen %s und %s Zeichen eingegeben werden.",
-    equalto: "Dieses Feld muss dem anderen entsprechen.",
-    minwords: "Die Eingabe muss mindestens %s Wörter enthalten.",
-    maxwords: "Die Eingabe darf höchstens %s Wörter enthalten.",
-    rangewords: "Die Eingabe muss zwischen %s und %s Wörter enthalten.",
-    greaterthan: "Die Eingabe muss größer als %s sein.",
-    lessthan: "Die Eingabe muss kleiner als %s sein."
-  };
-
-  this.checksley.updateMessages("de", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Este valor parece ser inválido.",
-    type: {
-      email: "Este valor debe ser un correo válido.",
-      url: "Este valor debe ser una URL válida.",
-      urlstrict: "Este valor debe ser una URL válida.",
-      number: "Este valor debe ser un número válido.",
-      digits: "Este valor debe ser un dígito válido.",
-      dateIso: "Este valor debe ser una fecha válida (YYYY-MM-DD).",
-      alphanum: "Este valor debe ser alfanumérico."
-    },
-    notnull: "Este valor no debe ser nulo.",
-    notblank: "Este valor no debe estar en blanco.",
-    required: "Este valor es requerido.",
-    regexp: "Este valor es incorrecto.",
-    min: "Este valor no debe ser menor que %s.",
-    max: "Este valor no debe ser mayor que %s.",
-    range: "Este valor debe estar entre %s y %s.",
-    minlength: "Este valor es muy corto. La longitud mínima es de %s caracteres.",
-    maxlength: "Este valor es muy largo. La longitud máxima es de %s caracteres.",
-    rangelength: "La longitud de este valor debe estar entre %s y %s caracteres.",
-    equalto: "Este valor debe ser idéntico.",
-    minwords: "Este valor debe tener al menos %s palabras.",
-    maxwords: "Este valor no debe exceder las %s palabras.",
-    rangewords: "Este valor debe tener entre %s y %s palabras.",
-    greaterthan: "Este valor no debe ser mayor que %s.",
-    lessthan: "Este valor no debe ser menor que %s."
-  };
-
-  this.checksley.updateMessages("es", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Cette valeur semble non valide.",
-    type: {
-      email: "Cette valeur n'est pas une adresse email valide.",
-      url: "Cette valeur n'est pas une URL valide.",
-      urlstrict: "Cette valeur n'est pas une URL valide.",
-      number: "Cette valeur doit être un nombre.",
-      digits: "Cette valeur doit être numérique.",
-      dateIso: "Cette valeur n'est pas une date valide (YYYY-MM-DD).",
-      alphanum: "Cette valeur doit être alphanumérique."
-    },
-    notnull: "Cette valeur ne peut pas être nulle.",
-    notblank: "Cette valeur ne peut pas être vide.",
-    required: "Ce champ est requis.",
-    regexp: "Cette valeur semble non valide.",
-    min: "Cette valeur ne doit pas être inféreure à %s.",
-    max: "Cette valeur ne doit pas excéder %s.",
-    range: "Cette valeur doit être comprise entre %s et %s.",
-    minlength: "Cette chaîne est trop courte. Elle doit avoir au minimum %s caractères.",
-    maxlength: "Cette chaîne est trop longue. Elle doit avoir au maximum %s caractères.",
-    rangelength: "Cette valeur doit contenir entre %s et %s caractères.",
-    equalto: "Cette valeur devrait être identique.",
-    mincheck: "Vous devez sélectionner au moins %s choix.",
-    maxcheck: "Vous devez sélectionner %s choix maximum.",
-    rangecheck: "Vous devez sélectionner entre %s et %s choix.",
-    minwords: "Cette valeur doit contenir plus de %s mots.",
-    maxwords: "Cette valeur ne peut pas dépasser %s mots.",
-    rangewords: "Cette valeur doit comprendre %s à %s mots.",
-    greaterthan: "Cette valeur doit être plus grande que %s.",
-    lessthan: "Cette valeur doit être plus petite que %s."
-  };
-
-  this.checksley.updateMessages("fr", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Questo valore sembra essere non valido.",
-    type: {
-      email: "Questo valore deve essere un indirizzo email valido.",
-      url: "Questo valore deve essere un URL valido.",
-      urlstrict: "Questo valore deve essere un URL valido.",
-      number: "Questo valore deve essere un numero valido.",
-      digits: "Questo valore deve essere di tipo numerico.",
-      dateIso: "Questo valore deve essere una data valida (YYYY-MM-DD).",
-      alphanum: "Questo valore deve essere di tipo alfanumerico."
-    },
-    notnull: "Questo valore non deve essere nullo.",
-    notblank: "Questo valore non deve essere vuoto.",
-    required: "Questo valore è richiesto.",
-    regexp: "Questo valore non è corretto.",
-    min: "Questo valore deve essere maggiore di %s.",
-    max: "Questo valore deve essere minore di %s.",
-    range: "Questo valore deve essere compreso tra %s e %s.",
-    minlength: "Questo valore è troppo corto. La lunghezza minima è di %s caratteri.",
-    maxlength: "Questo valore è troppo lungo. La lunghezza massima è di %s caratteri.",
-    rangelength: "La lunghezza di questo valore deve essere compresa fra %s e %s caratteri.",
-    equalto: "Questo valore deve essere identico.",
-    minwords: "Questo valore deve contenere almeno %s parole.",
-    maxwords: "Questo valore non deve superare le %s parole.",
-    rangewords: "Questo valore deve contenere tra %s e %s parole.",
-    greaterthan: "Questo valore deve essere maggiore di %s.",
-    lessthan: "Questo valore deve essere minore di %s.",
-    beforedate: "Questa data deve essere anteriore al %s.",
-    afterdate: "Questa data deve essere posteriore al %s.",
-    luhn: "Questo valore deve superare il test di Luhn."
-  };
-
-  this.checksley.updateMessages("it", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Deze waarde lijkt onjuist.",
-    type: {
-      email: "Dit lijkt geen geldig e-mail adres te zijn.",
-      url: "Dit lijkt geen geldige URL te zijn.",
-      urlstrict: "Dit is geen geldige URL.",
-      number: "Deze waarde moet een nummer zijn.",
-      digits: "Deze waarde moet numeriek zijn.",
-      dateIso: "Deze waarde moet een datum in het volgende formaat zijn: (YYYY-MM-DD).",
-      alphanum: "Deze waarde moet alfanumeriek zijn.",
-      phone: "Deze waarde moet een geldig telefoonnummer zijn."
-    },
-    notnull: "Deze waarde mag niet leeg zijn.",
-    notblank: "Deze waarde mag niet leeg zijn.",
-    required: "Dit veld is verplicht",
-    regexp: "Deze waarde lijkt onjuist te zijn.",
-    min: "Deze waarde mag niet lager zijn dan %s.",
-    max: "Deze waarde mag niet groter zijn dan %s.",
-    range: "Deze waarde moet tussen %s en %s liggen.",
-    minlength: "Deze tekst is te kort. Deze moet uit minimaal %s karakters bestaan.",
-    maxlength: "Deze waarde is te lang. Deze mag maximaal %s karakters lang zijn.",
-    mincheck: "Je moet minstens %s opties selecteren.",
-    maxcheck: "Je moet %s of minder opties selecteren.",
-    rangecheck: "Je moet tussen de %s en %s opties selecteren.",
-    rangelength: "Deze waarde moet tussen %s en %s karakters lang zijn.",
-    equalto: "Deze waardes moeten identiek zijn.",
-    minwords: "Deze waarde moet minstens %s woorden bevatten.",
-    maxwords: "Deze waarde mag maximaal %s woorden bevatten.",
-    rangewords: "Deze waarde moet tussen de %s en %s woorden bevatten.",
-    greaterthan: "Deze waarde moet groter dan %s zijn.",
-    lessthan: "Deze waarde moet kleiner dan %s zijn.",
-    beforedate: "Deze datum moet voor %s liggne.",
-    afterdate: "Deze datum moet na %s liggen.",
-    americandate: "Dit moet een geldige datum zijn (MM/DD/YYYY)."
-  };
-
-  this.checksley.updateMessages("nl", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "Поле заполнено некорректно.",
-    type: {
-      email: "Поле должно быть адресом электронной почты.",
-      url: "Поле должно быть ссылкой на сайт.",
-      urlstrict: "Поле должно быть ссылкой на сайт.",
-      number: "Поле должно быть числом.",
-      digits: "Поле должно содержать только цифры.",
-      dateIso: "Поле должно быть датой в формате (ГГГГ-ММ-ДД).",
-      alphanum: "Поле должно содержать только цифры и буквы",
-      phone: "Поле должно содержать корректный номер телефона"
-    },
-    notnull: "Поле должно быть не нулевым.",
-    notblank: "Поле не должно быть пустым.",
-    required: "Поле обязательно для заполнения.",
-    regexp: "Поле заполнено некорректно.",
-    min: "Значение поля должно быть больше %s.",
-    max: "Значение поля должно быть меньше %s.",
-    range: "Значение поля должно быть между %s и %s.",
-    minlength: "В поле должно быть минимум %s символов(а).",
-    maxlength: "В поле должно быть не больше %s символов(а).",
-    rangelength: "В поле должно быть от %s до %s символов(а).",
-    mincheck: "Необходимо выбрать не менее %s пунктов(а).",
-    maxcheck: "Необходимо выбрать не более %s пунктов(а).",
-    rangecheck: "Необходимо выбрать от %s до %s пунктов.",
-    equalto: "Значения полей должны быть одинаковыми.",
-    minwords: "В поле должно быть не менее %s слов.",
-    maxwords: "В поле должно быть не более %s слов.",
-    rangewords: "Количество слов в поле должно быть в диапазоне от %s до %s.",
-    greaterthan: "Значение в поле должно быть более %s.",
-    lessthan: "Значение в поле должно быть менее %s.",
-    beforedate: "Дата должна быть до %s.",
-    afterdate: "Дата должна быть после %s.",
-    americandate: "В поле должна быть корректная дата в формате MM/DD/YYYY."
-  };
-
-  this.checksley.updateMessages("ru", messages);
-
-}).call(this);
-
-(function() {
-  var messages;
-
-  messages = {
-    defaultMessage: "不正确的值",
-    type: {
-      email: "字段值应该是一个正确的电子邮件地址",
-      url: "字段值应该是一个正确的URL地址",
-      urlstrict: "字段值应该是一个正确的URL地址",
-      number: "字段值应该是一个合法的数字",
-      digits: "字段值应该是一个单独的数字",
-      dateIso: "字段值应该是一个正确的日期描述(YYYY-MM-DD).",
-      alphanum: "字段值应该是只包含字母和数字"
-    },
-    notnull: "字段值不可为null",
-    notblank: "字段值不可为空",
-    required: "字段值是必填的",
-    regexp: "字段值不合法",
-    min: "字段值应该大于 %s",
-    max: "字段值应该小于 %s.",
-    range: "字段值应该大于 %s 并小于 %s.",
-    minlength: "字段值太短了，长度应该大于等于 %s 个字符",
-    maxlength: "字段值太长了，长度应该小于等于 %s 个字符",
-    rangelength: "字段值长度错了，长度应该在 %s 和 %s 个字符之间",
-    mincheck: "你至少要选择 %s 个选项",
-    maxcheck: "你最多只能选择 %s 个选项",
-    rangecheck: "你只能选择 %s 到 %s 个选项",
-    equalto: "字段值应该和给定的值一样",
-    minwords: "字段值应该至少有 %s 个词",
-    maxwords: "字段值最多只能有 %s 个词",
-    rangewords: "字段值应该有 %s 到 %s 个词",
-    greaterthan: "字段值应该大于 %s",
-    lessthan: "字段值应该小于 %s",
-    beforedate: "字段值所表示的日期应该早于 %s.",
-    afterdate: "字段值所表示的日期应该晚于 %s."
-  };
-
-  this.checksley.updateMessages("zh-cn", messages);
 
 }).call(this);
 
