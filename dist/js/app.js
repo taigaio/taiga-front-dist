@@ -3012,6 +3012,173 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
+ * File: modules/resources.coffee
+ */
+
+(function() {
+  var ResourcesService, initResources, initUrls, module, taiga, urls,
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  taiga = this.taiga;
+
+  ResourcesService = (function(superClass) {
+    extend(ResourcesService, superClass);
+
+    function ResourcesService() {
+      return ResourcesService.__super__.constructor.apply(this, arguments);
+    }
+
+    return ResourcesService;
+
+  })(taiga.Service);
+
+  urls = {
+    "auth": "/auth",
+    "auth-register": "/auth/register",
+    "invitations": "/invitations",
+    "users": "/users",
+    "by_username": "/users/by_username",
+    "users-password-recovery": "/users/password_recovery",
+    "users-change-password-from-recovery": "/users/change_password_from_recovery",
+    "users-change-password": "/users/change_password",
+    "users-change-email": "/users/change_email",
+    "users-cancel-account": "/users/cancel",
+    "user-stats": "/users/%s/stats",
+    "user-liked": "/users/%s/liked",
+    "user-voted": "/users/%s/voted",
+    "user-watched": "/users/%s/watched",
+    "user-contacts": "/users/%s/contacts",
+    "permissions": "/permissions",
+    "notify-policies": "/notify-policies",
+    "user-storage": "/user-storage",
+    "memberships": "/memberships",
+    "bulk-create-memberships": "/memberships/bulk_create",
+    "roles": "/roles",
+    "permissions": "/permissions",
+    "resolver": "/resolver",
+    "projects": "/projects",
+    "project-templates": "/project-templates",
+    "project-modules": "/projects/%s/modules",
+    "bulk-update-projects-order": "/projects/bulk_update_order",
+    "project-like": "/projects/%s/like",
+    "project-unlike": "/projects/%s/unlike",
+    "project-watch": "/projects/%s/watch",
+    "project-unwatch": "/projects/%s/unwatch",
+    "userstory-statuses": "/userstory-statuses",
+    "points": "/points",
+    "task-statuses": "/task-statuses",
+    "issue-statuses": "/issue-statuses",
+    "issue-types": "/issue-types",
+    "priorities": "/priorities",
+    "severities": "/severities",
+    "milestones": "/milestones",
+    "userstories": "/userstories",
+    "bulk-create-us": "/userstories/bulk_create",
+    "bulk-update-us-backlog-order": "/userstories/bulk_update_backlog_order",
+    "bulk-update-us-sprint-order": "/userstories/bulk_update_sprint_order",
+    "bulk-update-us-kanban-order": "/userstories/bulk_update_kanban_order",
+    "userstories-filters": "/userstories/filters_data",
+    "userstory-upvote": "/userstories/%s/upvote",
+    "userstory-downvote": "/userstories/%s/downvote",
+    "userstory-watch": "/userstories/%s/watch",
+    "userstory-unwatch": "/userstories/%s/unwatch",
+    "tasks": "/tasks",
+    "bulk-create-tasks": "/tasks/bulk_create",
+    "bulk-update-task-taskboard-order": "/tasks/bulk_update_taskboard_order",
+    "task-upvote": "/tasks/%s/upvote",
+    "task-downvote": "/tasks/%s/downvote",
+    "task-watch": "/tasks/%s/watch",
+    "task-unwatch": "/tasks/%s/unwatch",
+    "issues": "/issues",
+    "bulk-create-issues": "/issues/bulk_create",
+    "issues-filters": "/issues/filters_data",
+    "issue-upvote": "/issues/%s/upvote",
+    "issue-downvote": "/issues/%s/downvote",
+    "issue-watch": "/issues/%s/watch",
+    "issue-unwatch": "/issues/%s/unwatch",
+    "wiki": "/wiki",
+    "wiki-restore": "/wiki/%s/restore",
+    "wiki-links": "/wiki-links",
+    "history/us": "/history/userstory",
+    "history/issue": "/history/issue",
+    "history/task": "/history/task",
+    "history/wiki": "/history/wiki",
+    "attachments/us": "/userstories/attachments",
+    "attachments/issue": "/issues/attachments",
+    "attachments/task": "/tasks/attachments",
+    "attachments/wiki_page": "/wiki/attachments",
+    "custom-attributes/userstory": "/userstory-custom-attributes",
+    "custom-attributes/issue": "/issue-custom-attributes",
+    "custom-attributes/task": "/task-custom-attributes",
+    "custom-attributes-values/userstory": "/userstories/custom-attributes-values",
+    "custom-attributes-values/issue": "/issues/custom-attributes-values",
+    "custom-attributes-values/task": "/tasks/custom-attributes-values",
+    "webhooks": "/webhooks",
+    "webhooks-test": "/webhooks/%s/test",
+    "webhooklogs": "/webhooklogs",
+    "webhooklogs-resend": "/webhooklogs/%s/resend",
+    "userstories-csv": "/userstories/csv?uuid=%s",
+    "tasks-csv": "/tasks/csv?uuid=%s",
+    "issues-csv": "/issues/csv?uuid=%s",
+    "timeline-profile": "/timeline/profile",
+    "timeline-user": "/timeline/user",
+    "timeline-project": "/timeline/project",
+    "search": "/search",
+    "exporter": "/exporter",
+    "importer": "/importer/load_dump",
+    "feedback": "/feedback",
+    "locales": "/locales",
+    "applications": "/applications",
+    "application-tokens": "/application-tokens"
+  };
+
+  initUrls = function($log, $urls) {
+    $log.debug("Initialize api urls");
+    return $urls.update(urls);
+  };
+
+  initResources = function($log, $rs) {
+    var i, len, provider, providers, results;
+    $log.debug("Initialize resources");
+    providers = _.toArray(arguments).slice(2);
+    results = [];
+    for (i = 0, len = providers.length; i < len; i++) {
+      provider = providers[i];
+      results.push(provider($rs));
+    }
+    return results;
+  };
+
+  module = angular.module("taigaResources", ["taigaBase"]);
+
+  module.service("$tgResources", ResourcesService);
+
+  module.run(["$log", "$tgUrls", initUrls]);
+
+  module.run(["$log", "$tgResources", "$tgProjectsResourcesProvider", "$tgCustomAttributesResourcesProvider", "$tgCustomAttributesValuesResourcesProvider", "$tgMembershipsResourcesProvider", "$tgNotifyPoliciesResourcesProvider", "$tgInvitationsResourcesProvider", "$tgRolesResourcesProvider", "$tgUserSettingsResourcesProvider", "$tgSprintsResourcesProvider", "$tgUserstoriesResourcesProvider", "$tgTasksResourcesProvider", "$tgIssuesResourcesProvider", "$tgWikiResourcesProvider", "$tgSearchResourcesProvider", "$tgAttachmentsResourcesProvider", "$tgMdRenderResourcesProvider", "$tgHistoryResourcesProvider", "$tgKanbanResourcesProvider", "$tgModulesResourcesProvider", "$tgWebhooksResourcesProvider", "$tgWebhookLogsResourcesProvider", "$tgLocalesResourcesProvider", "$tgUsersResourcesProvider", initResources]);
+
+}).call(this);
+
+
+/*
+ * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
+ * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
+ * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
  * File: modules/search.coffee
  */
 
@@ -21699,70 +21866,6 @@
   module = angular.module("taigaResources");
 
   module.factory("$tgCustomAttributesValuesResourcesProvider", ["$tgRepo", resourceProvider]);
-
-}).call(this);
-
-
-/*
- * Copyright (C) 2014-2015 Andrey Antukh <niwi@niwi.be>
- * Copyright (C) 2014-2015 Jesús Espino Garcia <jespinog@gmail.com>
- * Copyright (C) 2014-2015 David Barragán Merino <bameda@dbarragan.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * File: modules/resources/projects.coffee
- */
-
-(function() {
-  var module, resourceProvider, sizeFormat, taiga;
-
-  taiga = this.taiga;
-
-  sizeFormat = this.taiga.sizeFormat;
-
-  resourceProvider = function($repo) {
-    var _list, service;
-    _list = function(projectId, resource) {
-      return $repo.queryMany(resource, {
-        project: projectId
-      });
-    };
-    service = {
-      userstory: {
-        list: function(projectId) {
-          return _list(projectId, "custom-attributes/userstory");
-        }
-      },
-      task: {
-        list: function(projectId) {
-          return _list(projectId, "custom-attributes/task");
-        }
-      },
-      issue: {
-        list: function(projectId) {
-          return _list(projectId, "custom-attributes/issue");
-        }
-      }
-    };
-    return function(instance) {
-      return instance.customAttributes = service;
-    };
-  };
-
-  module = angular.module("taigaResources");
-
-  module.factory("$tgCustomAttributesResourcesProvider", ["$tgRepo", resourceProvider]);
 
 }).call(this);
 
