@@ -579,6 +579,7 @@
             "CANCEL_TITLE": "Anuluj tworzenie",
             "SET_FIELD_NAME": "podaj nazwę pola",
             "SET_FIELD_DESCRIPTION": "podaj opis pola",
+            "FIELD_TYPE_DEFAULT": "-- select one --",
             "ACTION_UPDATE": "Aktualizuj pole",
             "ACTION_CANCEL_EDITION": "Anuluj edycję"
         },
@@ -1356,7 +1357,7 @@
         "DASHBOARD": {
             "STEP1": {
                 "TITLE": "Twój projekt",
-                "TEXT": "Welcome! Here you will find the projects you are involved on. We have left you sample project templates to help you discover the power of Taiga."
+                "TEXT": "Welcome! Here you will find the projects you are involved on."
             },
             "STEP2": {
                 "TITLE": "Pracujesz nad",

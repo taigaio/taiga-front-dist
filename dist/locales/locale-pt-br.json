@@ -579,6 +579,7 @@
             "CANCEL_TITLE": "Cancelar criação",
             "SET_FIELD_NAME": "Definir nome do  seu campo personalizados",
             "SET_FIELD_DESCRIPTION": "Definir a descrição do seu campo personalizado",
+            "FIELD_TYPE_DEFAULT": "-- select one --",
             "ACTION_UPDATE": "Atualizar campo personalizado",
             "ACTION_CANCEL_EDITION": "Cancelar edição"
         },
@@ -1356,7 +1357,7 @@
         "DASHBOARD": {
             "STEP1": {
                 "TITLE": "Seu projeto",
-                "TEXT": "Bem-Vindo! Aqui você encontrará os projetos que você está envolvido. Temos para você, modelos de projetos para ajudar você a descobrir a potência do Taiga. "
+                "TEXT": "Welcome! Here you will find the projects you are involved on."
             },
             "STEP2": {
                 "TITLE": "Trabalhando em",

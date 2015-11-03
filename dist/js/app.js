@@ -29426,13 +29426,13 @@
         translate_params: ['username', 'field_name', 'obj_name', 'new_value']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && !timeline.getIn('data', 'task', 'userstory') && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
+          return event.obj === 'task' && event.type === 'change' && !timeline.getIn(['data', 'task', 'userstory']) && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
         },
         key: 'TIMELINE.TASK_UPDATED',
         translate_params: ['username', 'field_name', 'obj_name']
       }, {
         check: function(timeline, event) {
-          return event.obj === 'task' && event.type === 'change' && timeline.getIn('data', 'task', 'userstory') && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
+          return event.obj === 'task' && event.type === 'change' && timeline.getIn(['data', 'task', 'userstory']) && timeline.hasIn(['data', 'value_diff']) && timeline.getIn(['data', 'value_diff', 'key']) === 'description_diff';
         },
         key: 'TIMELINE.TASK_UPDATED_WITH_US',
         translate_params: ['username', 'field_name', 'obj_name', 'us_name']
