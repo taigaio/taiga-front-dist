@@ -579,6 +579,7 @@
             "CANCEL_TITLE": "Peru luonti",
             "SET_FIELD_NAME": "Anna oman kentän nimi",
             "SET_FIELD_DESCRIPTION": "Anna oman kenttäsi kuvaus",
+            "FIELD_TYPE_DEFAULT": "-- select one --",
             "ACTION_UPDATE": "Päivitä oma kenttä",
             "ACTION_CANCEL_EDITION": "Peru versio"
         },
@@ -1356,7 +1357,7 @@
         "DASHBOARD": {
             "STEP1": {
                 "TITLE": "Projektisi",
-                "TEXT": "Welcome! Here you will find the projects you are involved on. We have left you sample project templates to help you discover the power of Taiga."
+                "TEXT": "Welcome! Here you will find the projects you are involved on."
             },
             "STEP2": {
                 "TITLE": "Working on",
