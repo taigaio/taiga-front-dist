@@ -5273,9 +5273,9 @@
       }
       defered = this.q.defer();
       el = angular.element(lightboxSelector);
-      el.find("h2.title").html(title);
-      el.find("span.subtitle").html(subtitle);
-      el.find("span.message").html(message);
+      el.find("h2.title").text(title);
+      el.find("span.subtitle").text(subtitle);
+      el.find("span.message").text(message);
       el.on("click.confirm-dialog", "a.button-green", debounce(2000, (function(_this) {
         return function(event) {
           var currentLoading, target;
@@ -6214,7 +6214,8 @@
 
   IGNORED_FIELDS = {
     "userstories.userstory": ["watchers", "kanban_order", "backlog_order", "sprint_order", "finish_date"],
-    "tasks.task": ["watchers", "us_order", "taskboard_order"]
+    "tasks.task": ["watchers", "us_order", "taskboard_order"],
+    "issues.issue": ["watchers"]
   };
 
   HistoryController = (function(superClass) {
@@ -6236,7 +6237,7 @@
     HistoryController.prototype.loadHistory = function(type, objectId) {
       return this.rs.history.get(type, objectId).then((function(_this) {
         return function(history) {
-          var historyResult, i, len;
+          var changeModel, historyEntry, historyResult, i, j, len, len1;
           for (i = 0, len = history.length; i < len; i++) {
             historyResult = history[i];
             if (historyResult.values_diff.description_diff != null) {
@@ -6250,7 +6251,16 @@
             delete historyResult.values_diff.blocked_note_html;
             delete historyResult.values_diff.blocked_note_diff;
           }
-          _this.scope.history = history;
+          for (j = 0, len1 = history.length; j < len1; j++) {
+            historyEntry = history[j];
+            changeModel = historyEntry.key.split(":")[0];
+            if (IGNORED_FIELDS[changeModel] != null) {
+              historyEntry.values_diff = _.removeKeys(historyEntry.values_diff, IGNORED_FIELDS[changeModel]);
+            }
+          }
+          _this.scope.history = _.filter(history, function(item) {
+            return Object.keys(item.values_diff).length > 0;
+          });
           return _this.scope.comments = _.filter(history, function(item) {
             return item.comment !== "";
           });
@@ -6493,11 +6503,6 @@
         }
       };
       renderChangeEntries = function(change) {
-        var changeModel;
-        changeModel = change.key.split(":")[0];
-        if (IGNORED_FIELDS[changeModel] != null) {
-          change.values_diff = _.removeKeys(change.values_diff, IGNORED_FIELDS[changeModel]);
-        }
         return _.map(change.values_diff, function(value, field) {
           return renderChangeEntry(field, value);
         });
@@ -6936,31 +6941,31 @@
 
     LightboxKeyboardNavigationService.prototype.dispatch = function($el, code) {
       var activeElement, next, prev;
-      activeElement = $el.find(".active");
+      activeElement = $el.find(".selected");
       if (code === 13) {
-        if ($el.find(".watcher-single").length === 1) {
-          return $el.find('.watcher-single:first').trigger("click");
+        if ($el.find(".user-list-single").length === 1) {
+          return $el.find('.user-list-single:first').trigger("click");
         } else {
           return activeElement.trigger("click");
         }
       } else if (code === 40) {
         if (!activeElement.length) {
-          return $el.find('.watcher-single:first').addClass('active');
+          return $el.find('.user-list-single:not(".is-active"):first').addClass('selected');
         } else {
-          next = activeElement.next('.watcher-single');
+          next = activeElement.next('.user-list-single');
           if (next.length) {
-            activeElement.removeClass('active');
-            return next.addClass('active');
+            activeElement.removeClass('selected');
+            return next.addClass('selected');
           }
         }
       } else if (code === 38) {
         if (!activeElement.length) {
-          return $el.find('.watcher-single:last').addClass('active');
+          return $el.find('.user-list-single:last').addClass('selected');
         } else {
-          prev = activeElement.prev('.watcher-single');
+          prev = activeElement.prev('.user-list-single:not(".is-active")');
           if (prev.length) {
-            activeElement.removeClass('active');
-            return prev.addClass('active');
+            activeElement.removeClass('selected');
+            return prev.addClass('selected');
           }
         }
       }
@@ -17250,8 +17255,8 @@
 
   MembershipsRowActionsDirective = function($log, $repo, $rs, $confirm, $compile, $translate) {
     var activedTemplate, link, pendingTemplate;
-    activedTemplate = "<div class=\"active\", translate=\"ADMIN.MEMBERSHIP.STATUS_ACTIVE\">\n</div>\n<a class=\"delete\" href=\"\">\n    <span class=\"icon icon-delete\"></span>\n</a>";
-    pendingTemplate = "<a class=\"resend\" href=\"\">\n    {{'ADMIN.MEMBERSHIP.RESEND' | translate}}\n</a>\n<a class=\"delete\" href=\"\">\n    <span class=\"icon icon-delete\"></span>\n</a>";
+    activedTemplate = "<div class=\"active\"\n     translate=\"ADMIN.MEMBERSHIP.STATUS_ACTIVE\">\n</div>\n<a class=\"delete\" href=\"\"\n   title=\"{{ 'ADMIN.MEMBERSHIP.DELETE_MEMBER' | translate }}\">\n    <span class=\"icon icon-delete\"></span>\n</a>";
+    pendingTemplate = "<a class=\"resend js-resend\" href=\"\"\n   title=\"{{ 'ADMIN.MEMBERSHIP.RESEND' | translate }}\"\n   translate=\"ADMIN.MEMBERSHIP.RESEND\">\n</a>\n<a class=\"delete\" href=\"\"\n   title=\"{{ 'ADMIN.MEMBERSHIP.DELETE_MEMBER' | translate }}\">\n    <span class=\"icon icon-delete\"></span>\n</a>";
     link = function($scope, $el, $attrs) {
       var $ctrl, member, render;
       render = function(member) {
@@ -17269,7 +17274,7 @@
       $ctrl = $el.controller();
       member = $scope.$eval($attrs.tgMembershipsRowActions);
       render(member);
-      $el.on("click", ".pending", function(event) {
+      $el.on("click", ".js-resend", function(event) {
         var onError, onSuccess;
         event.preventDefault();
         onSuccess = function() {
@@ -27000,6 +27005,9 @@
     LikeProjectButtonService.prototype._updateProjects = function(projectId, isFan) {
       var projectIndex, projects;
       projectIndex = this._getProjectIndex(projectId);
+      if (projectIndex === -1) {
+        return;
+      }
       projects = this.currentUserService.projects.get('all').update(projectIndex, function(project) {
         var totalFans;
         totalFans = project.get("total_fans");
@@ -27169,6 +27177,9 @@
     };
 
     WatchProjectButtonController.prototype.watch = function(notifyLevel) {
+      if (notifyLevel === this.project.get('notify_level')) {
+        return;
+      }
       this.loading = true;
       this.closeWatcherOptions();
       return this.watchButtonService.watch(this.project.get('id'), notifyLevel)["catch"]((function(_this) {
@@ -27290,13 +27301,16 @@
     WatchProjectButtonService.prototype._updateProjects = function(projectId, notifyLevel, isWatcher) {
       var projectIndex, projects;
       projectIndex = this._getProjectIndex(projectId);
+      if (projectIndex === -1) {
+        return;
+      }
       projects = this.currentUserService.projects.get('all').update(projectIndex, (function(_this) {
         return function(project) {
           var totalWatchers;
           totalWatchers = project.get('total_watchers');
-          if (isWatcher) {
+          if (!_this.projectService.project.get('is_watcher') && isWatcher) {
             totalWatchers++;
-          } else {
+          } else if (_this.projectService.project.get('is_watcher') && !isWatcher) {
             totalWatchers--;
           }
           return project.merge({
@@ -27312,15 +27326,15 @@
     WatchProjectButtonService.prototype._updateCurrentProject = function(notifyLevel, isWatcher) {
       var project, totalWatchers;
       totalWatchers = this.projectService.project.get("total_watchers");
-      if (isWatcher) {
+      if (!this.projectService.project.get('is_watcher') && isWatcher) {
         totalWatchers++;
-      } else {
+      } else if (this.projectService.project.get('is_watcher') && !isWatcher) {
         totalWatchers--;
       }
       project = this.projectService.project.merge({
         is_watcher: isWatcher,
-        total_watchers: totalWatchers,
-        notify_level: notifyLevel
+        notify_level: notifyLevel,
+        total_watchers: totalWatchers
       });
       return this.projectService.setProject(project);
     };
@@ -27772,10 +27786,10 @@
       url = urlsService.resolve("project-unlike", projectId);
       return http.post(url);
     };
-    service.watchProject = function(projectId, notifyPolicy) {
+    service.watchProject = function(projectId, notifyLevel) {
       var data, url;
       data = {
-        notify_policy: notifyPolicy
+        notify_level: notifyLevel
       };
       url = urlsService.resolve("project-watch", projectId);
       return http.post(url, data);
@@ -29117,16 +29131,17 @@
         return this._getLink(url, timeline.getIn(["data", "project", "name"]));
       },
       new_value: function(timeline, event) {
-        var value;
+        var new_value, value;
         if (_.isArray(timeline.getIn(["data", "value_diff", "value"]).toJS())) {
           value = timeline.getIn(["data", "value_diff", "value"]).get(1);
           if (value === null && timeline.getIn(["data", "value_diff", "key"]) === 'assigned_to') {
             value = this.translate.instant('ACTIVITY.VALUES.UNASSIGNED');
           }
-          return value;
+          new_value = value;
         } else {
-          return timeline.getIn(["data", "value_diff", "value"]).first().get(1);
+          new_value = timeline.getIn(["data", "value_diff", "value"]).first().get(1);
         }
+        return _.escape(new_value);
       },
       sprint_name: function(timeline, event) {
         var url;
@@ -29157,7 +29172,7 @@
         return this._getLink(url, text);
       },
       role_name: function(timeline, event) {
-        return timeline.getIn(['data', 'value_diff', 'value']).keySeq().first();
+        return _.escape(timeline.getIn(['data', 'value_diff', 'value']).keySeq().first());
       }
     };
 
@@ -29748,6 +29763,13 @@
             }
           }
           return false;
+        }
+      }, {
+        check: function(timeline) {
+          var event, value_diff;
+          event = timeline.get('event_type').split(".");
+          value_diff = timeline.get("data").get("value_diff");
+          return event[2] === 'change' && value_diff === void 0;
         }
       }, {
         check: function(timeline) {
