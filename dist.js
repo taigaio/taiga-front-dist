@@ -28,32 +28,40 @@ var synchRepoAction = (function cloneOrPull(){
 
 exec(synchRepoAction)
     .then(function() {
+        console.log("remove old tmp dist")
         //remove old tmp dist
         return delAsync(local + '/dist');
     })
     .then(function() {
+        console.log("compile taiga")
         //compile taiga
         return exec('cd ' + local + ' && npm install && bower install && gulp deploy');
     })
     .then(function() {
+        console.log("remove old dist")
         //remove old dist
         return delAsync('dist');
     })
     .then(function() {
+        console.log("copy new dist")
         //copy new dist
-        return ncp(local + '/dist/', 'dist');
+        //return ncp(local + '/dist/', 'dist');
+        return exec('cp -r ' + local + '/dist/ dist');
     })
     .then(function() {
+        console.log("get last commit id")
         //get last commit id
         return exec('cd ' + local + ' && git rev-parse HEAD');
     })
     .then(function(lastCommitId) {
+        console.log("commit")
         //commit
         lastCommitId = lastCommitId[0].trim();
 
         return exec('git add -A && git commit -am "' + lastCommitId + '"');
     })
     .then(function() {
+        console.log("push")
         //push
         return exec('git push origin ' + branch);
     })
