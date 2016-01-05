@@ -327,7 +327,7 @@
       var httpResponseError;
       httpResponseError = function(response) {
         var nextUrl;
-        if (response.status === 0 || response.status === -1) {
+        if (response.status === 0 || (response.status === -1 && !response.config.cancelable)) {
           $lightboxService.closeAll();
           $location.path($navUrls.resolve("error"));
           $location.replace();
@@ -407,7 +407,7 @@
     $translateProvider.useStaticFilesLoader({
       prefix: "/locales/locale-",
       suffix: ".json"
-    }).addInterpolation('$translateMessageFormatInterpolation').preferredLanguage(preferedLangCode);
+    }).useSanitizeValueStrategy('escapeParameters').addInterpolation('$translateMessageFormatInterpolation').preferredLanguage(preferedLangCode);
     $translateProvider.fallbackLanguage(preferedLangCode);
     decorators = _.where(this.taigaContribPlugins, {
       "type": "decorator"
@@ -520,11 +520,9 @@
     return plugin.module;
   });
 
-  pluginsWithModule = _.filter(this.taigaContribPlugins, function(plugin) {
-    return plugin.module;
-  });
+  angular.module('infinite-scroll').value('THROTTLE_MILLISECONDS', 500);
 
-  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaResources2", "taigaAuth", "taigaEvents", "taigaHome", "taigaNavigationBar", "taigaProjects", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "taigaProfile", "taigaHome", "taigaUserTimeline", "taigaExternalApps", "templates", "ngRoute", "ngAnimate", "ngAria", "pascalprecht.translate", "infinite-scroll", "tgRepeat"].concat(_.map(pluginsWithModule, function(plugin) {
+  modules = ["taigaBase", "taigaCommon", "taigaResources", "taigaResources2", "taigaAuth", "taigaEvents", "taigaHome", "taigaNavigationBar", "taigaProjects", "taigaRelatedTasks", "taigaBacklog", "taigaTaskboard", "taigaKanban", "taigaIssues", "taigaUserStories", "taigaTasks", "taigaTeam", "taigaWiki", "taigaSearch", "taigaAdmin", "taigaProject", "taigaUserSettings", "taigaFeedback", "taigaPlugins", "taigaIntegrations", "taigaComponents", "taigaProfile", "taigaHome", "taigaUserTimeline", "taigaExternalApps", "templates", "ngSanitize", "ngRoute", "ngAnimate", "ngAria", "pascalprecht.translate", "infinite-scroll", "tgRepeat"].concat(_.map(pluginsWithModule, function(plugin) {
     return plugin.module;
   }));
 
@@ -3296,10 +3294,8 @@
       this.scope.loading = true;
       return this._loadSearchData(term).then((function(_this) {
         return function(data) {
-          if (data) {
-            _this.scope.searchResults = data;
-            return _this.scope.loading = false;
-          }
+          _this.scope.searchResults = data;
+          return _this.scope.loading = false;
         };
       })(this));
     };
@@ -3308,16 +3304,11 @@
       if (term == null) {
         term = "";
       }
-      if (this.deferredAbort) {
-        this.deferredAbort.resolve();
+      if (this._promise) {
+        this._promise.abort();
       }
-      this.deferredAbort = this.q.defer();
-      this.rs.search["do"](this.scope.projectId, term).then((function(_this) {
-        return function(data) {
-          return _this.deferredAbort.resolve(data);
-        };
-      })(this));
-      return this.deferredAbort.promise;
+      this._promise = this.rs.search["do"](this.scope.projectId, term);
+      return this._promise;
     };
 
     SearchController.prototype.loadInitialData = function() {
@@ -4458,29 +4449,19 @@
   module.directive("tgSprintProgressbar", SprintProgressBarDirective);
 
   CreatedByDisplayDirective = function($template, $compile, $translate, $navUrls) {
-    var link, template;
-    template = $template.get("common/components/created-by.html", true);
+    var link;
     link = function($scope, $el, $attrs) {
-      var render;
-      render = function(model) {
-        var html, owner;
-        owner = model.owner_extra_info || {
-          full_name_display: $translate.instant("COMMON.EXTERNAL_USER"),
-          photo: "/images/user-noimage.png"
-        };
-        html = template({
-          owner: owner,
-          url: (owner != null ? owner.is_active : void 0) ? $navUrls.resolve("user-profile", {
-            username: owner.username
-          }) : "",
-          date: moment(model.created_date).format($translate.instant("COMMON.DATETIME"))
-        });
-        html = $compile(html)($scope);
-        return $el.html(html);
-      };
       bindOnce($scope, $attrs.ngModel, function(model) {
+        var ref;
         if (model != null) {
-          return render(model);
+          $scope.owner = model.owner_extra_info || {
+            full_name_display: $translate.instant("COMMON.EXTERNAL_USER"),
+            photo: "/images/user-noimage.png"
+          };
+          $scope.url = ((ref = $scope.owner) != null ? ref.is_active : void 0) ? $navUrls.resolve("user-profile", {
+            username: $scope.owner.username
+          }) : "";
+          return $scope.date = moment(model.created_date).format($translate.instant("COMMON.DATETIME"));
         }
       });
       return $scope.$on("$destroy", function() {
@@ -4490,7 +4471,9 @@
     return {
       link: link,
       restrict: "EA",
-      require: "ngModel"
+      require: "ngModel",
+      scope: true,
+      templateUrl: "common/components/created-by.html"
     };
   };
 
@@ -6213,7 +6196,7 @@
   module = angular.module("taigaCommon");
 
   IGNORED_FIELDS = {
-    "userstories.userstory": ["watchers", "kanban_order", "backlog_order", "sprint_order", "finish_date"],
+    "userstories.userstory": ["watchers", "kanban_order", "backlog_order", "sprint_order", "finish_date", "tribe_gig"],
     "tasks.task": ["watchers", "us_order", "taskboard_order"],
     "issues.issue": ["watchers"]
   };
@@ -6865,10 +6848,12 @@
         return $el.css('display', 'flex');
       });
       this.animationFrame.add(function() {
-        return $el.addClass("open");
-      });
-      this.animationFrame.add(function() {
-        return $el.find('input,textarea').first().focus();
+        $el.addClass("open");
+        return $el.one("transitionend", (function(_this) {
+          return function() {
+            return $el.find('input,textarea').first().focus();
+          };
+        })(this));
       });
       this.animationFrame.add((function(_this) {
         return function() {
@@ -8609,7 +8594,7 @@
     var link, previewTemplate;
     previewTemplate = $template.get("common/wysiwyg/wysiwyg-markitup-preview.html", true);
     link = function($scope, $el, $attrs, $model) {
-      var addLine, closePreviewMode, element, markdownTitle, prepareUrlFormatting, preview, previewDomNode, renderMarkItUp, setCaretPosition, unbind, urlFormatting;
+      var addLine, cancelablePromise, closePreviewMode, element, markdownTitle, prepareUrlFormatting, preview, previewDomNode, renderMarkItUp, setCaretPosition, unbind, urlFormatting;
       element = angular.element($el);
       previewDomNode = $("<div/>", {
         "class": "preview"
@@ -8621,6 +8606,7 @@
       $scope.$on("markdown-editor:submit", function() {
         return closePreviewMode();
       });
+      cancelablePromise = null;
       preview = function() {
         var markItUpDomNode, markdownDomNode;
         markdownDomNode = element.parents(".markdown");
@@ -8931,7 +8917,11 @@
                   return false;
                 };
               })(this);
-              $rs.search["do"]($scope.projectId, term).then((function(_this) {
+              if (cancelablePromise) {
+                cancelablePromise.abort();
+              }
+              cancelablePromise = $rs.search["do"]($scope.projectId, term);
+              cancelablePromise.then((function(_this) {
                 return function(res) {
                   var j, len, results, type;
                   if (res.count < 1 || res.count === res.wikipages.length) {
@@ -9722,26 +9712,54 @@
       })(this));
     };
 
-    BacklogController.prototype.resetFilters = function() {
+    BacklogController.prototype.restoreFilters = function() {
       var selectedStatuses, selectedTags;
-      selectedTags = _.filter(this.scope.filters.tags, "selected");
-      selectedStatuses = _.filter(this.scope.filters.status, "selected");
-      this.scope.filtersQ = "";
+      selectedTags = this.scope.oldSelectedTags;
+      selectedStatuses = this.scope.oldSelectedStatuses;
+      if (!selectedStatuses && !selectedStatuses) {
+        return;
+      }
+      this.scope.filtersQ = this.scope.filtersQOld;
+      this.replaceFilter("q", this.scope.filtersQ);
       _.each([selectedTags, selectedStatuses], (function(_this) {
         return function(filterGrp) {
           return _.each(filterGrp, function(item) {
             var filter, filters;
             filters = _this.scope.filters[item.type];
             filter = _.find(filters, {
-              id: taiga.toString(item.id)
+              id: item.id
+            });
+            filter.selected = true;
+            return _this.selectFilter(item.type, item.id);
+          });
+        };
+      })(this));
+      return this.loadUserstories();
+    };
+
+    BacklogController.prototype.resetFilters = function() {
+      var selectedStatuses, selectedTags;
+      selectedTags = _.filter(this.scope.filters.tags, "selected");
+      selectedStatuses = _.filter(this.scope.filters.status, "selected");
+      this.scope.oldSelectedTags = selectedTags;
+      this.scope.oldSelectedStatuses = selectedStatuses;
+      this.scope.filtersQOld = this.scope.filtersQ;
+      this.scope.filtersQ = "";
+      this.replaceFilter("q", null);
+      _.each([selectedTags, selectedStatuses], (function(_this) {
+        return function(filterGrp) {
+          return _.each(filterGrp, function(item) {
+            var filter, filters;
+            filters = _this.scope.filters[item.type];
+            filter = _.find(filters, {
+              id: item.id
             });
             filter.selected = false;
             return _this.unselectFilter(item.type, item.id);
           });
         };
       })(this));
-      this.loadUserstories();
-      return this.rootscope.$broadcast("filters:update");
+      return this.loadUserstories();
     };
 
     BacklogController.prototype.loadUserstories = function() {
@@ -10363,6 +10381,8 @@
       toggleText(target.find(".text"), [hideText, showText]);
       if (!sidebar.hasClass("active")) {
         $ctrl.resetFilters();
+      } else {
+        $ctrl.restoreFilters();
       }
       return $ctrl.toggleActiveFilters();
     };
@@ -14429,7 +14449,7 @@
     template = $template.get("issue/issues-filters.html", true);
     templateSelected = $template.get("issue/issues-filters-selected.html", true);
     link = function($scope, $el, $attrs) {
-      var $ctrl, getFiltersType, initializeSelectedFilters, reloadIssues, renderFilters, renderSelectedFilters, selectQFilter, selectedFilters, showCategories, showFilters, toggleFilterSelection;
+      var $ctrl, getFiltersType, initializeSelectedFilters, reloadIssues, renderFilters, renderSelectedFilters, selectQFilter, selectedFilters, showCategories, showFilters, toggleFilterSelection, unwatchIssues;
       $ctrl = $el.closest(".wrapper").controller();
       selectedFilters = [];
       showFilters = function(title, type) {
@@ -14561,8 +14581,8 @@
         html = $compile(html)($scope);
         return $el.find(".filter-list").html(html);
       });
-      selectQFilter = debounceLeading(100, function(value) {
-        if (value === void 0) {
+      selectQFilter = debounceLeading(100, function(value, oldValue) {
+        if (value === void 0 || value === oldValue) {
           return;
         }
         $ctrl.replaceFilter("page", null, true);
@@ -14575,7 +14595,12 @@
         }
         return reloadIssues();
       });
-      $scope.$watch("filtersQ", selectQFilter);
+      unwatchIssues = $scope.$watch("issues", function(newValue) {
+        if (!_.isUndefined(newValue)) {
+          $scope.$watch("filtersQ", selectQFilter);
+          return unwatchIssues();
+        }
+      });
       $el.on("click", ".filters-cats > ul > li > a", function(event) {
         var tags, target;
         event.preventDefault();
@@ -20603,9 +20628,6 @@
 
     HttpService.prototype.request = function(options) {
       options.headers = _.merge({}, options.headers || {}, this.headers());
-      if (_.isPlainObject(options.data)) {
-        options.data = JSON.stringify(options.data);
-      }
       return this.http(options);
     };
 
@@ -22859,20 +22881,35 @@
 
   taiga = this.taiga;
 
-  resourceProvider = function($repo, $urls, $http) {
+  resourceProvider = function($repo, $urls, $http, $q) {
     var service;
     service = {};
     service["do"] = function(projectId, term) {
-      var params, url;
+      var deferredAbort, params, request, url;
+      deferredAbort = $q.defer();
       url = $urls.resolve("search");
       params = {
-        project: projectId,
-        text: term,
-        get_all: false
+        url: url,
+        method: "GET",
+        timeout: deferredAbort.promise,
+        cancelable: true,
+        params: {
+          project: projectId,
+          text: term,
+          get_all: false
+        }
       };
-      return $http.get(url, params).then(function(data) {
+      request = $http.request(params).then(function(data) {
         return data.data;
       });
+      request.abort = function() {
+        return deferredAbort.resolve();
+      };
+      request["finally"] = function() {
+        request.abort = angular.noop;
+        return deferredAbort = request = null;
+      };
+      return request;
     };
     return function(instance) {
       return instance.search = service;
@@ -22881,7 +22918,7 @@
 
   module = angular.module("taigaResources");
 
-  module.factory("$tgSearchResourcesProvider", ["$tgRepo", "$tgUrls", "$tgHttp", resourceProvider]);
+  module.factory("$tgSearchResourcesProvider", ["$tgRepo", "$tgUrls", "$tgHttp", "$q", resourceProvider]);
 
 }).call(this);
 
@@ -27767,11 +27804,16 @@
     service.getTimeline = function(projectId, page) {
       var params, url;
       params = {
-        page: page
+        page: page,
+        only_relevant: true
       };
       url = urlsService.resolve("timeline-project");
       url = url + "/" + projectId;
-      return http.get(url, params).then(function(result) {
+      return http.get(url, params, {
+        headers: {
+          'x-lazy-pagination': true
+        }
+      }).then(function(result) {
         result = Immutable.fromJS(result);
         return paginateResponseService(result);
       });
@@ -28064,7 +28106,12 @@
       if (q != null) {
         params.q = q;
       }
-      return http.get(url, params).then(function(result) {
+      params.only_relevant = true;
+      return http.get(url, params, {
+        headers: {
+          'x-lazy-pagination': true
+        }
+      }).then(function(result) {
         result = Immutable.fromJS(result);
         return paginateResponseService(result);
       });
@@ -28082,7 +28129,11 @@
       if (q != null) {
         params.q = q;
       }
-      return http.get(url, params).then(function(result) {
+      return http.get(url, params, {
+        headers: {
+          'x-lazy-pagination': true
+        }
+      }).then(function(result) {
         result = Immutable.fromJS(result);
         return paginateResponseService(result);
       });
@@ -28100,7 +28151,11 @@
       if (q != null) {
         params.q = q;
       }
-      return http.get(url, params).then(function(result) {
+      return http.get(url, params, {
+        headers: {
+          'x-lazy-pagination': true
+        }
+      }).then(function(result) {
         result = Immutable.fromJS(result);
         return paginateResponseService(result);
       });
@@ -28112,7 +28167,11 @@
       };
       url = urlsService.resolve("timeline-profile");
       url = url + "/" + userId;
-      return http.get(url, params).then(function(result) {
+      return http.get(url, params, {
+        headers: {
+          'x-lazy-pagination': true
+        }
+      }).then(function(result) {
         result = Immutable.fromJS(result);
         return paginateResponseService(result);
       });
@@ -28120,11 +28179,16 @@
     service.getUserTimeline = function(userId, page) {
       var params, url;
       params = {
-        page: page
+        page: page,
+        only_relevant: true
       };
       url = urlsService.resolve("timeline-user");
       url = url + "/" + userId;
-      return http.get(url, params).then(function(result) {
+      return http.get(url, params, {
+        headers: {
+          'x-lazy-pagination': true
+        }
+      }).then(function(result) {
         result = Immutable.fromJS(result);
         return paginateResponseService(result);
       });
@@ -29091,7 +29155,7 @@
   unslugify = this.taiga.unslugify;
 
   UserTimelineItemTitle = (function() {
-    UserTimelineItemTitle.$inject = ["$translate"];
+    UserTimelineItemTitle.$inject = ["$translate", "$sce"];
 
     UserTimelineItemTitle.prototype._fieldTranslationKey = {
       'status': 'COMMON.FIELDS.STATUS',
@@ -29176,8 +29240,9 @@
       }
     };
 
-    function UserTimelineItemTitle(translate) {
+    function UserTimelineItemTitle(translate, sce) {
       this.translate = translate;
+      this.sce = sce;
     }
 
     UserTimelineItemTitle.prototype._translateTitleParams = function(param, timeline, event) {
@@ -29224,7 +29289,19 @@
     };
 
     UserTimelineItemTitle.prototype.getTitle = function(timeline, event, type) {
-      return this.translate.instant(type.key, this._getParams(timeline, event, type));
+      var params, paramsKeys, translation;
+      params = this._getParams(timeline, event, type);
+      paramsKeys = {};
+      Object.keys(params).forEach(function(key) {
+        return paramsKeys[key] = '{{' + key + '}}';
+      });
+      translation = this.translate.instant(type.key, paramsKeys);
+      Object.keys(params).forEach(function(key) {
+        var find;
+        find = '{{' + key + '}}';
+        return translation = translation.replace(new RegExp(find, 'g'), params[key]);
+      });
+      return translation;
     };
 
     return UserTimelineItemTitle;
