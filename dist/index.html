@@ -9,8 +9,8 @@
     <meta name="description" content="Taiga is a project management platform for startups and agile developers &amp; designers who want a simple, beautiful tool that makes work truly enjoyable.">
     <meta name="keywords" content="agile, scrum, taiga, management, project, developer, designer, user experience">
     <meta http-equiv="X-Frame-Options" content="deny">
-    <link rel="stylesheet" href="/v-1460103572853/styles/theme-taiga.css">
-    <link rel="icon" type="image/png" href="/v-1460103572853/images/favicon.png">
+    <link rel="stylesheet" href="/v-1461930944027/styles/theme-taiga.css">
+    <link rel="icon" type="image/png" href="/v-1461930944027/images/favicon.png">
     <script type="text/javascript">
       window.prerenderReady = false;
       
@@ -19,20 +19,16 @@
   <body tg-main>
     <div tg-navigation-bar></div>
     <div ng-view class="master"></div>
-    <div class="lightbox lightbox-generic-ask"><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close">
-        <svg class="icon icon-close">
-          <use xlink:href="#icon-close"></use>
-        </svg></a>
+    <div class="lightbox lightbox-generic-ask">
+      <tg-lightbox-close></tg-lightbox-close>
       <form>
         <h2 class="title"></h2>
         <p><span class="subtitle"></span><span class="message"></span></p>
         <div class="options"><a href="" title="{{'COMMON.ACCEPT' | translate}}" class="button-green"><span translate="COMMON.ACCEPT"></span></a><a href="" title="{{'COMMON.CANCEL' | translate}}" class="button-red"><span translate="COMMON.CANCEL"></span></a></div>
       </form>
     </div>
-    <div class="lightbox lightbox-ask-choice"><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close">
-        <svg class="icon icon-close">
-          <use xlink:href="#icon-close"></use>
-        </svg></a>
+    <div class="lightbox lightbox-ask-choice">
+      <tg-lightbox-close></tg-lightbox-close>
       <form>
         <h2 class="title"></h2>
         <p class="question"></p>
@@ -43,20 +39,16 @@
         <div class="options"><a href="" title="{{'COMMON.ACCEPT' | translate}}" class="button-green"><span translate="COMMON.ACCEPT"></span></a><a href="" title="{{'COMMON.CANCEL' | translate}}" class="button-red"><span translate="COMMON.CANCEL"></span></a></div>
       </form>
     </div>
-    <div class="lightbox lightbox-generic-success"><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close">
-        <svg class="icon icon-close">
-          <use xlink:href="#icon-close"></use>
-        </svg></a>
+    <div class="lightbox lightbox-generic-success">
+      <tg-lightbox-close></tg-lightbox-close>
       <section>
         <h2 class="title"></h2>
         <p class="message"></p>
         <div class="options"><a href="" title="{{'COMMON.ACCEPT' | translate}}" class="button-green"><span translate="COMMON.ACCEPT"></span></a></div>
       </section>
     </div>
-    <div class="lightbox lightbox-generic-error"><a href="" title="{{'COMMON.CLOSE' | translate}}" class="close">
-        <svg class="icon icon-close">
-          <use xlink:href="#icon-close"></use>
-        </svg></a>
+    <div class="lightbox lightbox-generic-error">
+      <tg-lightbox-close></tg-lightbox-close>
       <section>
         <h2 class="title"></h2>
         <div class="options"><a href="" title="{{'COMMON.ACCEPT' | translate}}" class="button-green"><span translate="COMMON.ACCEPT"></span></a></div>
@@ -64,7 +56,7 @@
     </div>
     <div class="lightbox lightbox-generic-loading">
       <section>
-        <div class="spin hidden"><img src="/v-1460103572853/svg/spinner-circle.svg" alt="{{'COMMON.LOADING' | translate}}"></div>
+        <div class="spin hidden"><img src="/v-1461930944027/svg/spinner-circle.svg" alt="{{'COMMON.LOADING' | translate}}"></div>
         <div class="progress-bar-wrapper hidden">
           <div class="bar"></div><span class="progress"></span>
         </div>
@@ -85,31 +77,25 @@
       </div>
     </div>
     <div class="notification-message notification-message-error">
-      <svg class="icon icon-error">
-        <use xlink:href="#icon-error"></use>
-      </svg>
+      <tg-svg svg-icon="icon-error"></tg-svg>
       <div class="text">
-        <h4 class="warning"></h4>
-        <p></p>
-      </div>
-      <svg href="" title="{{'NOTIFICATION.CLOSE' | translate}}" class="icon icon-close">
-        <use xlink:href="#icon-close"></use>
-      </svg>
+        <h4 translate="NOTIFICATION.WARNING" class="warning"></h4>
+        <p translate="NOTIFICATION.WARNING_TEXT"></p>
+      </div><a href="" title="{{'NOTIFICATION.CLOSE' | translate}}" class="close">
+        <tg-svg svg-icon="icon-close"></tg-svg></a>
     </div>
     <div class="notification-light notification-message-light-error">
       <div class="text">
         <h4 class="warning"></h4>
         <p></p>
       </div><a href="" title="{{'NOTIFICATION.CLOSE' | translate}}" class="close">
-        <svg class="icon icon-close">
-          <use xlink:href="#icon-close"></use>
-        </svg></a>
+        <tg-svg svg-icon="icon-close"></tg-svg></a>
     </div>
     <div tg-joy-ride></div>
     <div tg-live-announcement></div>
-    <script src="/v-1460103572853/js/libs.js"></script>
-    <script src="/v-1460103572853/js/templates.js"></script>
-    <script src="/v-1460103572853/js/app-loader.js"></script><svg height="0" style="position: absolute; width: 0; height: 0;" version="1.1" width="0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+    <script src="/v-1461930944027/js/libs.js"></script>
+    <script src="/v-1461930944027/js/templates.js"></script>
+    <script src="/v-1461930944027/js/app-loader.js"></script><svg height="0" style="position: absolute; width: 0; height: 0;" version="1.1" width="0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
     <defs>
         <symbol id="icon-iocaine" viewBox="0 0 1024 1024">
             <title>iocaine</title>
