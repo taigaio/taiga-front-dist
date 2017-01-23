@@ -35,7 +35,7 @@ exec(synchRepoAction)
     .then(function() {
         console.log("compile taiga")
         //compile taiga
-        return exec('cd ' + local + ' && npm install && bower install && gulp deploy');
+        return exec('cd ' + local + ' && npm install && gulp deploy');
     })
     .then(function() {
         console.log("remove old dist")
