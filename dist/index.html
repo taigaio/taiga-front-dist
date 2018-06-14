@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" ng-attr-dir="{{ isRTL ? 'rtl' : 'ltr' }}">
   <head>
     <meta charset="utf-8">
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -8,14 +8,14 @@
     <title>Taiga</title>
     <meta name="description" content="Taiga is a project management platform for startups and agile developers &amp; designers who want a simple, beautiful tool that makes work truly enjoyable.">
     <meta name="keywords" content="agile, scrum, taiga, management, project, developer, designer, user experience">
-    <link rel="stylesheet" href="/v-1527758988791/styles/theme-taiga.css">
-    <link rel="icon" type="image/png" href="/v-1527758988791/images/favicon.png">
+    <link rel="stylesheet" href="/v-1528955347075/styles/theme-taiga.css">
+    <link rel="icon" type="image/png" href="/v-1528955347075/images/favicon.png">
     <script type="text/javascript">
       window.prerenderReady = false;
       
     </script>
   </head>
-  <body tg-main>
+  <body tg-main ng-class="{'rtl': isRTL}">
     <div tg-navigation-bar ng-if="!errorHandling.showingError"></div>
     <div ng-if="!errorHandling.showingError">
       <div ng-view class="master"></div>
@@ -61,7 +61,7 @@
     </div>
     <div class="lightbox lightbox-generic-loading">
       <section>
-        <div class="spin hidden"><img src="/v-1527758988791/svg/spinner-circle.svg" alt="{{'COMMON.LOADING' | translate}}"></div>
+        <div class="spin hidden"><img src="/v-1528955347075/svg/spinner-circle.svg" alt="{{'COMMON.LOADING' | translate}}"></div>
         <div class="progress-bar-wrapper hidden">
           <div class="bar"></div><span class="progress"></span>
         </div>
@@ -99,9 +99,9 @@
     <div tg-joy-ride></div>
     <div tg-live-announcement></div>
     <div tg-terms-announcement></div>
-    <script src="/v-1527758988791/js/libs.js"></script>
-    <script src="/v-1527758988791/js/templates.js"></script>
-    <script src="/v-1527758988791/js/app-loader.js"></script><svg height="0" style="position: absolute; width: 0; height: 0;" version="1.1" width="0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+    <script src="/v-1528955347075/js/libs.js"></script>
+    <script src="/v-1528955347075/js/templates.js"></script>
+    <script src="/v-1528955347075/js/app-loader.js"></script><svg height="0" style="position: absolute; width: 0; height: 0;" version="1.1" width="0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
     <defs>
         <symbol id="icon-iocaine" viewBox="0 0 1024 1024">
             <title>iocaine</title>
