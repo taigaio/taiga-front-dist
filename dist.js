@@ -60,9 +60,9 @@ exec(synchRepoAction)
 
         return exec('git add -A && git commit -am "' + lastCommitId + '"');
     })
-    .then(function() {
-        console.log("push")
-        //push
-        return exec('git push origin ' + branch);
-    })
+    // .then(function() {
+    //     console.log("push")
+    //     //push
+    //     return exec('git push origin ' + branch);
+    // })
     .done();
