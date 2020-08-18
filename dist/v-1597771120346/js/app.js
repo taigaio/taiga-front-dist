@@ -9180,8 +9180,8 @@
       if (this.win.userpilot && ((userdata && !this.identified) || force)) {
         data = JSON.parse(userdata);
         if (data["id"]) {
-          id = parseInt(data["id"], 10);
           this.identified = true;
+          id = this.getUserPilotId(data);
           timestamp = Date.now();
           return this.win.userpilot.identify(id, {
             name: data["full_name_display"],
@@ -9193,6 +9193,23 @@
           });
         }
       }
+    };
+
+    UserPilotService.prototype.getUserPilotId = function(data) {
+      var joined;
+      joined = new Date(data["date_joined"]);
+      if (joined > this.getJoinedLimit(42)) {
+        return parseInt(data["id"], 10);
+      } else {
+        return 1;
+      }
+    };
+
+    UserPilotService.prototype.getJoinedLimit = function(days) {
+      var limit;
+      limit = new Date;
+      limit.setDate(limit.getDate() - days);
+      return limit;
     };
 
     return UserPilotService;
