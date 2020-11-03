@@ -8,7 +8,7 @@ This repo is a compiled versión of https://github.com/taigaio/taiga-front
 
 * Clone the repo
 * Expose the `dist` directory under a static file web server
-* Rename dist/js/conf.example.json to conf.js if you want to change settings
+* Copy `dist/js/conf.example.json` to `conf.json` and edit if you want to change settings
 
 More information about the different installation methods (production, development, vagrant, docker...) can be found here http://taigaio.github.io/taiga-doc/dist/#_installation_guide.
 
