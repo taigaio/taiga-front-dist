@@ -12,15 +12,17 @@
     "defaultLoginEnabled": true,
     "publicRegisterEnabled": true,
     "feedbackEnabled": true,
-    "supportUrl": "https://tree.taiga.io/support/",
+    "supportUrl": "https://resources.taiga.io",
     "privacyPolicyUrl": null,
     "termsOfServiceUrl": null,
-    "GDPRUrl": null,
     "maxUploadFileSize": null,
     "contribPlugins": [],
     "tagManager": { "accountId": null },
     "tribeHost": null,
-    "importers": [],
+    "enableAsanaImporter": false,
+    "enableGithubImporter": false,
+    "enableJiraImporter": false,
+    "enableTrelloImporter": false,
     "gravatar": false,
-    "rtlLanguages": ["fa"]
+    "rtlLanguages": ["ar", "fa", "he"]
 }
