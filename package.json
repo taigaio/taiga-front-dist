@@ -6,8 +6,8 @@
     "Project Management",
     "Github"
   ],
-  "author": "Taiga Agile LLC",
-  "licenses": "MIT-0",
+  "author": "Kaleidos Ventures SL",
+  "license": "MPL-2",
   "devDependencies": {
     "bluebird": "^2.6.4",
     "del": "^1.1.1",
