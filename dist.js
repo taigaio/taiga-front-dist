@@ -26,9 +26,9 @@ var synchRepoAction = (function cloneOrPull(){
     var cloned = fs.existsSync(local);
 
     if (cloned) {
-        action = 'git checkout ' + branch + '&& cd ' + local + ' && git checkout ' + branch + ' && git pull';
+        action = 'git checkout ' + branch + ' && cd ' + local + ' && git checkout ' + branch + ' && git pull'
     } else {
-        action = 'git checkout ' + branch + '&& git clone -b ' + branch + '  ' + repo + ' ' + local;
+        action = 'git checkout ' + branch + ' && git clone -b ' + branch + '  ' + repo + ' ' + local;
     }
 
     return action;
