@@ -4,6 +4,8 @@ Taiga6 is just around the corner. Please read [our pre-announcement](https://blo
 
 ## Taiga Front Dist
 
+&gt; **READ THIS FIRST!**: We recently announced Taiga plans for the future and they greatly affect how we manage this repository and the current Taiga 6 release. Check it [here](https://blog.taiga.io/announcing_taiganext.html).
+
 ![Kaleidos Project](http://kaleidos.net/static/img/badge.png "Kaleidos Project")
 
 This repo is a compiled versión of https://github.com/kaleidos-ventures/taiga-front
