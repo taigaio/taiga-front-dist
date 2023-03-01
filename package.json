@@ -1,0 +1,16 @@
+{
+  "name": "TaigaIO",
+  "keywords": [
+    "Taiga",
+    "Agile",
+    "Project Management",
+    "Github"
+  ],
+  "author": "Kaleidos Ventures SL",
+  "license": "MPL-2",
+  "devDependencies": {
+    "bluebird": "^2.6.4",
+    "del": "^1.1.1",
+    "ncp": "^1.0.1"
+  }
+}
