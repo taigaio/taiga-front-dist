@@ -9,8 +9,8 @@
   "author": "Kaleidos Ventures SL",
   "license": "MPL-2",
   "devDependencies": {
-    "bluebird": "^2.6.4",
-    "del": "^1.1.1",
-    "ncp": "^1.0.1"
-  }
+    "bluebird": "^3.7.2",
+    "del": "^7.0.0"
+  },
+  "type": "module"
 }
