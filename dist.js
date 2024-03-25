@@ -15,7 +15,7 @@ var _exec = bluebird.promisify(exec);
 var _del = deleteAsync;
 
 var local = 'tmp';
-var repo = 'https://github.com/kaleidos-ventures/taiga-front';
+var repo = 'https://github.com/taigaio/taiga-front';
 
 if (process.argv.length !== 3){
     console.log("¡Error!, call me with somethink like: \nnode dist.js branch_name");
