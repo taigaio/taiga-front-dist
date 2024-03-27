@@ -6,7 +6,7 @@
     "Project Management",
     "Github"
   ],
-  "author": "Kaleidos Ventures SL",
+  "author": "Kaleidos INC",
   "license": "MPL-2",
   "devDependencies": {
     "bluebird": "^3.7.2",
